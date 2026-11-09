@@ -30,13 +30,27 @@ def build(raw: dict):
 class Recorder:
     def __init__(self) -> None:
         self.events: list[tuple] = []
+        self.node_inputs: dict[str, dict] = {}
+        self.node_outputs: dict[str, object] = {}
+        self.run_inputs: dict | None = None
+        self.run_outputs: dict | None = None
 
-    async def node_started(self, node_id: str) -> None:
-        self.events.append(("started", node_id))
+    async def run_started(self, inputs) -> None:
+        self.run_inputs = inputs
+        self.events.append(("run_started",))
 
-    async def node_finished(self, node_id, status, duration_ms, error) -> None:
+    async def node_started(self, node, inputs) -> None:
+        self.node_inputs[node.id] = inputs
+        self.events.append(("started", node.id))
+
+    async def node_finished(self, node, status, duration_ms, error, outputs=None) -> None:
         assert duration_ms >= 0
-        self.events.append(("finished", node_id, status, error))
+        self.node_outputs[node.id] = outputs
+        self.events.append(("finished", node.id, status, error))
+
+    async def run_finished(self, status, error, outputs=None) -> None:
+        self.run_outputs = outputs
+        self.events.append(("run_finished", status, error))
 
 
 @pytest.mark.anyio
@@ -70,10 +84,12 @@ async def test_observer_sees_each_node_in_order(raw: dict) -> None:
     recorder = Recorder()
     await run_flow(build(raw), {"amount": 1}, recorder)
     assert recorder.events == [
+        ("run_started",),
         ("started", "start"),
         ("finished", "start", "ok", None),
         ("started", "end"),
         ("finished", "end", "ok", None),
+        ("run_finished", "succeeded", None),
     ]
 
 
@@ -90,7 +106,8 @@ async def test_failure_inside_the_flow_is_a_result_naming_the_node(raw: dict) ->
     assert result.error is not None
     assert result.error.node_id == "end"
     assert "input.note is not set" in result.error.message
-    assert recorder.events[-1] == ("finished", "end", "failed", result.error.message)
+    assert ("finished", "end", "failed", result.error.message) in recorder.events
+    assert recorder.events[-1][:2] == ("run_finished", "failed")
 
 
 @pytest.mark.anyio
@@ -136,4 +153,39 @@ async def test_start_node_rejects_bad_input_when_called_directly(raw: dict) -> N
     with pytest.raises(NodeError) as exc:
         await build(raw).graph.ainvoke({"input": {"amount": "x"}})
     assert exc.value.node_id == "start"
+    assert "amount: expected number" in exc.value.message
+
+
+@pytest.mark.anyio
+async def test_observer_receives_what_each_node_read_and_produced(raw: dict) -> None:
+    recorder = Recorder()
+    await run_flow(build(raw), {"amount": 5000}, recorder)
+    expected = {"amount": 5000, "tier": "silver"}
+    assert recorder.run_inputs == expected
+    assert recorder.run_outputs == expected
+    assert recorder.node_inputs["start"]["input"] == expected  # run_flow applied defaults
+    assert recorder.node_inputs["end"]["input"] == expected
+    assert recorder.node_outputs == {"start": expected, "end": expected}
+
+
+def test_input_schema_describes_the_start_fields_for_tools_like_studio(raw: dict) -> None:
+    raw["nodes"][0]["data"]["inputs"].append(
+        {"name": "my field", "type": "boolean", "required": False}
+    )
+    schema = build(raw).graph.get_input_jsonschema()
+    inputs = schema["$defs"]["Input"]
+    assert schema["required"] == ["input"]
+    assert inputs["required"] == ["amount"]
+    assert set(inputs["properties"]) == {"amount", "tier", "my field"}  # non-identifier names work
+    assert inputs["properties"]["tier"]["enum"] == ["silver", "gold"]
+    assert inputs["properties"]["tier"]["default"] == "silver"
+    assert {t["type"] for t in inputs["properties"]["amount"]["anyOf"]} == {"integer", "number"}
+
+
+@pytest.mark.anyio
+async def test_input_schema_is_documentation_only_the_start_node_still_validates(raw: dict) -> None:
+    from app.engine.observer import NodeError
+
+    with pytest.raises(NodeError) as exc:
+        await build(raw).graph.ainvoke({"input": {"amount": "not a number"}})
     assert "amount: expected number" in exc.value.message

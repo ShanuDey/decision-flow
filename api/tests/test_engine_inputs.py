@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from app.engine.graph import FieldDef, Graph
+from app.engine.fields import FieldDef
+from app.engine.graph import Graph
 from app.engine.inputs import InputValidationError, validate_input
 
 FIXTURE = Path(__file__).resolve().parents[2] / "examples" / "flows" / "start-end.json"

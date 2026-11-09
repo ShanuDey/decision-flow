@@ -38,7 +38,7 @@ def test_unsupported_expressions_fail_loudly(expr: str) -> None:
 
 def test_references() -> None:
     assert references("a {{ input.x.y }} b {{ vars.z }}") == [
-        Ref("input", ("x", "y")),
-        Ref("vars", ("z",)),
+        Ref(scope="input", path=("x", "y")),
+        Ref(scope="vars", path=("z",)),
     ]
     assert references("plain") == []

@@ -1,14 +1,13 @@
-"""Validate a run's input payload against the Start node's declared fields (ADR 0014)."""
+"""Validate a run's input payload against the Start node's declared fields."""
 
 import math
-from dataclasses import dataclass
 from typing import Any
 
-from app.engine.graph import FieldDef, TypedField
+from app.engine.base import FrozenBaseModel
+from app.engine.fields import FieldDef, TypedField
 
 
-@dataclass(frozen=True)
-class InputIssue:
+class InputIssue(FrozenBaseModel):
     field: str
     message: str
 
@@ -22,7 +21,7 @@ class InputValidationError(Exception):
 def check_value(field: TypedField, value: Any) -> Any:
     """Return the value to use for `field`, or raise ValueError(message) if it is not acceptable.
 
-    Strict: no coercion, so "5" is not a number. The flow is a typed function (ADR 0014).
+    Strict: no coercion, so "5" is not a number. The flow is a typed function.
     """
     match field.type:
         case "string":
@@ -57,19 +56,19 @@ def validate_input(fields: list[FieldDef], payload: dict[str, Any]) -> dict[str,
 
     for name in payload:
         if name not in declared:
-            issues.append(InputIssue(name, "unknown input field"))
+            issues.append(InputIssue(field=name, message="unknown input field"))
 
     for field in fields:
         if field.name not in payload or payload[field.name] is None:
             if field.default is not None:
                 result[field.name] = field.default
             elif field.required:
-                issues.append(InputIssue(field.name, "required"))
+                issues.append(InputIssue(field=field.name, message="required"))
             continue
         try:
             result[field.name] = check_value(field, payload[field.name])
         except ValueError as exc:
-            issues.append(InputIssue(field.name, str(exc)))
+            issues.append(InputIssue(field=field.name, message=str(exc)))
 
     if issues:
         raise InputValidationError(issues)

@@ -5,8 +5,9 @@ Replaced by the CEL-backed `expressions/` module in slices 1 and 2; callers keep
 
 import json
 import re
-from dataclasses import dataclass
 from typing import Any
+
+from app.engine.base import FrozenBaseModel
 
 _EXPR = re.compile(r"\{\{(.*?)\}\}")
 _PATH = re.compile(r"^(input|vars)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
@@ -16,8 +17,7 @@ class TemplateError(ValueError):
     pass
 
 
-@dataclass(frozen=True)
-class Ref:
+class Ref(FrozenBaseModel):
     scope: str
     path: tuple[str, ...]
 
@@ -38,7 +38,7 @@ def _parse(template: str) -> list[str | Ref]:
                 f"unsupported expression '{chunk.strip()}': "
                 "only input.* and vars.* references work yet"
             )
-        parts.append(Ref(match[1], tuple(match[2].lstrip(".").split("."))))
+        parts.append(Ref(scope=match[1], path=tuple(match[2].lstrip(".").split("."))))
     return parts
 
 

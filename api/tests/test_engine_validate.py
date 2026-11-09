@@ -53,13 +53,13 @@ def test_needs_exactly_one_start(raw: dict) -> None:
     extra = copy.deepcopy(raw["nodes"][0])
     extra.update(id="start_2", name="Start 2")
     raw["nodes"].append(extra)
-    assert "start_count" in codes(raw)
+    assert "node_count" in codes(raw)
 
 
 def test_needs_an_end(raw: dict) -> None:
     raw["nodes"].pop(1)
     raw["edges"] = []
-    assert "end_missing" in codes(raw)
+    assert "node_count" in codes(raw)
 
 
 @pytest.mark.parametrize("bad_id", ["input", "vars", "Start", "1abc", "a-b", "x" * 41])
@@ -90,7 +90,7 @@ def test_dangling_edge(raw: dict) -> None:
 
 def test_start_cannot_have_incoming_and_end_cannot_have_outgoing(raw: dict) -> None:
     raw["edges"].append({"id": "e2", "source": "end", "target": "start"})
-    assert {"start_has_incoming", "end_has_outgoing"} <= set(codes(raw))
+    assert {"incoming_not_allowed", "outgoing_not_allowed"} <= set(codes(raw))
 
 
 def test_cycle_is_rejected() -> None:
