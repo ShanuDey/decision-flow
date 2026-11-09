@@ -2,12 +2,15 @@ API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
 
-.PHONY: api db mlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: api web db mlflow adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api typecheck-web build-web checks
 
 api: migrate
 	$(API) fastapi dev
+
+web:
+	$(WEB) dev
 
 db:
 	$(COMPOSE) up -d db
