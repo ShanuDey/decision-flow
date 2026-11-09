@@ -1,6 +1,6 @@
 API := uv --directory api run
 
-.PHONY: start db up down migrate migration db-reset lint lint-fix format-check format fix test checks
+.PHONY: start db adminer up down migrate migration db-reset lint lint-fix format-check format fix test checks
 
 start: migrate
 	$(API) fastapi dev
@@ -8,11 +8,14 @@ start: migrate
 db:
 	docker compose up -d db
 
+adminer:
+	docker compose --profile tools up -d adminer
+
 up:
 	docker compose up -d --build
 
 down:
-	docker compose down
+	docker compose --profile "*" down
 
 migrate:
 	$(API) alembic upgrade head
@@ -23,7 +26,7 @@ migration:
 
 # destructive: deletes all local database data
 db-reset:
-	docker compose down -v
+	docker compose --profile "*" down -v
 	docker compose up -d db
 
 lint:
