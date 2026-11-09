@@ -1,6 +1,12 @@
 """Liveness and readiness endpoints. HTTP only: no business logic here."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import get_session
 
 router = APIRouter(tags=["ops"])
 
@@ -12,7 +18,17 @@ async def health() -> dict[str, str]:
 
 
 @router.get("/ready")
-async def ready() -> dict[str, object]:
-    """Dependencies reachable. Postgres and MLflow checks are added in later steps."""
+async def ready(
+    response: Response, session: Annotated[AsyncSession, Depends(get_session)]
+) -> dict[str, object]:
+    """Dependencies reachable. The MLflow check is added in a later step."""
     checks: dict[str, str] = {}
-    return {"status": "ok", "checks": checks}
+    try:
+        await session.execute(text("SELECT 1"))
+        checks["postgres"] = "ok"
+    except Exception:
+        checks["postgres"] = "unavailable"
+    ok = all(v == "ok" for v in checks.values())
+    if not ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return {"status": "ok" if ok else "unavailable", "checks": checks}

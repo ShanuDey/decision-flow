@@ -11,6 +11,8 @@ ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_ENV_FILE, extra="ignore")
 
+    database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
+
     # NoDecode: accept comma-separated env values instead of JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
