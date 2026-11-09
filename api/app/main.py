@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app import tracing
+from app.errors import install_error_handlers
+from app.flows import router as flows
 from app.ops import router as ops
 from app.settings import get_settings
 
@@ -38,7 +40,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    install_error_handlers(app)
     app.include_router(ops.router)
+    app.include_router(flows.router)
     return app
 
 
