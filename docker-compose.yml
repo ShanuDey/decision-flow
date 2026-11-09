@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U decisionflow"]
       interval: 5s
@@ -24,16 +25,44 @@ services:
       db:
         condition: service_healthy
 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    # The stock image has no Postgres driver; the official MLflow compose installs it the same way.
+    command:
+      - /bin/bash
+      - -c
+      - |
+        pip install --no-cache-dir psycopg2-binary
+        mlflow server --host 0.0.0.0 --port 5000 \
+          --backend-store-uri postgresql+psycopg2://decisionflow:decisionflow@db:5432/mlflow \
+          --default-artifact-root /mlflow/artifacts
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   api:
     build: ./api
     environment:
       DATABASE_URL: postgresql+psycopg://decisionflow:decisionflow@db:5432/decisionflow
       CORS_ORIGINS: http://localhost:3000
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      mlflow:
+        condition: service_healthy
 
 volumes:
   db_data:
+  mlflow_artifacts:

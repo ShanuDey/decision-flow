@@ -1,12 +1,15 @@
 API := uv --directory api run
 
-.PHONY: start db adminer up down migrate migration db-reset lint lint-fix format-check format fix test checks
+.PHONY: start db mlflow adminer up down migrate migration db-reset lint lint-fix format-check format fix test checks
 
 start: migrate
 	$(API) fastapi dev
 
 db:
 	docker compose up -d db
+
+mlflow:
+	docker compose up -d mlflow
 
 adminer:
 	docker compose --profile tools up -d adminer
