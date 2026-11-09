@@ -1,0 +1,35 @@
+from functools import lru_cache
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=ROOT_ENV_FILE, extra="ignore")
+
+    # NoDecode: accept comma-separated env values instead of JSON.
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_commas(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [part for part in value.split(",") if part.strip()]
+        return value
+
+    @field_validator("cors_origins", mode="after")
+    @classmethod
+    def _clean_origins(cls, origins: list[str]) -> list[str]:
+        cleaned = [origin.strip().rstrip("/") for origin in origins]
+        if "*" in cleaned:
+            raise ValueError("cors_origins must list explicit origins; '*' is not allowed")
+        return cleaned
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
