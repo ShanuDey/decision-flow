@@ -19,6 +19,7 @@ Set these in `.env` to change the defaults:
 | `POSTGRES_PASSWORD` | none | Required. Letters and digits only. |
 | `APP_VERSION` | `latest` | Image tag to run. |
 | `WEB_URL` | `http://localhost:3000` | Address you open in the browser. |
+| `MLFLOW_SET_EXPERIMENT` | `decision-flow` | MLflow experiment that holds run traces. |
 | `WEB_PORT`, `API_PORT`, `MLFLOW_PORT` | `3000`, `8000`, `5000` | Published ports. MLflow listens on localhost only. |
 
 ## Development
