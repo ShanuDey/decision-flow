@@ -1,4 +1,5 @@
 API := uv --directory api run
+COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
 
 .PHONY: api db mlflow adminer up down migrate migration db-reset openapi client client-check \
@@ -9,19 +10,19 @@ api: migrate
 	$(API) fastapi dev
 
 db:
-	docker compose up -d db
+	$(COMPOSE) up -d db
 
 mlflow:
-	docker compose up -d mlflow
+	$(COMPOSE) up -d mlflow
 
 adminer:
-	docker compose --profile tools up -d adminer
+	$(COMPOSE) --profile tools up -d adminer
 
 up:
-	docker compose up -d --build
+	$(COMPOSE) up -d --build
 
 down:
-	docker compose --profile "*" down
+	$(COMPOSE) --profile "*" down
 
 migrate:
 	$(API) alembic upgrade head
@@ -32,13 +33,12 @@ migration:
 
 # destructive: deletes all local database data
 db-reset:
-	docker compose --profile "*" down -v
-	docker compose up -d db
+	$(COMPOSE) --profile "*" down -v
+	$(COMPOSE) up -d db
 
 openapi:
 	$(API) python -m scripts.export_openapi
 
-# regenerate the web API client from the API's OpenAPI schema
 client: openapi
 	pnpm --dir web generate
 
