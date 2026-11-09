@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
 
+    mlflow_tracking_uri: str = "http://localhost:5000"
+
     # NoDecode: accept comma-separated env values instead of JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
