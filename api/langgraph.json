@@ -1,0 +1,5 @@
+{
+  "dependencies": ["."],
+  "graphs": { "start_end": "./scripts/studio.py:start_end" },
+  "env": "../.env"
+}

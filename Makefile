@@ -2,7 +2,7 @@ API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
 
-.PHONY: start api web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api studio web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api typecheck-web build-web checks
 
@@ -12,6 +12,10 @@ start: db mlflow adminer
 
 api: migrate
 	$(API) fastapi dev
+
+# LangGraph Studio on the example flows; usage: make studio ARGS="--no-browser --port 2025"
+studio:
+	$(API) langgraph dev $(ARGS)
 
 web:
 	$(WEB) dev

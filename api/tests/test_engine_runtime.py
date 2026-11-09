@@ -1,0 +1,139 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from app.engine.compiler import compile_graph
+from app.engine.inputs import InputValidationError
+from app.engine.runtime import run_flow
+from app.engine.validate import parse_graph
+
+FIXTURE = Path(__file__).resolve().parents[2] / "examples" / "flows" / "start-end.json"
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.fixture
+def raw() -> dict:
+    return json.loads(FIXTURE.read_text())
+
+
+def build(raw: dict):
+    graph, issues = parse_graph(raw)
+    assert issues == [], issues
+    return compile_graph(graph)
+
+
+class Recorder:
+    def __init__(self) -> None:
+        self.events: list[tuple] = []
+
+    async def node_started(self, node_id: str) -> None:
+        self.events.append(("started", node_id))
+
+    async def node_finished(self, node_id, status, duration_ms, error) -> None:
+        assert duration_ms >= 0
+        self.events.append(("finished", node_id, status, error))
+
+
+@pytest.mark.anyio
+async def test_golden_fixture_runs_start_to_end(raw: dict) -> None:
+    result = await run_flow(build(raw), {"amount": 5000})
+    assert result.status == "succeeded"
+    assert result.error is None
+    assert result.output == {
+        "amount": 5000,
+        "tier": "silver",
+    }  # number keeps its type, default applied
+
+
+@pytest.mark.anyio
+async def test_explicit_input_overrides_default(raw: dict) -> None:
+    result = await run_flow(build(raw), {"amount": 1.5, "tier": "gold"})
+    assert result.output == {"amount": 1.5, "tier": "gold"}
+
+
+@pytest.mark.anyio
+async def test_invalid_input_raises_before_running_and_names_the_field(raw: dict) -> None:
+    recorder = Recorder()
+    with pytest.raises(InputValidationError) as exc:
+        await run_flow(build(raw), {"amount": "5000"}, recorder)
+    assert [(i.field, i.message) for i in exc.value.issues] == [("amount", "expected number")]
+    assert recorder.events == []
+
+
+@pytest.mark.anyio
+async def test_observer_sees_each_node_in_order(raw: dict) -> None:
+    recorder = Recorder()
+    await run_flow(build(raw), {"amount": 1}, recorder)
+    assert recorder.events == [
+        ("started", "start"),
+        ("finished", "start", "ok", None),
+        ("started", "end"),
+        ("finished", "end", "ok", None),
+    ]
+
+
+@pytest.mark.anyio
+async def test_failure_inside_the_flow_is_a_result_naming_the_node(raw: dict) -> None:
+    raw["nodes"][0]["data"]["inputs"].append({"name": "note", "type": "string", "required": False})
+    raw["nodes"][1]["data"]["outputs"].append(
+        {"name": "note", "type": "string", "value": "{{ input.note }}"}
+    )
+    recorder = Recorder()
+    result = await run_flow(build(raw), {"amount": 1}, recorder)
+    assert result.status == "failed"
+    assert result.output is None
+    assert result.error is not None
+    assert result.error.node_id == "end"
+    assert "input.note is not set" in result.error.message
+    assert recorder.events[-1] == ("finished", "end", "failed", result.error.message)
+
+
+@pytest.mark.anyio
+async def test_output_is_type_checked(raw: dict) -> None:
+    raw["nodes"][1]["data"]["outputs"][0] = {
+        "name": "amount",
+        "type": "string",
+        "value": "{{ input.amount }}",
+    }
+    result = await run_flow(build(raw), {"amount": 1})
+    assert result.status == "failed"
+    assert result.error.message == "output 'amount': expected string"
+
+
+@pytest.mark.anyio
+async def test_declared_variables_start_at_their_initial_value(raw: dict) -> None:
+    raw["variables"] = [{"name": "approved", "type": "boolean", "initial": False}]
+    raw["nodes"][1]["data"]["outputs"] = [
+        {"name": "approved", "type": "boolean", "value": "{{ vars.approved }}"}
+    ]
+    result = await run_flow(build(raw), {"amount": 1})
+    assert result.output == {"approved": False}
+
+
+@pytest.mark.anyio
+async def test_compiled_flow_is_reusable_across_runs(raw: dict) -> None:
+    flow = build(raw)
+    first = await run_flow(flow, {"amount": 1})
+    second = await run_flow(flow, {"amount": 2})
+    assert (first.output["amount"], second.output["amount"]) == (1, 2)
+
+
+@pytest.mark.anyio
+async def test_start_node_applies_defaults_when_the_graph_is_called_directly(raw: dict) -> None:
+    final = await build(raw).graph.ainvoke({"input": {"amount": 1}})  # what LangGraph Studio does
+    assert final["_output"] == {"amount": 1, "tier": "silver"}
+
+
+@pytest.mark.anyio
+async def test_start_node_rejects_bad_input_when_called_directly(raw: dict) -> None:
+    from app.engine.observer import NodeError
+
+    with pytest.raises(NodeError) as exc:
+        await build(raw).graph.ainvoke({"input": {"amount": "x"}})
+    assert exc.value.node_id == "start"
+    assert "amount: expected number" in exc.value.message

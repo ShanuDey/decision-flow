@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "inputs": [
+          { "name": "amount", "type": "number", "required": true },
+          { "name": "tier", "type": "enum", "values": ["silver", "gold"], "required": false, "default": "silver" }
+        ]
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "position": { "x": 300, "y": 0 },
+      "data": {
+        "outputs": [
+          { "name": "amount", "type": "number", "value": "{{ input.amount }}" },
+          { "name": "tier", "type": "enum", "values": ["silver", "gold"], "value": "{{ input.tier }}" }
+        ]
+      }
+    }
+  ],
+  "edges": [{ "id": "e1", "source": "start", "target": "end", "sourceHandle": null }]
+}
