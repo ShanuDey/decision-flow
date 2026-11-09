@@ -3,10 +3,11 @@
 import { CircleCheck, CircleMinus, CircleX, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { ready } from "@/lib/api/client";
+import type { ReadyResponse as Ready } from "@/lib/api/models";
+import { ReadyResponse as ReadySchema } from "@/lib/api/zod";
 
-type CheckStatus = "ok" | "unavailable";
-type Ready = { status: CheckStatus; checks: Record<string, CheckStatus> };
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type Status =
   | { kind: "loading" }
@@ -20,9 +21,8 @@ const LABELS: Record<string, string> = { postgres: "Postgres", mlflow: "MLflow" 
 async function fetchStatus(signal: AbortSignal): Promise<Status> {
   if (!API_URL) return { kind: "misconfigured" };
   try {
-    const res = await fetch(`${API_URL}/ready`, { signal, cache: "no-store" });
-    const ready = (await res.json()) as Ready;
-    return { kind: "reachable", ready, checkedAt: new Date() };
+    const res = await ready({ signal, cache: "no-store" });
+    return { kind: "reachable", ready: ReadySchema.parse(res.data), checkedAt: new Date() };
   } catch {
     return { kind: "unreachable", checkedAt: new Date() };
   }
