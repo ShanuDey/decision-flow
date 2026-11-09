@@ -76,7 +76,9 @@ fix: lint-fix format-api
 test-api:
 	$(API) pytest
 
+# typegen creates the global route types (LayoutProps, ...) that a clean checkout lacks
 typecheck-web:
+	$(WEB) exec next typegen
 	$(WEB) exec tsc --noEmit
 
 # slow, and writes to web/.next (clashes with a running dev server): not part of checks
