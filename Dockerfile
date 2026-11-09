@@ -20,7 +20,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.12-slim
 COPY --from=node:24-slim /usr/local/bin/node /usr/local/bin/node
-RUN useradd --system --no-create-home app
+# Pull Debian security fixes that the base image has not picked up yet.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --no-create-home app
 WORKDIR /srv/api
 # Same base image as api-build, so the venv's interpreter path is still valid here.
 COPY --from=api-build /srv/api/.venv .venv
