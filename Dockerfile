@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# One image runs both the API (uvicorn, :8000) and the web app (Next.js standalone, :3000).
 
 FROM node:24-slim AS web-build
 WORKDIR /src/web
