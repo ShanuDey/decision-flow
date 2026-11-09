@@ -155,6 +155,42 @@ export const ReadyResponse = zod.object({
 
 
 /**
+ * Newest first; pass `next_cursor` back as `cursor` for the next page.
+ * @summary List Runs
+ */
+export const listRunsQueryLimitDefault = 25;
+export const listRunsQueryLimitMax = 100;
+
+
+
+export const ListRunsQueryParams = zod.object({
+  "flow_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "status": zod.union([zod.enum(['succeeded', 'failed']),zod.null()]).optional(),
+  "test": zod.union([zod.boolean(),zod.null()]).optional(),
+  "from": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "to": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "cursor": zod.union([zod.string(),zod.null()]).optional(),
+  "limit": zod.int().min(1).max(listRunsQueryLimitMax).default(listRunsQueryLimitDefault)
+})
+
+export const ListRunsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "duration_ms": zod.int(),
+  "error": zod.union([zod.object({
+  "message": zod.string(),
+  "node_id": zod.string()
+}),zod.null()]),
+  "flow_id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "started_at": zod.iso.datetime({"offset":true}),
+  "status": zod.enum(['succeeded', 'failed']),
+  "test": zod.boolean()
+})),
+  "next_cursor": zod.union([zod.string(),zod.null()])
+})
+
+
+/**
  * @summary Get Run
  */
 export const GetRunParams = zod.object({

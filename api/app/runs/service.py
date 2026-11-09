@@ -1,6 +1,9 @@
 """Run use cases. Reads flows through the flows service; flows never import runs."""
 
+import base64
+import uuid
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, Protocol
 
 from app.engine.compiler import compile_graph
@@ -51,3 +54,35 @@ async def run_draft(
             mlflow_trace_id=observer.trace_id,
         )
     )
+
+
+def encode_cursor(run: Run) -> str:
+    raw = f"{run.started_at.isoformat()}|{run.id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        started_at, run_id = raw.split("|")
+        return datetime.fromisoformat(started_at), uuid.UUID(run_id)
+    except ValueError:
+        raise ApiError(422, "invalid_cursor", "cursor is not valid") from None
+
+
+async def list_runs(
+    store: RunStore,
+    *,
+    flow_id: uuid.UUID | None,
+    status: str | None,
+    test: bool | None,
+    started_from: datetime | None,
+    started_to: datetime | None,
+    cursor: str | None,
+    limit: int,
+) -> tuple[list[Run], str | None]:
+    after = decode_cursor(cursor) if cursor else None
+    # one extra row tells us whether another page exists
+    rows = await store.list_runs(flow_id, status, test, started_from, started_to, after, limit + 1)
+    page = rows[:limit]
+    return page, encode_cursor(page[-1]) if len(rows) > limit else None

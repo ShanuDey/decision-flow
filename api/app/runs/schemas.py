@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import Field
@@ -19,3 +20,18 @@ class RunResponse(FrozenBaseModel):
     output: dict[str, Any] | None
     error: RunError | None
     duration_ms: int
+
+
+class RunSummary(FrozenBaseModel):
+    run_id: uuid.UUID
+    flow_id: uuid.UUID
+    status: Literal["succeeded", "failed"]
+    test: bool
+    error: RunError | None
+    duration_ms: int
+    started_at: datetime
+
+
+class RunList(FrozenBaseModel):
+    items: list[RunSummary]
+    next_cursor: str | None

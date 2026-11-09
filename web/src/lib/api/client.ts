@@ -13,7 +13,9 @@ import type {
   HTTPValidationError,
   HealthResponse,
   ListFlowsParams,
+  ListRunsParams,
   ReadyResponse,
+  RunList,
   RunRequest,
   RunResponse,
   SaveDraftBody,
@@ -494,6 +496,64 @@ export const ready = async ( options?: RequestInit): Promise<readyResponse> => {
 
   const data: readyResponse['data'] = body ? JSON.parse(body) : {}
   return { data, status: res.status, headers: res.headers } as readyResponse
+}
+
+
+
+export type listRunsResponse200 = {
+  data: RunList
+  status: 200
+}
+
+export type listRunsResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type listRunsResponseSuccess = (listRunsResponse200) & {
+  headers: Headers;
+};
+export type listRunsResponseError = (listRunsResponse422) & {
+  headers: Headers;
+};
+
+export type listRunsResponse = (listRunsResponseSuccess | listRunsResponseError)
+
+export const getListRunsUrl = (params?: ListRunsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${process.env.NEXT_PUBLIC_API_URL}/runs?${stringifiedParams}` : `${process.env.NEXT_PUBLIC_API_URL}/runs`
+}
+
+/**
+ * Newest first; pass `next_cursor` back as `cursor` for the next page.
+ * @summary List Runs
+ */
+export const listRuns = async (params?: ListRunsParams, options?: RequestInit): Promise<listRunsResponse> => {
+
+  const res = await fetch(getListRunsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listRunsResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listRunsResponse
 }
 
 

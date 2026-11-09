@@ -61,8 +61,32 @@ class FakeRunStore:
 
     async def add_run(self, run: Run) -> Run:
         run.id = uuid.uuid4()
+        run.started_at = datetime.now(UTC).replace(tzinfo=None)  # the column is timezone-naive
         self.runs[run.id] = run
         return run
+
+    async def list_runs(
+        self,
+        flow_id: uuid.UUID | None,
+        status: str | None,
+        test: bool | None,
+        started_from: datetime | None,
+        started_to: datetime | None,
+        after: tuple[datetime, uuid.UUID] | None,
+        limit: int,
+    ) -> list[Run]:
+        rows = sorted(self.runs.values(), key=lambda r: (r.started_at, r.id), reverse=True)
+        keep = [
+            r
+            for r in rows
+            if (flow_id is None or r.flow_id == flow_id)
+            and (status is None or r.status == status)
+            and (test is None or r.test == test)
+            and (started_from is None or r.started_at >= started_from)
+            and (started_to is None or r.started_at <= started_to)
+            and (after is None or (r.started_at, r.id) < after)
+        ]
+        return keep[:limit]
 
     async def get_run(self, run_id: uuid.UUID) -> Run | None:
         return self.runs.get(run_id)
