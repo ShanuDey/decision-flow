@@ -5,9 +5,403 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  DraftSaved,
+  ErrorResponse,
+  FlowCreate,
+  FlowDetail,
+  FlowList,
+  HTTPValidationError,
   HealthResponse,
-  ReadyResponse
+  ListFlowsParams,
+  ReadyResponse,
+  RunRequest,
+  RunResponse,
+  SaveDraftBody,
+  ValidateResponse
 } from './models';
+
+export type listFlowsResponse200 = {
+  data: FlowList
+  status: 200
+}
+
+export type listFlowsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listFlowsResponseSuccess = (listFlowsResponse200) & {
+  headers: Headers;
+};
+export type listFlowsResponseError = (listFlowsResponse422) & {
+  headers: Headers;
+};
+
+export type listFlowsResponse = (listFlowsResponseSuccess | listFlowsResponseError)
+
+export const getListFlowsUrl = (params?: ListFlowsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `${process.env.NEXT_PUBLIC_API_URL}/flows?${stringifiedParams}` : `${process.env.NEXT_PUBLIC_API_URL}/flows`
+}
+
+/**
+ * @summary List Flows
+ */
+export const listFlows = async (params?: ListFlowsParams, options?: RequestInit): Promise<listFlowsResponse> => {
+
+  const res = await fetch(getListFlowsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listFlowsResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as listFlowsResponse
+}
+
+
+
+export type createFlowResponse201 = {
+  data: FlowDetail
+  status: 201
+}
+
+export type createFlowResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createFlowResponseSuccess = (createFlowResponse201) & {
+  headers: Headers;
+};
+export type createFlowResponseError = (createFlowResponse422) & {
+  headers: Headers;
+};
+
+export type createFlowResponse = (createFlowResponseSuccess | createFlowResponseError)
+
+export const getCreateFlowUrl = () => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows`
+}
+
+/**
+ * @summary Create Flow
+ */
+export const createFlow = async (flowCreate: FlowCreate, options?: RequestInit): Promise<createFlowResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getCreateFlowUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(flowCreate)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createFlowResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createFlowResponse
+}
+
+
+
+export type getFlowResponse200 = {
+  data: FlowDetail
+  status: 200
+}
+
+export type getFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getFlowResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getFlowResponseSuccess = (getFlowResponse200) & {
+  headers: Headers;
+};
+export type getFlowResponseError = (getFlowResponse404 | getFlowResponse422) & {
+  headers: Headers;
+};
+
+export type getFlowResponse = (getFlowResponseSuccess | getFlowResponseError)
+
+export const getGetFlowUrl = (flowId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}`
+}
+
+/**
+ * @summary Get Flow
+ */
+export const getFlow = async (flowId: string, options?: RequestInit): Promise<getFlowResponse> => {
+
+  const res = await fetch(getGetFlowUrl(flowId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getFlowResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getFlowResponse
+}
+
+
+
+export type saveDraftResponse200 = {
+  data: DraftSaved
+  status: 200
+}
+
+export type saveDraftResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type saveDraftResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type saveDraftResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type saveDraftResponse428 = {
+  data: ErrorResponse
+  status: 428
+}
+
+export type saveDraftResponseSuccess = (saveDraftResponse200) & {
+  headers: Headers;
+};
+export type saveDraftResponseError = (saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
+  headers: Headers;
+};
+
+export type saveDraftResponse = (saveDraftResponseSuccess | saveDraftResponseError)
+
+export const getSaveDraftUrl = (flowId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/draft`
+}
+
+/**
+ * Saves even an invalid graph (autosave); problems are reported by `validate_flow`.
+ * @summary Save Draft
+ */
+export const saveDraft = async (flowId: string,
+    saveDraftBody: SaveDraftBody, options?: RequestInit): Promise<saveDraftResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getSaveDraftUrl(flowId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(saveDraftBody)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: saveDraftResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as saveDraftResponse
+}
+
+
+
+export type createRunResponse200 = {
+  data: RunResponse
+  status: 200
+}
+
+export type createRunResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type createRunResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type createRunResponseSuccess = (createRunResponse200) & {
+  headers: Headers;
+};
+export type createRunResponseError = (createRunResponse404 | createRunResponse422) & {
+  headers: Headers;
+};
+
+export type createRunResponse = (createRunResponseSuccess | createRunResponseError)
+
+export const getCreateRunUrl = (flowId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/runs`
+}
+
+/**
+ * Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422.
+ * @summary Create Run
+ */
+export const createRun = async (flowId: string,
+    runRequest: RunRequest, options?: RequestInit): Promise<createRunResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getCreateRunUrl(flowId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(runRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createRunResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createRunResponse
+}
+
+
+
+export type validateFlowResponse200 = {
+  data: ValidateResponse
+  status: 200
+}
+
+export type validateFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type validateFlowResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type validateFlowResponseSuccess = (validateFlowResponse200) & {
+  headers: Headers;
+};
+export type validateFlowResponseError = (validateFlowResponse404 | validateFlowResponse422) & {
+  headers: Headers;
+};
+
+export type validateFlowResponse = (validateFlowResponseSuccess | validateFlowResponseError)
+
+export const getValidateFlowUrl = (flowId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/validate`
+}
+
+/**
+ * @summary Validate Flow
+ */
+export const validateFlow = async (flowId: string, options?: RequestInit): Promise<validateFlowResponse> => {
+
+  const res = await fetch(getValidateFlowUrl(flowId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: validateFlowResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as validateFlowResponse
+}
+
+
 
 export type healthResponse200 = {
   data: HealthResponse
@@ -100,4 +494,59 @@ export const ready = async ( options?: RequestInit): Promise<readyResponse> => {
 
   const data: readyResponse['data'] = body ? JSON.parse(body) : {}
   return { data, status: res.status, headers: res.headers } as readyResponse
+}
+
+
+
+export type getRunResponse200 = {
+  data: RunResponse
+  status: 200
+}
+
+export type getRunResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getRunResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getRunResponseSuccess = (getRunResponse200) & {
+  headers: Headers;
+};
+export type getRunResponseError = (getRunResponse404 | getRunResponse422) & {
+  headers: Headers;
+};
+
+export type getRunResponse = (getRunResponseSuccess | getRunResponseError)
+
+export const getGetRunUrl = (runId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/runs/${runId}`
+}
+
+/**
+ * @summary Get Run
+ */
+export const getRun = async (runId: string, options?: RequestInit): Promise<getRunResponse> => {
+
+  const res = await fetch(getGetRunUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getRunResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getRunResponse
 }
