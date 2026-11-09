@@ -1,7 +1,4 @@
-"""Minimal template resolver for Slice 0: `{{ input.a.b }}` and `{{ vars.x }}` references only.
-
-Replaced by the CEL-backed `expressions/` module in slices 1 and 2; callers keep the same API.
-"""
+"""Minimal resolver: `{{ input.a.b }}` and `{{ vars.x }}` only; CEL replaces it later."""
 
 import json
 import re

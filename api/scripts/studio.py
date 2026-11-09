@@ -14,8 +14,7 @@ FLOWS = Path(__file__).resolve().parents[2] / "examples" / "flows"
 # Studio calls graphs directly (not through run_flow), so let MLflow trace them automatically.
 tracing.enable_autolog(get_settings())
 
-# One module variable per valid flow (examples/flows/my-flow.json -> my_flow); langgraph.json
-# lists the ones to serve. Invalid flows are skipped, not fatal.
+# one variable per valid flow (my-flow.json -> my_flow) for langgraph.json; invalid ones are skipped
 for _path in sorted(FLOWS.glob("*.json")):
     try:
         _graph, _issues = parse_graph(json.loads(_path.read_text()))

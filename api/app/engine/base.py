@@ -1,5 +1,3 @@
-"""Shared bases for engine models."""
-
 from pydantic import BaseModel, ConfigDict
 
 

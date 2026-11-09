@@ -189,7 +189,7 @@ async def test_failed_node_marks_its_span_and_the_run_as_error(fake: FakeMlflow,
     assert spans["End"].status.status_code.value == "ERROR"
     assert "input.note is not set" in spans["End"].status.description
     assert spans["run"].status.status_code.value == "ERROR"
-    assert spans["run"].outputs is None  # a failed run has no output
+    assert spans["run"].outputs is None
 
 
 def test_enable_autolog_traces_langgraph_once_mlflow_is_configured(
@@ -220,7 +220,7 @@ async def test_run_goes_untraced_until_mlflow_is_configured_then_recovers(
     assert result.status == "succeeded"
     assert fake.spans == [] and first.trace_id is None  # did not wait on MLflow
 
-    assert await tracing.ready() is True  # the background warm-up finished
+    assert await tracing.ready() is True
     second = tracing.MlflowObserver(settings())
     await run_flow(flow(raw), {"amount": 1}, second)
     assert second.trace_id == "tr-fake"

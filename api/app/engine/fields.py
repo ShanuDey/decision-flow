@@ -1,5 +1,3 @@
-"""Typed field definitions shared by the graph, node settings and input validation."""
-
 from typing import Any, Literal
 
 from pydantic import model_validator

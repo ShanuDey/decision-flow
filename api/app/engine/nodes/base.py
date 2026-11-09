@@ -1,5 +1,3 @@
-"""What a node type is: its settings, how it runs, and the rules the validator applies to it."""
-
 from typing import Any, ClassVar, Self, get_args
 
 from pydantic import Field
@@ -15,8 +13,6 @@ class Position(StrictBaseModel):
 
 
 class NodeContext(FrozenBaseModel):
-    """Flow-level facts a handler may need, beyond the run state."""
-
     variables: list[Variable]
 
 
@@ -47,5 +43,4 @@ class NodeModel(StrictBaseModel):
 
     @classmethod
     def check_group(cls, nodes: list[Self]) -> list[Issue]:
-        """Rules that span every node of this type in one flow."""
         return []

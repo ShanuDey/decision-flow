@@ -1,5 +1,3 @@
-"""End: maps run state to the flow's typed output."""
-
 from typing import Any, ClassVar, Literal
 
 from pydantic import Field
@@ -49,5 +47,5 @@ class EndNode(NodeModel):
                 output[out.name] = check_value(out, render(out.value, scopes))
             except ValueError as exc:
                 raise ValueError(f"output '{out.name}': {exc}") from exc
-        # a thread keeps state between runs; clearing input stops an empty next submit reusing it
+        # a thread keeps state between runs: clear input so an empty submit cannot reuse it
         return {"_output": output, "input": {}, "nodes": {self.id: {"output": output}}}

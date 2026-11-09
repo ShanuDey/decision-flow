@@ -1,5 +1,3 @@
-"""Validate a run's input payload against the Start node's declared fields."""
-
 import math
 from typing import Any
 
@@ -19,10 +17,7 @@ class InputValidationError(Exception):
 
 
 def check_value(field: TypedField, value: Any) -> Any:
-    """Return the value to use for `field`, or raise ValueError(message) if it is not acceptable.
-
-    Strict: no coercion, so "5" is not a number. The flow is a typed function.
-    """
+    """Strict: no coercion ("5" is not a number); raises ValueError(message) if unacceptable."""
     match field.type:
         case "string":
             ok = isinstance(value, str)
@@ -49,7 +44,6 @@ def check_value(field: TypedField, value: Any) -> Any:
 
 
 def validate_input(fields: list[FieldDef], payload: dict[str, Any]) -> dict[str, Any]:
-    """Validated input with defaults applied; raises InputValidationError naming each bad field."""
     issues: list[InputIssue] = []
     result: dict[str, Any] = {}
     declared = {f.name for f in fields}

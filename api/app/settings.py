@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
 
     mlflow_tracking_uri: str = "http://localhost:5000"
-    # MLflow experiment that holds all run traces (created on first use)
     mlflow_set_experiment: str = "decision-flow"
 
     # NoDecode: accept comma-separated env values instead of JSON.

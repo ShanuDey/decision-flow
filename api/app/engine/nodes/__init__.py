@@ -10,7 +10,7 @@ from app.engine.nodes.start import StartNode
 
 NODE_TYPES: tuple[type[NodeModel], ...] = (StartNode, EndNode)
 
-# Keep in step with NODE_TYPES (a test checks it): the union is what parses the graph JSON.
+# keep in step with NODE_TYPES (tested); this union parses the graph JSON
 Node = Annotated[StartNode | EndNode, Field(discriminator="type")]
 
 __all__ = ["NODE_TYPES", "EndNode", "Node", "NodeContext", "NodeModel", "StartNode"]

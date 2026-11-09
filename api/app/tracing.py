@@ -1,8 +1,4 @@
-"""MLflow tracing adapter. The only module that imports mlflow.
-
-A run is one trace: a root span plus one child span per node. MLflow being down must never fail
-a run, so every MLflow call here is guarded.
-"""
+"""MLflow tracing adapter, the only importer of mlflow. MLflow failures never fail a run."""
 
 import asyncio
 import json
@@ -26,7 +22,7 @@ _warmup: "asyncio.Task[bool] | None" = None
 
 
 def configure(settings: Settings) -> bool:
-    """Point MLflow at the server and select the experiment. Blocking; False if unreachable."""
+    """Blocking; returns False if MLflow is unreachable."""
     global _configured
     # MLflow's defaults retry for minutes; a down server must not stall startup or runs
     MLFLOW_HTTP_REQUEST_MAX_RETRIES.set(1)
@@ -62,7 +58,6 @@ async def ready() -> bool:
 
 
 def flush() -> None:
-    """Block until queued traces are exported (tests and graceful shutdown)."""
     try:
         mlflow.flush_trace_async_logging()
     except Exception:

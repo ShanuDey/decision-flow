@@ -1,5 +1,3 @@
-"""Start: declares the flow's typed input and seeds the run's variables."""
-
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt, StrictStr, create_model
@@ -40,10 +38,7 @@ class StartNode(NodeModel):
     accepts_incoming: ClassVar[bool] = False
 
     def input_model(self) -> type[BaseModel]:
-        """Typed form of the input, so tools like Studio can show the fields.
-
-        Documentation only: LangGraph does not validate against it; `run` does.
-        """
+        """Typed input form for tools like Studio; documentation only, `run` does the validating."""
         fields: dict[str, Any] = {}
         for i, f in enumerate(self.data.inputs):
             kind = _annotation(f)

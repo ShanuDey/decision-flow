@@ -1,5 +1,3 @@
-"""Executes a compiled flow. No DB and no web imports: plain dicts in, a RunResult out."""
-
 import time
 from typing import Any, Literal
 

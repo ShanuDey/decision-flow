@@ -1,8 +1,4 @@
-"""Graph validation, stages 1 to 3 of graph-schema.md section 5. Pure functions.
-
-Rules that belong to one node type live on that type (see app.engine.nodes); this module applies
-them to every type in the registry and holds the rules that span the whole graph.
-"""
+"""Graph validation: schema, structure, references. Per-type rules live on the node types."""
 
 import re
 from collections import defaultdict, deque

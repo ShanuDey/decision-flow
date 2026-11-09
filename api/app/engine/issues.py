@@ -1,5 +1,3 @@
-"""A validation finding, reported with the node and field it concerns."""
-
 from app.engine.base import FrozenBaseModel
 
 

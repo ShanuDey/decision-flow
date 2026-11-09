@@ -1,4 +1,4 @@
-"""Graph JSON to LangGraph. One of two modules allowed to import langgraph (with runtime)."""
+"""Graph JSON to LangGraph. With runtime, the only importer of langgraph."""
 
 import time
 from collections.abc import Awaitable, Callable
@@ -19,7 +19,7 @@ def _merge(left: dict, right: dict) -> dict:
 
 
 def _replace(_: dict, new: dict) -> dict:
-    # a reducer, so several End nodes can clear `input` in the same step
+    # reducer: parallel End nodes can both clear `input`
     return new
 
 
@@ -37,11 +37,10 @@ class CompiledFlow(FrozenBaseModel):
 
 
 def compile_graph(graph: Graph, checkpointer: Any = None) -> CompiledFlow:
-    """Expects a graph that passed `parse_graph`. A checkpointer makes runs resumable by thread."""
+    """Expects a graph that passed `parse_graph`."""
     start = next(n for n in graph.nodes if isinstance(n, StartNode))
     ctx = NodeContext(variables=graph.variables)
-    # input_schema: LangGraph accepts only the keys it names, so the run is seeded with `input`
-    # alone; Start sets up `vars`.
+    # input_schema limits accepted keys to `input`; Start sets up `vars`
     builder = StateGraph(
         FlowState, input_schema=create_model("FlowInput", input=(start.input_model(), ...))
     )
@@ -56,12 +55,10 @@ def compile_graph(graph: Graph, checkpointer: Any = None) -> CompiledFlow:
 
 
 def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str, Any]]]:
-    """Central per-node hook: timing, observer events, errors tagged with the node id."""
     info = NodeInfo(id=node.id, type=node.type, name=node.name or node.type)
 
     async def run(state: FlowState, config: RunnableConfig) -> dict[str, Any]:
         observer = config.get("configurable", {}).get("observer") or NullObserver()
-        # what a node can read: the scopes expressions see (nodes grows as the run proceeds)
         await observer.node_started(info, {k: state.get(k) for k in ("input", "vars", "nodes")})
         started = time.perf_counter()
         try:

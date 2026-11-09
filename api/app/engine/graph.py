@@ -1,5 +1,3 @@
-"""Flow graph JSON contract (graph-schema.md). Pure models: no DB, no web framework."""
-
 from typing import Literal
 
 from pydantic import Field

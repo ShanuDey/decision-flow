@@ -61,7 +61,7 @@ async def test_golden_fixture_runs_start_to_end(raw: dict) -> None:
     assert result.output == {
         "amount": 5000,
         "tier": "silver",
-    }  # number keeps its type, default applied
+    }
 
 
 @pytest.mark.anyio
@@ -142,7 +142,7 @@ async def test_compiled_flow_is_reusable_across_runs(raw: dict) -> None:
 
 @pytest.mark.anyio
 async def test_start_node_applies_defaults_when_the_graph_is_called_directly(raw: dict) -> None:
-    final = await build(raw).graph.ainvoke({"input": {"amount": 1}})  # what LangGraph Studio does
+    final = await build(raw).graph.ainvoke({"input": {"amount": 1}})
     assert final["_output"] == {"amount": 1, "tier": "silver"}
 
 
@@ -208,11 +208,9 @@ async def test_a_finished_run_does_not_leak_its_input_into_the_next_run_of_a_thr
     first = await flow.graph.ainvoke({"input": {"amount": 5000, "tier": "gold"}}, thread)
     assert first["_output"] == {"amount": 5000, "tier": "gold"}
 
-    # a submit that sends no input must not silently reuse the previous run's gold
     with pytest.raises(NodeError) as exc:
         await flow.graph.ainvoke({"input": {}}, thread)
     assert "amount: required" in exc.value.message
 
-    # and a fresh input still gets the default
     third = await flow.graph.ainvoke({"input": {"amount": 1}}, thread)
     assert third["_output"] == {"amount": 1, "tier": "silver"}
