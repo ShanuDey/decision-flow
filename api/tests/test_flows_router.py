@@ -62,3 +62,12 @@ async def test_an_invalid_draft_is_saved_but_fails_validation(client: httpx.Asyn
     assert body["code"] == "invalid_flow"
     assert body["details"]["node_id"] == "assign_values"
     assert body["details"]["errors"]
+
+
+@pytest.mark.anyio
+async def test_save_draft_rejects_a_malformed_if_match(client: httpx.AsyncClient) -> None:
+    flow = await create_flow(client)
+    response = await client.put(
+        f"/flows/{flow['id']}/draft", json={}, headers={"If-Match": "latest"}
+    )
+    assert response.status_code == 400 and response.json()["code"] == "invalid_if_match"

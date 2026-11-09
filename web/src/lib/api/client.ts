@@ -203,6 +203,11 @@ export type saveDraftResponse200 = {
   status: 200
 }
 
+export type saveDraftResponse400 = {
+  data: ErrorResponse
+  status: 400
+}
+
 export type saveDraftResponse404 = {
   data: ErrorResponse
   status: 404
@@ -226,7 +231,7 @@ export type saveDraftResponse428 = {
 export type saveDraftResponseSuccess = (saveDraftResponse200) & {
   headers: Headers;
 };
-export type saveDraftResponseError = (saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
+export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
   headers: Headers;
 };
 

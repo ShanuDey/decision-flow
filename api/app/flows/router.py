@@ -56,7 +56,12 @@ async def get_flow(flow_id: uuid.UUID, store: Store) -> FlowDetail:
 
 @router.put(
     "/flows/{flow_id}/draft",
-    responses={**NOT_FOUND, 409: {"model": ErrorResponse}, 428: {"model": ErrorResponse}},
+    responses={
+        **NOT_FOUND,
+        400: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        428: {"model": ErrorResponse},
+    },
 )
 async def save_draft(
     flow_id: uuid.UUID,
@@ -70,7 +75,7 @@ async def save_draft(
     try:
         expected = int(if_match.strip('"'))
     except ValueError:
-        raise ApiError(428, "precondition_required", "If-Match must be a draft version") from None
+        raise ApiError(400, "invalid_if_match", "If-Match must be a draft version number") from None
     saved = await service.save_draft(store, flow_id, draft, expected)
     return DraftSaved(draft_version=saved.draft_version)
 

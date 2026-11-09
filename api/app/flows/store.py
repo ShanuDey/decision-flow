@@ -30,7 +30,7 @@ class FlowStore:
         column = SORTABLE[sort.lstrip("-")]
         query = select(Flow)
         if q:
-            query = query.where(Flow.name.ilike(f"%{q}%"))
+            query = query.where(Flow.name.icontains(q, autoescape=True))  # % and _ stay literal
         total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
         order = column.desc() if sort.startswith("-") else column.asc()
         rows = await self.session.scalars(
