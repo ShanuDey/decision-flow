@@ -60,7 +60,7 @@ class StartNode(NodeModel):
     async def run(self, state: dict[str, Any], ctx: NodeContext) -> dict[str, Any]:
         # run_flow already validated; repeating gives direct graph callers (Studio) the defaults
         try:
-            inputs = validate_input(self.data.inputs, state["input"])
+            inputs = validate_input(self.data.inputs, state.get("input") or {})
         except InputValidationError as exc:
             raise ValueError(str(exc)) from exc
         return {

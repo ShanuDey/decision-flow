@@ -18,8 +18,13 @@ def _merge(left: dict, right: dict) -> dict:
     return {**left, **right}
 
 
+def _replace(_: dict, new: dict) -> dict:
+    # a reducer, so several End nodes can clear `input` in the same step
+    return new
+
+
 class FlowState(TypedDict):
-    input: dict[str, Any]
+    input: Annotated[dict[str, Any], _replace]
     vars: dict[str, Any]
     nodes: Annotated[dict[str, Any], _merge]
     # underscore prefix: node ids can never collide with it
@@ -31,8 +36,8 @@ class CompiledFlow(FrozenBaseModel):
     start: StartNode
 
 
-def compile_graph(graph: Graph) -> CompiledFlow:
-    """Expects a graph that passed `parse_graph`."""
+def compile_graph(graph: Graph, checkpointer: Any = None) -> CompiledFlow:
+    """Expects a graph that passed `parse_graph`. A checkpointer makes runs resumable by thread."""
     start = next(n for n in graph.nodes if isinstance(n, StartNode))
     ctx = NodeContext(variables=graph.variables)
     # input_schema: LangGraph accepts only the keys it names, so the run is seeded with `input`
@@ -47,7 +52,7 @@ def compile_graph(graph: Graph) -> CompiledFlow:
     builder.add_edge(START, start.id)
     for edge in graph.edges:
         builder.add_edge(edge.source, edge.target)
-    return CompiledFlow(graph=builder.compile(), start=start)
+    return CompiledFlow(graph=builder.compile(checkpointer=checkpointer), start=start)
 
 
 def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str, Any]]]:

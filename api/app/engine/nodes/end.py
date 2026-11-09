@@ -49,4 +49,5 @@ class EndNode(NodeModel):
                 output[out.name] = check_value(out, render(out.value, scopes))
             except ValueError as exc:
                 raise ValueError(f"output '{out.name}': {exc}") from exc
-        return {"_output": output, "nodes": {self.id: {"output": output}}}
+        # a thread keeps state between runs; clearing input stops an empty next submit reusing it
+        return {"_output": output, "input": {}, "nodes": {self.id: {"output": output}}}

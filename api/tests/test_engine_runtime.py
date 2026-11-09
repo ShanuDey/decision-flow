@@ -189,3 +189,30 @@ async def test_input_schema_is_documentation_only_the_start_node_still_validates
     with pytest.raises(NodeError) as exc:
         await build(raw).graph.ainvoke({"input": {"amount": "not a number"}})
     assert "amount: expected number" in exc.value.message
+
+
+@pytest.mark.anyio
+async def test_a_finished_run_does_not_leak_its_input_into_the_next_run_of_a_thread(
+    raw: dict,
+) -> None:
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from app.engine.compiler import compile_graph
+    from app.engine.observer import NodeError
+
+    graph, issues = parse_graph(raw)
+    assert issues == []
+    flow = compile_graph(graph, checkpointer=InMemorySaver())
+    thread = {"configurable": {"thread_id": "studio-thread"}}
+
+    first = await flow.graph.ainvoke({"input": {"amount": 5000, "tier": "gold"}}, thread)
+    assert first["_output"] == {"amount": 5000, "tier": "gold"}
+
+    # a submit that sends no input must not silently reuse the previous run's gold
+    with pytest.raises(NodeError) as exc:
+        await flow.graph.ainvoke({"input": {}}, thread)
+    assert "amount: required" in exc.value.message
+
+    # and a fresh input still gets the default
+    third = await flow.graph.ainvoke({"input": {"amount": 1}}, thread)
+    assert third["_output"] == {"amount": 1, "tier": "silver"}
