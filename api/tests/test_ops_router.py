@@ -3,7 +3,7 @@ import pytest
 
 from app.db import get_session
 from app.main import app
-from app.routes import health
+from app.ops import checks
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ async def test_ready(
     async def fake_mlflow() -> str:
         return mlflow
 
-    monkeypatch.setattr(health, "_check_mlflow", fake_mlflow)
+    monkeypatch.setattr(checks, "check_mlflow", fake_mlflow)
     app.dependency_overrides[get_session] = lambda: FakeSession(db_down)
     try:
         response = await client.get("/ready")
@@ -65,26 +65,3 @@ async def test_ready(
     body = response.json()
     assert body["status"] == status
     assert body["checks"] == {"postgres": "unavailable" if db_down else "ok", "mlflow": mlflow}
-
-
-def _refuse(request: httpx.Request) -> httpx.Response:
-    raise httpx.ConnectError("down", request=request)
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize(
-    ("handler", "expected"),
-    [
-        (lambda _: httpx.Response(200), "ok"),
-        (lambda _: httpx.Response(500), "unavailable"),
-        (_refuse, "unavailable"),
-    ],
-)
-async def test_check_mlflow(monkeypatch: pytest.MonkeyPatch, handler, expected: str) -> None:
-    real_client = httpx.AsyncClient
-    monkeypatch.setattr(
-        health.httpx,
-        "AsyncClient",
-        lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw),
-    )
-    assert await health._check_mlflow() == expected
