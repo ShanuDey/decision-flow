@@ -1,43 +1,53 @@
+# Deployment file (published image); copy it with a .env to a host or Dockge. Dev: docker-compose.dev.yml.
+# .env: POSTGRES_PASSWORD (required; letters and digits only, it goes into URLs).
+# Optional: POSTGRES_USER, POSTGRES_DB (default decisionflow), MLFLOW_TRACKING_URI, APP_VERSION, WEB_URL, WEB_PORT, API_PORT, MLFLOW_PORT.
+
 services:
   db:
     image: postgres:17
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: decisionflow
-      POSTGRES_PASSWORD: decisionflow
-      POSTGRES_DB: decisionflow
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-decisionflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-decisionflow}
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U decisionflow"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  adminer:
-    image: adminer
-    profiles: ["tools"]
-    ports:
-      - "127.0.0.1:8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
-
   mlflow:
     image: ghcr.io/mlflow/mlflow:v3.18.0
-    # The stock image has no Postgres driver; the official MLflow compose installs it the same way.
+    restart: unless-stopped
+    # The stock image has no Postgres driver (MLflow's official compose installs it the same way).
+    # MLflow needs its own database (own migrations), so create it here if missing.
     command:
       - /bin/bash
       - -c
       - |
         pip install --no-cache-dir psycopg2-binary
+        python - <<'PY'
+        import os, psycopg2
+        e = os.environ
+        c = psycopg2.connect(host="db", user=e["POSTGRES_USER"], password=e["POSTGRES_PASSWORD"], dbname=e["POSTGRES_DB"])
+        c.autocommit = True
+        cur = c.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname = 'mlflow'")
+        if not cur.fetchone():
+            cur.execute('CREATE DATABASE mlflow OWNER "%s"' % e["POSTGRES_USER"])
+        PY
         mlflow server --host 0.0.0.0 --port 5000 \
-          --backend-store-uri postgresql+psycopg2://decisionflow:decisionflow@db:5432/mlflow \
+          --backend-store-uri postgresql+psycopg2://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@db:5432/mlflow \
           --default-artifact-root /mlflow/artifacts
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-decisionflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-decisionflow}
     ports:
-      - "127.0.0.1:5000:5000"
+      # Localhost only: MLflow has no login.
+      - "127.0.0.1:${MLFLOW_PORT:-5000}:5000"
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
     depends_on:
@@ -47,22 +57,18 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 30
 
   app:
-    build:
-      context: .
-      args:
-        # URL the browser uses to reach the API; baked into the web bundle at build time.
-        NEXT_PUBLIC_API_URL: http://localhost:8000
-    restart: on-failure
+    image: ghcr.io/shanudey/decision-flow:${APP_VERSION:-latest}
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+psycopg://decisionflow:decisionflow@db:5432/decisionflow
-      CORS_ORIGINS: http://localhost:3000
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-decisionflow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-decisionflow}
+      CORS_ORIGINS: ${WEB_URL:-http://localhost:3000}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     ports:
-      - "8000:8000"
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
+      - "${API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy

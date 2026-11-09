@@ -32,9 +32,7 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: uv --directory api sync --frozen
       - run: pnpm --dir web install --frozen-lockfile
-      # lint, format, tests, typecheck, and regenerates the API client
       - run: make checks
-      # make checks regenerates the client; anything it changed was not committed
       - name: Generated client matches the committed one
         run: |
           if [ -n "$(git status --porcelain -- api/openapi.json web/src/lib/api)" ]; then

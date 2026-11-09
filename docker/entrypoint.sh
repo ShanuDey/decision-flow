@@ -1,6 +1,5 @@
 #!/bin/bash
-# Runs the API and the web server in one container. If either exits, stop the other and
-# exit non-zero so Docker sees the failure instead of a half-working container.
+# If either process exits, stop the other and fail, so Docker never keeps a half-working container.
 set -u
 
 cd /srv/api

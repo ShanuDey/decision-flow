@@ -1,9 +1,9 @@
 name: Release
 
-# Publishes the image to GitHub Container Registry when a version tag is pushed (git tag v0.1.0).
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,16 +30,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Tags: v1.2.3 -> 1.2.3, 1.2 (and latest for non-prerelease). Image name is lowercased here.
+      # tag v1.2.3: 1.2.3, 1.2, sha, latest (not for prereleases); manual: alpha on main, else <branch>
       - id: meta
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: latest=false
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
+            type=raw,value=alpha,enable=${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+            type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
 
-      # Build one platform first and scan it, so a vulnerable image is never pushed.
       - name: Build image for scanning
         uses: docker/build-push-action@v7
         with:
