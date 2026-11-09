@@ -1,6 +1,6 @@
 API := uv --directory api run
 
-.PHONY: start lint format fix checks
+.PHONY: start lint lint-fix format-check format fix test checks
 
 start:
 	$(API) fastapi dev
@@ -8,14 +8,18 @@ start:
 lint:
 	$(API) ruff check .
 
+lint-fix:
+	$(API) ruff check --fix .
+
+format-check:
+	$(API) ruff format --check .
+
 format:
 	$(API) ruff format .
 
-fix:
-	$(API) ruff check --fix .
-	$(API) ruff format .
+fix: lint-fix format
 
-checks:
-	$(API) ruff check .
-	$(API) ruff format --check .
-	$(API) pytest -q
+test:
+	$(API) pytest
+
+checks: lint format-check test
