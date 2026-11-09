@@ -1,8 +1,8 @@
 API := uv --directory api run
 
-.PHONY: start db mlflow adminer up down migrate migration db-reset lint lint-fix format-check format fix test checks
+.PHONY: api db mlflow adminer up down migrate migration db-reset lint lint-fix format-check format fix test checks
 
-start: migrate
+api: migrate
 	$(API) fastapi dev
 
 db:
