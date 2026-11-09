@@ -1,8 +1,9 @@
 API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
+STUDIO_PORT ?= 2024
 
-.PHONY: start api studio web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api studio kill-studio kill-port web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api typecheck-web build-web checks
 
@@ -13,9 +14,15 @@ start: db mlflow adminer
 api: migrate
 	$(API) fastapi dev
 
-# LangGraph Studio on the example flows; usage: make studio ARGS="--no-browser --port 2025"
 studio:
-	$(API) langgraph dev $(ARGS)
+	$(API) langgraph dev --port $(STUDIO_PORT) $(ARGS)
+
+kill-studio:
+	@$(MAKE) --no-print-directory kill-port PORT=$(STUDIO_PORT)
+
+kill-port:
+	@[ -n "$(PORT)" ] || { echo "usage: make kill-port PORT=<port>"; exit 1; }
+	$(WEB) dlx kill-port $(PORT)
 
 web:
 	$(WEB) dev
