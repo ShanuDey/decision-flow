@@ -7,15 +7,12 @@ from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.errors import ApiError, ErrorResponse
 from app.flows import service
-from app.flows.models import Run
 from app.flows.schemas import (
     DraftSaved,
     FlowCreate,
     FlowDetail,
     FlowList,
     FlowSummary,
-    RunRequest,
-    RunResponse,
     ValidateResponse,
 )
 from app.flows.store import FlowStore, get_store
@@ -26,18 +23,6 @@ Store = Annotated[FlowStore, Depends(get_store)]
 NOT_FOUND = {404: {"model": ErrorResponse}}
 INVALID = {422: {"model": ErrorResponse}}
 Sort = Literal["name", "-name", "created_at", "-created_at", "updated_at", "-updated_at"]
-
-
-def _run_response(run: Run) -> RunResponse:
-    return RunResponse.model_validate(
-        {
-            "run_id": run.id,
-            "status": run.status,
-            "output": run.output,
-            "error": run.error,
-            "duration_ms": run.duration_ms,
-        }
-    )
 
 
 @router.post("/flows", status_code=status.HTTP_201_CREATED)
@@ -94,20 +79,3 @@ async def save_draft(
 async def validate_flow(flow_id: uuid.UUID, store: Store) -> ValidateResponse:
     service.validate_draft(await service.require_flow(store, flow_id))
     return ValidateResponse(valid=True)
-
-
-@router.post("/flows/{flow_id}/runs", responses={**NOT_FOUND, **INVALID})
-async def create_run(flow_id: uuid.UUID, body: RunRequest, store: Store) -> RunResponse:
-    """Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422."""
-    flow = await service.require_flow(store, flow_id)
-    if not body.test:
-        raise ApiError(422, "not_published", "Flow has no published version; run with test=true")
-    return _run_response(await service.run_draft(store, flow, body.input))
-
-
-@router.get("/runs/{run_id}", responses=NOT_FOUND)
-async def get_run(run_id: uuid.UUID, store: Store) -> RunResponse:
-    run = await store.get_run(run_id)
-    if run is None:
-        raise service.not_found("Run")
-    return _run_response(run)

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ForeignKey, String, func
+from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,17 +19,3 @@ class Flow(Base):
     draft_version: Mapped[int] = mapped_column(default=1)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
-
-
-class Run(Base):
-    __tablename__ = "runs"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    flow_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("flows.id"), index=True)
-    status: Mapped[str] = mapped_column(String(20))
-    test: Mapped[bool]
-    input: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    error: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    duration_ms: Mapped[int]
-    started_at: Mapped[datetime] = mapped_column(server_default=func.now())

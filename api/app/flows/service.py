@@ -3,13 +3,10 @@
 import uuid
 from typing import Any
 
-from app.engine.compiler import compile_graph
-from app.engine.inputs import InputValidationError
 from app.engine.issues import Issue
-from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.errors import ApiError
-from app.flows.models import Flow, Run
+from app.flows.models import Flow
 from app.flows.store import FlowStore
 
 
@@ -80,31 +77,4 @@ async def save_draft(
         "draft_conflict",
         "The draft changed since you loaded it",
         {"draft_version": current.draft_version},
-    )
-
-
-async def run_draft(store: FlowStore, flow: Flow, payload: dict[str, Any]) -> Run:
-    graph, issues = parse_graph(flow.draft)
-    if graph is None:
-        raise invalid_flow(issues)
-    try:
-        result = await run_flow(compile_graph(graph), payload)
-    except InputValidationError as exc:
-        first = exc.issues[0]
-        raise ApiError(
-            422,
-            "invalid_input",
-            str(exc),
-            {"field": first.field, "errors": [i.model_dump() for i in exc.issues]},
-        ) from exc
-    return await store.add_run(
-        Run(
-            flow_id=flow.id,
-            status=result.status,
-            test=True,
-            input=payload,
-            output=result.output,
-            error=result.error.model_dump() if result.error else None,
-            duration_ms=result.duration_ms,
-        )
     )

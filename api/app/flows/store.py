@@ -8,7 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.flows.models import Flow, Run
+from app.flows.models import Flow
 
 SORTABLE = {"name": Flow.name, "created_at": Flow.created_at, "updated_at": Flow.updated_at}
 
@@ -55,15 +55,6 @@ class FlowStore:
         flow = result.scalar_one_or_none()
         await self.session.commit()
         return flow
-
-    async def add_run(self, run: Run) -> Run:
-        self.session.add(run)
-        await self.session.commit()
-        await self.session.refresh(run)
-        return run
-
-    async def get_run(self, run_id: uuid.UUID) -> Run | None:
-        return await self.session.get(Run, run_id)
 
 
 def get_store(session: Annotated[AsyncSession, Depends(get_session)]) -> FlowStore:

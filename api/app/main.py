@@ -9,6 +9,7 @@ from app import tracing
 from app.errors import install_error_handlers
 from app.flows import router as flows
 from app.ops import router as ops
+from app.runs import router as runs
 from app.settings import get_settings
 
 
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(ops.router)
     app.include_router(flows.router)
+    app.include_router(runs.router)
     return app
 
 
