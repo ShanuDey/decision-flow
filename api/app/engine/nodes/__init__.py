@@ -4,13 +4,14 @@ from typing import Annotated
 
 from pydantic import Field
 
+from app.engine.nodes.assign import AssignNode
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.nodes.end import EndNode
 from app.engine.nodes.start import StartNode
 
-NODE_TYPES: tuple[type[NodeModel], ...] = (StartNode, EndNode)
+NODE_TYPES: tuple[type[NodeModel], ...] = (StartNode, AssignNode, EndNode)
 
 # keep in step with NODE_TYPES (tested); this union parses the graph JSON
-Node = Annotated[StartNode | EndNode, Field(discriminator="type")]
+Node = Annotated[StartNode | AssignNode | EndNode, Field(discriminator="type")]
 
-__all__ = ["NODE_TYPES", "EndNode", "Node", "NodeContext", "NodeModel", "StartNode"]
+__all__ = ["NODE_TYPES", "AssignNode", "EndNode", "Node", "NodeContext", "NodeModel", "StartNode"]

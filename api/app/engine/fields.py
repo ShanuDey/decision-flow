@@ -24,7 +24,5 @@ class FieldDef(TypedField):
     default: Any = None
 
 
-class Variable(StrictBaseModel):
-    name: str
-    type: FieldType
+class Variable(TypedField):
     initial: Any = None

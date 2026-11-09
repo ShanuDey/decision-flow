@@ -37,6 +37,10 @@ class NodeModel(StrictBaseModel):
         """Return the state update. Raising fails the run, tagged with this node's id."""
         raise NotImplementedError
 
+    def check(self, ctx: NodeContext) -> list[Issue]:
+        """Settings rules that need flow-level facts, such as the declared variables."""
+        return []
+
     def templates(self) -> dict[str, str]:
         """Template settings by field path, so the validator can check what they reference."""
         return {}

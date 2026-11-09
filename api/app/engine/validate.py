@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.engine.graph import Graph
 from app.engine.issues import Issue
-from app.engine.nodes import NODE_TYPES, NodeModel, StartNode
+from app.engine.nodes import NODE_TYPES, NodeContext, NodeModel, StartNode
 from app.engine.templates import TemplateError, references
 
 RESERVED_IDS = {"input", "vars", "nodes", "secrets", "env", "run"}
@@ -20,12 +20,12 @@ def _issue(code: str, message: str, node_id: str | None = None, field: str | Non
 
 
 def parse_graph(raw: Any) -> tuple[Graph | None, list[Issue]]:
-    """Stages 1 (schema), 2 (structure), 3 (references); each runs only if the last passed."""
+    """Stages 1 (schema), 2 (structure), 3 (settings); each runs only if the last passed."""
     try:
         graph = Graph.model_validate(raw)
     except ValidationError as exc:
         return None, [_schema_issue(raw, err) for err in exc.errors()]
-    issues = check_structure(graph) or check_references(graph)
+    issues = check_structure(graph) or check_settings(graph)
     return (None if issues else graph), issues
 
 
@@ -40,11 +40,13 @@ def _schema_issue(raw: Any, err: Any) -> Issue:
     return _issue("schema", err["msg"], node_id, ".".join(str(p) for p in loc))
 
 
-def check_references(graph: Graph) -> list[Issue]:
+def check_settings(graph: Graph) -> list[Issue]:
     issues: list[Issue] = []
+    ctx = NodeContext(variables=graph.variables)
     inputs = {f.name for n in graph.nodes if isinstance(n, StartNode) for f in n.data.inputs}
     variables = {v.name for v in graph.variables}
     for node in graph.nodes:
+        issues.extend(node.check(ctx))
         for field, template in node.templates().items():
             try:
                 refs = references(template)
