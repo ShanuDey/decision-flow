@@ -1,6 +1,9 @@
 API := uv --directory api run
+WEB := pnpm --dir web
 
-.PHONY: api db mlflow adminer up down migrate migration db-reset openapi client client-check lint lint-fix format-check format fix test checks
+.PHONY: api db mlflow adminer up down migrate migration db-reset openapi client client-check \
+	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
+	test-api typecheck-web build-web checks
 
 api: migrate
 	$(API) fastapi dev
@@ -46,21 +49,38 @@ client-check:
 	$(MAKE) --no-print-directory client >/dev/null; \
 	[ "$$before" = "$$(sig)" ] || { echo "API client out of date: files regenerated, review and commit"; exit 1; }
 
-lint:
+lint-api:
 	$(API) ruff check .
 
-lint-fix:
+lint-web:
+	$(WEB) lint
+
+lint: lint-api lint-web
+
+lint-fix-api:
 	$(API) ruff check --fix .
 
-format-check:
-	$(API) ruff format --check .
+lint-fix-web:
+	$(WEB) lint --fix
 
-format:
+lint-fix: lint-fix-api lint-fix-web
+
+format-api:
 	$(API) ruff format .
 
-fix: lint-fix format
+format-check-api:
+	$(API) ruff format --check .
 
-test:
+fix: lint-fix format-api
+
+test-api:
 	$(API) pytest
 
-checks: lint format-check test client-check
+typecheck-web:
+	$(WEB) exec tsc --noEmit
+
+# slow, and writes to web/.next (clashes with a running dev server): not part of checks
+build-web:
+	$(WEB) build
+
+checks: lint format-check-api test-api typecheck-web client-check
