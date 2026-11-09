@@ -49,14 +49,20 @@ services:
       timeout: 3s
       retries: 20
 
-  api:
-    build: ./api
+  app:
+    build:
+      context: .
+      args:
+        # URL the browser uses to reach the API; baked into the web bundle at build time.
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    restart: on-failure
     environment:
       DATABASE_URL: postgresql+psycopg://decisionflow:decisionflow@db:5432/decisionflow
       CORS_ORIGINS: http://localhost:3000
       MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8000:8000"
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,12 @@
+.git
+.my_docs
+.claude
+.vscode
+**/.venv
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.env*
+!**/.env.example
