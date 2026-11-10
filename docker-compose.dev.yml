@@ -74,6 +74,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-decisionflow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-decisionflow}
       CORS_ORIGINS: http://localhost:3000
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_SET_EXPERIMENT: ${MLFLOW_SET_EXPERIMENT:-decision-flow}
     ports:
       - "8000:8000"
       - "3000:3000"

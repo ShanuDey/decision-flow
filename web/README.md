@@ -1,36 +1,17 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# web
 
-## Getting Started
-
-First, run the development server:
+Next.js (App Router) front end: flows list and the flow editor.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm dev          # http://localhost:3000 (needs the API on NEXT_PUBLIC_API_URL)
+pnpm test         # Vitest: graph model (round trip, ids, node rules)
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm build
+pnpm generate     # regenerate src/lib/api from ../api/openapi.json (or `make client` at the root)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/lib/api/`: generated client and Zod schemas (wiped on every `pnpm generate`, never edit or add files here). `src/lib/call.ts` is the hand-written wrapper around it.
+- `src/lib/graph/`: graph JSON types, node rules and React Flow conversion (pure, unit tested).
+- `src/components/editor/`: the editor (Zustand store, canvas, palette, settings panel, test run).
+- `src/components/ui/`: shadcn/ui components.

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "variables": [
+    { "name": "total", "type": "number", "initial": 0 },
+    { "name": "label", "type": "string", "initial": "" }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "position": { "x": 0, "y": 0 },
+      "data": { "inputs": [{ "name": "amount", "type": "number", "required": true }] }
+    },
+    {
+      "id": "assign_values",
+      "type": "assign",
+      "name": "Assign values",
+      "position": { "x": 300, "y": 0 },
+      "data": {
+        "assignments": [
+          { "variable": "total", "value": "{{ input.amount }}" },
+          { "variable": "label", "value": "Order total {{ vars.total }}" }
+        ]
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "position": { "x": 600, "y": 0 },
+      "data": {
+        "outputs": [
+          { "name": "total", "type": "number", "value": "{{ vars.total }}" },
+          { "name": "label", "type": "string", "value": "{{ vars.label }}" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "assign_values", "sourceHandle": null },
+    { "id": "e2", "source": "assign_values", "target": "end", "sourceHandle": null }
+  ]
+}

@@ -13,7 +13,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
 
+    # Largest accepted request body (flow drafts are the biggest legitimate payload).
+    max_request_bytes: int = 1_048_576
+
     mlflow_tracking_uri: str = "http://localhost:5000"
+    mlflow_set_experiment: str = "decision-flow"
 
     # NoDecode: accept comma-separated env values instead of JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]

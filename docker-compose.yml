@@ -1,6 +1,6 @@
 # Deployment file (published image); copy it with a .env to a host or Dockge. Dev: docker-compose.dev.yml.
 # .env: POSTGRES_PASSWORD (required; letters and digits only, it goes into URLs).
-# Optional: POSTGRES_USER, POSTGRES_DB (default decisionflow), MLFLOW_TRACKING_URI, APP_VERSION, WEB_URL, WEB_PORT, API_PORT, MLFLOW_PORT.
+# Optional: POSTGRES_USER, POSTGRES_DB (default decisionflow), MLFLOW_TRACKING_URI, MLFLOW_SET_EXPERIMENT, APP_VERSION, WEB_URL, WEB_PORT, API_PORT, MLFLOW_PORT.
 
 services:
   db:
@@ -66,6 +66,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-decisionflow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-decisionflow}
       CORS_ORIGINS: ${WEB_URL:-http://localhost:3000}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_SET_EXPERIMENT: ${MLFLOW_SET_EXPERIMENT:-decision-flow}
     ports:
       - "${WEB_PORT:-3000}:3000"
       - "${API_PORT:-8000}:8000"

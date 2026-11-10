@@ -1,10 +1,11 @@
 API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
+STUDIO_PORT ?= 2024
 
-.PHONY: start api web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api studio kill-studio kill-port web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
-	test-api typecheck-web build-web checks
+	test-api test-api-fast typecheck-web build-web checks
 
 # containers first (detached), then both dev servers in parallel; Ctrl+C stops only the servers
 start: db mlflow adminer
@@ -12,6 +13,16 @@ start: db mlflow adminer
 
 api: migrate
 	$(API) fastapi dev
+
+studio:
+	$(API) langgraph dev --port $(STUDIO_PORT) $(ARGS)
+
+kill-studio:
+	@$(MAKE) --no-print-directory kill-port PORT=$(STUDIO_PORT)
+
+kill-port:
+	@[ -n "$(PORT)" ] || { echo "usage: make kill-port PORT=<port>"; exit 1; }
+	$(WEB) dlx kill-port $(PORT)
 
 web:
 	$(WEB) dev
@@ -82,6 +93,10 @@ fix: lint-fix format-api
 
 test-api:
 	$(API) pytest
+
+# skips the Postgres tests that need Docker (Testcontainers)
+test-api-fast:
+	$(API) pytest -m "not db"
 
 # typegen creates the global route types (LayoutProps, ...) that a clean checkout lacks
 typecheck-web:

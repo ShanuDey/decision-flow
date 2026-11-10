@@ -7,6 +7,135 @@
 import * as zod from 'zod';
 
 /**
+ * @summary List Flows
+ */
+export const listFlowsQuerySortDefault = `-updated_at`;
+export const listFlowsQueryPageDefault = 1;
+
+export const listFlowsQueryPageSizeDefault = 25;
+export const listFlowsQueryPageSizeMax = 100;
+
+
+
+export const ListFlowsQueryParams = zod.object({
+  "q": zod.union([zod.string(),zod.null()]).optional(),
+  "sort": zod.enum(['name', '-name', 'created_at', '-created_at', 'updated_at', '-updated_at']).default(listFlowsQuerySortDefault),
+  "page": zod.int().min(1).default(listFlowsQueryPageDefault),
+  "page_size": zod.int().min(1).max(listFlowsQueryPageSizeMax).default(listFlowsQueryPageSizeDefault)
+})
+
+export const ListFlowsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})),
+  "page": zod.int(),
+  "page_size": zod.int(),
+  "total": zod.int()
+})
+
+
+/**
+ * @summary Create Flow
+ */
+export const createFlowBodyNameMax = 120;
+
+
+
+export const CreateFlowBody = zod.object({
+  "draft": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
+  "name": zod.string().min(1).max(createFlowBodyNameMax)
+})
+
+export const CreateFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * @summary Get Flow
+ */
+export const GetFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const GetFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Saves even an invalid graph (autosave); problems are reported by `validate_flow`.
+ * @summary Save Draft
+ */
+export const SaveDraftParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const SaveDraftHeader = zod.object({
+  "if-match": zod.union([zod.string(),zod.null()]).optional()
+})
+
+export const SaveDraftBody = zod.record(zod.string(), zod.unknown())
+
+export const SaveDraftResponse = zod.object({
+  "draft_version": zod.int()
+})
+
+
+/**
+ * Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422.
+ * @summary Create Run
+ */
+export const CreateRunParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const createRunBodyTestDefault = false;
+
+export const CreateRunBody = zod.object({
+  "input": zod.record(zod.string(), zod.unknown()).optional(),
+  "test": zod.boolean().default(createRunBodyTestDefault)
+})
+
+export const CreateRunResponse = zod.object({
+  "duration_ms": zod.int(),
+  "error": zod.union([zod.object({
+  "message": zod.string(),
+  "node_id": zod.string()
+}),zod.null()]),
+  "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "run_id": zod.uuid(),
+  "status": zod.enum(['succeeded', 'failed'])
+})
+
+
+/**
+ * @summary Validate Flow
+ */
+export const ValidateFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const ValidateFlowResponse = zod.object({
+  "valid": zod.literal(true).meta({ title: 'Valid' })
+})
+
+
+/**
  * Process is up. Does not check dependencies.
  * @summary Health
  */
@@ -22,4 +151,59 @@ export const HealthResponse = zod.object({
 export const ReadyResponse = zod.object({
   "checks": zod.record(zod.string(), zod.enum(['ok', 'unavailable'])),
   "status": zod.enum(['ok', 'unavailable'])
+})
+
+
+/**
+ * Newest first; pass `next_cursor` back as `cursor` for the next page.
+ * @summary List Runs
+ */
+export const listRunsQueryLimitDefault = 25;
+export const listRunsQueryLimitMax = 100;
+
+
+
+export const ListRunsQueryParams = zod.object({
+  "flow_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "status": zod.union([zod.enum(['succeeded', 'failed']),zod.null()]).optional(),
+  "test": zod.union([zod.boolean(),zod.null()]).optional(),
+  "from": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "to": zod.union([zod.iso.datetime({"offset":true}),zod.null()]).optional(),
+  "cursor": zod.union([zod.string(),zod.null()]).optional(),
+  "limit": zod.int().min(1).max(listRunsQueryLimitMax).default(listRunsQueryLimitDefault)
+})
+
+export const ListRunsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "duration_ms": zod.int(),
+  "error": zod.union([zod.object({
+  "message": zod.string(),
+  "node_id": zod.string()
+}),zod.null()]),
+  "flow_id": zod.uuid(),
+  "run_id": zod.uuid(),
+  "started_at": zod.iso.datetime({"offset":true}),
+  "status": zod.enum(['succeeded', 'failed']),
+  "test": zod.boolean()
+})),
+  "next_cursor": zod.union([zod.string(),zod.null()])
+})
+
+
+/**
+ * @summary Get Run
+ */
+export const GetRunParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunResponse = zod.object({
+  "duration_ms": zod.int(),
+  "error": zod.union([zod.object({
+  "message": zod.string(),
+  "node_id": zod.string()
+}),zod.null()]),
+  "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "run_id": zod.uuid(),
+  "status": zod.enum(['succeeded', 'failed'])
 })
