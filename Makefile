@@ -3,7 +3,7 @@ COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
 STUDIO_PORT ?= 2024
 
-.PHONY: start api studio kill-studio kill-port web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api studio kill-studio kill-port web db mlflow mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api test-api-fast typecheck-web build-web checks
 
@@ -32,6 +32,12 @@ db:
 
 mlflow:
 	$(COMPOSE) up -d mlflow
+
+# same version as the container; stops it first because both use port 5000
+mlflow-ui: db
+	$(COMPOSE) stop mlflow
+	uv run --no-project --env-file .env --with "mlflow==3.18.0" --with psycopg2-binary \
+		mlflow ui --host 127.0.0.1 --port 5000
 
 adminer:
 	$(COMPOSE) --profile tools up -d adminer
