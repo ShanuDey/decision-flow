@@ -16,8 +16,20 @@ import {
   fromReactFlow,
   toReactFlow,
 } from "@/lib/graph/convert";
-import { canAdd, canConnect, createNode, NODE_SPECS } from "@/lib/graph/nodes";
-import type { Graph, NodeData, NodeType, Variable } from "@/lib/graph/types";
+import {
+  canAdd,
+  canConnect,
+  createNode,
+  NODE_SPECS,
+  uniqueId,
+  uniqueName,
+} from "@/lib/graph/nodes";
+import type { Graph, NodeData, NodeType, Position, Variable } from "@/lib/graph/types";
+
+export interface Removed {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
 
 interface EditorState {
   flowId: string;
@@ -38,7 +50,14 @@ interface EditorState {
   onEdgesChange: (changes: EdgeChange<FlowEdge>[]) => void;
   onConnect: (connection: Connection) => void;
   isValidConnection: (connection: Connection | FlowEdge) => boolean;
-  addNode: (type: NodeType) => void;
+  addNode: (type: NodeType, position?: Position) => void;
+  // Selection is not a graph change: it never makes the draft dirty.
+  selectOnly: (id: string) => void;
+  // Returns the new node's id, or null when it cannot be duplicated (at the type's limit).
+  duplicateNode: (id: string) => string | null;
+  // Returns exactly what was removed (a removed node takes its edges with it), for Undo.
+  deleteItems: (nodeIds: string[], edgeIds: string[]) => Removed;
+  restore: (removed: Removed) => void;
   setNodeConfig: (id: string, config: NodeData) => void;
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
@@ -59,6 +78,27 @@ const touch = (s: { dirty: boolean; revision: number }, changed = true) =>
 
 const typeOf = (nodes: FlowNode[], id: string | null | undefined) =>
   nodes.find((n) => n.id === id)?.type;
+
+const refOf = (n: FlowNode) => ({ id: n.id, name: n.data.name, type: n.type as NodeType });
+
+function countByType(nodes: FlowNode[]): Record<NodeType, number> {
+  const counts: Record<NodeType, number> = { start: 0, assign: 0, end: 0 };
+  for (const n of nodes) counts[n.type as NodeType] += 1;
+  return counts;
+}
+
+// Never delete the last node of a type that the flow needs (Start, End).
+export function removableIds(nodes: FlowNode[], ids: string[]): Set<string> {
+  const remaining = countByType(nodes);
+  const allowed = new Set<string>();
+  for (const id of ids) {
+    const type = typeOf(nodes, id) as NodeType | undefined;
+    if (!type || remaining[type] <= NODE_SPECS[type].minCount) continue;
+    remaining[type] -= 1;
+    allowed.add(id);
+  }
+  return allowed;
+}
 
 export const useEditor = create<EditorState>()((set, get) => ({
   flowId: "",
@@ -91,21 +131,16 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   onNodesChange: (changes) =>
     set((s) => {
-      // Never delete the last node of a type that the flow needs (Start, End).
-      const remaining = { ...countByType(s.nodes) };
-      const allowed = changes.filter((c) => {
-        if (c.type !== "remove") return true;
-        const type = typeOf(s.nodes, c.id);
-        if (!type) return true;
-        if (remaining[type] <= NODE_SPECS[type].minCount) return false;
-        remaining[type] -= 1;
-        return true;
-      });
-      const gone = new Set(allowed.filter((c) => c.type === "remove").map((c) => c.id));
+      // Safety net: deletes normally go through deleteItems.
+      const allowedIds = removableIds(
+        s.nodes,
+        changes.filter((c) => c.type === "remove").map((c) => c.id),
+      );
+      const allowed = changes.filter((c) => c.type !== "remove" || allowedIds.has(c.id));
       return {
         nodes: applyNodeChanges(allowed, s.nodes),
-        edges: gone.size
-          ? s.edges.filter((e) => !gone.has(e.source) && !gone.has(e.target))
+        edges: allowedIds.size
+          ? s.edges.filter((e) => !allowedIds.has(e.source) && !allowedIds.has(e.target))
           : s.edges,
         ...touch(s, allowed.some(altersGraph)),
       };
@@ -126,15 +161,14 @@ export const useEditor = create<EditorState>()((set, get) => ({
     return !edges.some((e) => e.source === c.source && e.target === c.target);
   },
 
-  onConnect: (connection) =>
-    set((s) => ({ edges: addEdge(connection, s.edges), ...touch(s) })),
+  onConnect: (connection) => set((s) => ({ edges: addEdge(connection, s.edges), ...touch(s) })),
 
-  addNode: (type) =>
+  addNode: (type, position) =>
     set((s) => {
       if (!canAdd(type, s.nodes.map(refOf))) return s;
       const x = s.nodes.length ? Math.max(...s.nodes.map((n) => n.position.x)) + 280 : 0;
       const y = s.nodes.length ? s.nodes[s.nodes.length - 1].position.y : 0;
-      const node = createNode(type, s.nodes.map(refOf), { x, y });
+      const node = createNode(type, s.nodes.map(refOf), position ?? { x, y });
       const added: FlowNode = {
         id: node.id,
         type: node.type,
@@ -144,6 +178,80 @@ export const useEditor = create<EditorState>()((set, get) => ({
       };
       return {
         nodes: [...s.nodes.map((n) => ({ ...n, selected: false })), added],
+        ...touch(s),
+      };
+    }),
+
+  selectOnly: (id) =>
+    set((s) => ({ nodes: s.nodes.map((n) => ({ ...n, selected: n.id === id })) })),
+
+  duplicateNode: (id) => {
+    const { nodes } = get();
+    const source = nodes.find((n) => n.id === id);
+    if (!source || !canAdd(source.type as NodeType, nodes.map(refOf))) return null;
+    const name = uniqueName(
+      source.data.name,
+      nodes.map((n) => n.data.name),
+    );
+    const newId = uniqueId(
+      name,
+      source.type as NodeType,
+      nodes.map((n) => n.id),
+    );
+    const copy: FlowNode = {
+      id: newId,
+      type: source.type,
+      position: { x: source.position.x + 40, y: source.position.y + 40 },
+      data: { name, config: structuredClone(source.data.config) },
+      selected: true,
+    };
+    set((s) => ({
+      nodes: [...s.nodes.map((n) => ({ ...n, selected: false })), copy],
+      ...touch(s),
+    }));
+    return newId;
+  },
+
+  deleteItems: (nodeIds, edgeIds) => {
+    const s = get();
+    const gone = removableIds(s.nodes, nodeIds);
+    const dropped = new Set(edgeIds);
+    const removed: Removed = {
+      nodes: s.nodes.filter((n) => gone.has(n.id)),
+      edges: s.edges.filter((e) => dropped.has(e.id) || gone.has(e.source) || gone.has(e.target)),
+    };
+    if (!removed.nodes.length && !removed.edges.length) return removed;
+    const removedEdgeIds = new Set(removed.edges.map((e) => e.id));
+    set((st) => ({
+      nodes: st.nodes.filter((n) => !gone.has(n.id)),
+      edges: st.edges.filter((e) => !removedEdgeIds.has(e.id)),
+      ...touch(st),
+    }));
+    return removed;
+  },
+
+  restore: ({ nodes, edges }) =>
+    set((s) => {
+      const have = new Set(s.nodes.map((n) => n.id));
+      const addedNodes = nodes
+        .filter((n) => !have.has(n.id))
+        .map((n) => ({ ...n, selected: false }));
+      // A removed node whose id is now taken stays gone; its edges must not attach to the new one.
+      const blocked = new Set(nodes.filter((n) => have.has(n.id)).map((n) => n.id));
+      const ends = new Set([...have, ...addedNodes.map((n) => n.id)]);
+      const haveEdges = new Set(s.edges.map((e) => e.id));
+      const addedEdges = edges.filter(
+        (e) =>
+          !haveEdges.has(e.id) &&
+          ends.has(e.source) &&
+          ends.has(e.target) &&
+          !blocked.has(e.source) &&
+          !blocked.has(e.target),
+      );
+      if (!addedNodes.length && !addedEdges.length) return s;
+      return {
+        nodes: [...s.nodes, ...addedNodes],
+        edges: [...s.edges, ...addedEdges],
         ...touch(s),
       };
     }),
@@ -167,14 +275,6 @@ export const useEditor = create<EditorState>()((set, get) => ({
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),
 }));
-
-const refOf = (n: FlowNode) => ({ id: n.id, name: n.data.name, type: n.type as NodeType });
-
-function countByType(nodes: FlowNode[]): Record<NodeType, number> {
-  const counts: Record<NodeType, number> = { start: 0, assign: 0, end: 0 };
-  for (const n of nodes) counts[n.type as NodeType] += 1;
-  return counts;
-}
 
 export const selectedNode = (s: EditorState): FlowNode | undefined =>
   s.nodes.find((n) => n.selected);

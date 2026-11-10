@@ -113,3 +113,117 @@ describe("round trip", () => {
     expect(state().toGraph()).toEqual(graph);
   });
 });
+
+describe("addNode with a position", () => {
+  it("places the node where asked", () => {
+    state().addNode("assign", { x: 123, y: 45 });
+    const added = state().nodes.find((n) => n.id === "assign_values_2")!;
+    expect(added.position).toEqual({ x: 123, y: 45 });
+    expect(added.selected).toBe(true);
+  });
+});
+
+describe("duplicateNode", () => {
+  it("copies the settings into an independent node with a unique name and id, without edges", () => {
+    state().setNodeConfig("assign_values", {
+      assignments: [{ variable: "total", value: "{{ input.amount }}" }],
+    });
+    const id = state().duplicateNode("assign_values");
+    expect(id).toBe("assign_values_2");
+
+    const copy = state().nodes.find((n) => n.id === id)!;
+    expect(copy.data.name).toBe("Assign values 2");
+    expect(copy.position).toEqual({ x: 340, y: 40 });
+    expect(copy.data.config).toEqual({
+      assignments: [{ variable: "total", value: "{{ input.amount }}" }],
+    });
+    state().setNodeConfig(id!, { assignments: [] });
+    const original = state().nodes.find((n) => n.id === "assign_values")!;
+    expect(original.data.config).toEqual({
+      assignments: [{ variable: "total", value: "{{ input.amount }}" }],
+    });
+    expect(state().edges.filter((e) => e.source === id || e.target === id)).toEqual([]);
+    expect(state().nodes.filter((n) => n.selected).map((n) => n.id)).toEqual([id]);
+  });
+
+  it("refuses to duplicate Start, and unknown nodes", () => {
+    expect(state().duplicateNode("start")).toBeNull();
+    expect(state().duplicateNode("nope")).toBeNull();
+    expect(state().nodes).toHaveLength(3);
+  });
+});
+
+describe("deleteItems and restore", () => {
+  it("returns the node together with its edges, and restore puts them back", () => {
+    const removed = state().deleteItems(["assign_values"], []);
+    expect(removed.nodes.map((n) => n.id)).toEqual(["assign_values"]);
+    expect(removed.edges.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
+    expect(state().nodes.map((n) => n.id)).toEqual(["start", "end"]);
+    expect(state().edges).toEqual([]);
+
+    state().restore(removed);
+    expect(state().nodes.map((n) => n.id).sort()).toEqual(["assign_values", "end", "start"]);
+    expect(state().edges.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
+    expect(state().toGraph().edges).toEqual(graph.edges);
+  });
+
+  it("deletes a single edge and can restore it", () => {
+    const removed = state().deleteItems([], ["e1"]);
+    expect(removed.nodes).toEqual([]);
+    expect(removed.edges.map((e) => e.id)).toEqual(["e1"]);
+    expect(state().edges.map((e) => e.id)).toEqual(["e2"]);
+    state().restore(removed);
+    expect(state().edges.map((e) => e.id).sort()).toEqual(["e1", "e2"]);
+  });
+
+  it("refuses to delete the only Start or End and reports nothing removed", () => {
+    const removed = state().deleteItems(["start", "end"], []);
+    expect(removed).toEqual({ nodes: [], edges: [] });
+    expect(state().nodes).toHaveLength(3);
+    expect(state().dirty).toBe(false);
+  });
+
+  it("marks the draft dirty on delete and on restore", () => {
+    const removed = state().deleteItems([], ["e2"]);
+    expect(state().dirty).toBe(true);
+    state().markSaved(2, state().revision);
+    expect(state().dirty).toBe(false);
+    state().restore(removed);
+    expect(state().dirty).toBe(true);
+  });
+
+  it("restore skips ids that were taken meanwhile and edges with missing ends", () => {
+    const removed = state().deleteItems(["assign_values"], []);
+    state().addNode("assign"); // takes the freed id "assign_values"
+    const before = state().nodes.length;
+    state().restore(removed);
+    expect(state().nodes).toHaveLength(before);
+    expect(state().edges.map((e) => e.id)).toEqual([]); // not rewired to the unrelated new node
+  });
+
+  it("restoring twice does not duplicate anything", () => {
+    const removed = state().deleteItems(["assign_values"], []);
+    state().restore(removed);
+    const revision = state().revision;
+    state().restore(removed);
+    expect(state().nodes).toHaveLength(3);
+    expect(state().revision).toBe(revision); // a no-op restore is not a change
+  });
+});
+
+describe("selectOnly", () => {
+  it("selects exactly one node without touching the draft", () => {
+    state().selectOnly("assign_values");
+    expect(state().nodes.filter((n) => n.selected).map((n) => n.id)).toEqual(["assign_values"]);
+    state().selectOnly("end");
+    expect(state().nodes.filter((n) => n.selected).map((n) => n.id)).toEqual(["end"]);
+    expect(state().dirty).toBe(false);
+    expect(state().revision).toBe(0);
+  });
+
+  it("deselects everything for an unknown id", () => {
+    state().selectOnly("start");
+    state().selectOnly("nope");
+    expect(state().nodes.some((n) => n.selected)).toBe(false);
+  });
+});

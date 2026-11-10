@@ -5,6 +5,7 @@ import { createRun, getFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
 
+import { useLayout } from "./layout";
 import { useEditor } from "./store";
 
 export type RunOutcome =
@@ -12,6 +13,8 @@ export type RunOutcome =
   | { kind: "rejected"; input: Record<string, unknown>; error: ApiFailure };
 
 export async function reloadLatest(): Promise<void> {
+  // An old Undo toast must not restore nodes into the reloaded graph.
+  toast.dismiss();
   const { flowId } = useEditor.getState();
   const result = await call(getFlow(flowId, { cache: "no-store" }));
   const graph = result.ok ? parseDraft(result.data.draft) : null;
@@ -80,4 +83,34 @@ export async function runTest(input: Record<string, unknown>): Promise<RunOutcom
     useEditor.getState().setIssues(issuesOf(result.error));
   }
   return { kind: "rejected", input, error: result.error };
+}
+
+export function deleteFromCanvas(nodeIds: string[], edgeIds: string[]): void {
+  const removed = useEditor.getState().deleteItems(nodeIds, edgeIds);
+  const { nodes, edges } = removed;
+  if (!nodes.length && !edges.length) {
+    if (nodeIds.length) toast.info("A flow needs at least one Start and one End node.");
+    return;
+  }
+  const what =
+    nodes.length === 1
+      ? `\u201c${nodes[0].data.name}\u201d`
+      : nodes.length > 1
+        ? `${nodes.length} nodes`
+        : edges.length === 1
+          ? "connection"
+          : `${edges.length} connections`;
+  toast(`Deleted ${what}`, {
+    action: { label: "Undo", onClick: () => useEditor.getState().restore(removed) },
+    duration: 8000,
+  });
+}
+
+// `select` also highlights the name text (used by Rename).
+export function configureNode(id: string, { select = false }: { select?: boolean } = {}): void {
+  useEditor.getState().selectOnly(id);
+  const layout = useLayout.getState();
+  layout.expand();
+  // SettingsPanel focuses the field once it has rendered this node.
+  layout.requestFocus({ select });
 }

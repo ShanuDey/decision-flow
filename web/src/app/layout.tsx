@@ -18,7 +18,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${inter.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster />
+        {/* top center: bottom right covers the settings panel; the offset clears the editor bar */}
+        <Toaster position="top-center" offset={64} />
       </body>
     </html>
   );

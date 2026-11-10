@@ -1,5 +1,9 @@
 "use client";
 
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useEffect, useSyncExternalStore } from "react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { FlowNode } from "@/lib/graph/convert";
@@ -12,9 +16,12 @@ import type {
   StartData,
   Variable,
 } from "@/lib/graph/types";
+import { cn } from "@/lib/utils";
 
 import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
+import { clampWidth, useLayout } from "./layout";
+import { ResizeHandle } from "./resize-handle";
 import { selectedNode, useEditor } from "./store";
 
 function patch<T>(list: T[], index: number, change: Partial<T>): T[] {
@@ -275,55 +282,120 @@ function VariablesForm() {
   );
 }
 
+const subscribeResize = (notify: () => void) => {
+  window.addEventListener("resize", notify);
+  return () => window.removeEventListener("resize", notify);
+};
+
+function useViewportWidth(): number {
+  return useSyncExternalStore(subscribeResize, () => window.innerWidth, () => 1280);
+}
+
 export function SettingsPanel() {
   const node = useEditor(selectedNode);
   const renameNode = useEditor((s) => s.renameNode);
   const issues = useEditor((s) => s.issues);
   const general = flowIssues(issues);
+  const storedWidth = useLayout((s) => s.width);
+  const collapsed = useLayout((s) => s.collapsed);
+  const toggleCollapsed = useLayout((s) => s.toggleCollapsed);
+  const focusRequest = useLayout((s) => s.focusRequest);
+  const viewport = useViewportWidth();
+  // Re-clamped on every render so a smaller window never leaves the panel wider than allowed.
+  const width = clampWidth(storedWidth, viewport);
+
+  // Runs after the commit that expanded the panel and rendered the selected node's form.
+  useEffect(() => {
+    if (!focusRequest) return;
+    const input = document.getElementById("node-name") as HTMLInputElement | null;
+    if (!input) return;
+    input.focus();
+    input.scrollIntoView({ block: "nearest" });
+    if (focusRequest.select) input.select();
+  }, [focusRequest]);
 
   return (
-    <aside
-      aria-label="Settings"
-      className="flex h-full w-full shrink-0 flex-col gap-6 overflow-y-auto border-l bg-background p-4 md:w-[320px]"
-    >
-      {general.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          {general.map((issue, i) => (
-            <FieldError key={i} issue={issue} />
-          ))}
+    <>
+      {collapsed && (
+        <div className="hidden w-10 shrink-0 flex-col items-center border-l bg-background py-2 lg:flex">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapsed}
+            aria-label="Show settings"
+            title="Show settings"
+          >
+            <PanelRightOpen aria-hidden />
+          </Button>
         </div>
       )}
+      <div
+        className={cn("relative h-full w-full shrink-0 lg:w-[var(--panel-width)]", collapsed && "lg:hidden")}
+        style={{ "--panel-width": `${width}px` } as React.CSSProperties}
+      >
+        <ResizeHandle width={width} viewport={viewport} />
+        <aside
+          aria-label="Settings"
+          className="flex h-full flex-col gap-5 overflow-y-auto border-l bg-background p-4"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Settings
+            </h2>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              onClick={toggleCollapsed}
+              aria-label="Hide settings"
+              title="Hide settings"
+            >
+              <PanelRightClose aria-hidden />
+            </Button>
+          </div>
 
-      {node ? (
-        <>
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium">Node</h2>
-            <Labeled id="node-name" label="Name" issue={fieldIssue(issues, node.id, "name")}>
-              <Input
-                id="node-name"
-                className="h-10"
-                value={node.data.name}
-                onChange={(e) => renameNode(node.id, e.target.value)}
-              />
-            </Labeled>
-            <p className="text-xs text-muted-foreground">
-              Id: <code>{node.id}</code> (never changes)
-            </p>
-            {issuesForNode(issues, node.id)
-              .filter((i) => !i.field)
-              .map((issue, i) => (
+          {general.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {general.map((issue, i) => (
                 <FieldError key={i} issue={issue} />
               ))}
-          </section>
-          {node.type === "start" && <StartForm node={node} />}
-          {node.type === "end" && <EndForm node={node} />}
-          {node.type === "assign" && <AssignForm node={node} />}
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>
-      )}
+            </div>
+          )}
 
-      <VariablesForm />
-    </aside>
+          {node ? (
+            <>
+              <section className="flex flex-col gap-3">
+                <h3 className="text-sm font-medium">Node</h3>
+                <Labeled id="node-name" label="Name" issue={fieldIssue(issues, node.id, "name")}>
+                  <Input
+                    id="node-name"
+                    className="h-10"
+                    value={node.data.name}
+                    onChange={(e) => renameNode(node.id, e.target.value)}
+                  />
+                </Labeled>
+                <p className="text-xs text-muted-foreground">
+                  Id: <code>{node.id}</code> (never changes)
+                </p>
+                {issuesForNode(issues, node.id)
+                  .filter((i) => !i.field)
+                  .map((issue, i) => (
+                    <FieldError key={i} issue={issue} />
+                  ))}
+              </section>
+              {node.type === "start" && <StartForm node={node} />}
+              {node.type === "end" && <EndForm node={node} />}
+              {node.type === "assign" && <AssignForm node={node} />}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>
+          )}
+
+          <VariablesForm />
+        </aside>
+      </div>
+    </>
   );
 }

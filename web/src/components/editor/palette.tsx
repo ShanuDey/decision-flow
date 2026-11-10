@@ -42,7 +42,9 @@ export function Palette() {
           </button>
         );
       })}
-      <p className="mt-2 px-1 text-xs text-muted-foreground">More node types are coming.</p>
+      <p className="mt-2 px-1 text-xs text-muted-foreground">
+        Double-click a node to configure it. More node types are coming.
+      </p>
     </aside>
   );
 }
