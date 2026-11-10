@@ -13,6 +13,7 @@ from app.main import app
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
 from app.runs.store import get_run_store
+from tests.db_fixtures import postgres_url, sessions  # noqa: F401  (fixtures for -m db tests)
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
 

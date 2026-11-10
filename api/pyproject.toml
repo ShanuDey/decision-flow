@@ -26,6 +26,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["db: needs Docker (Testcontainers Postgres); deselect with -m \"not db\""]
 
 [dependency-groups]
 dev = [
@@ -33,4 +34,5 @@ dev = [
     "langgraph-cli[inmem]>=0.4.42",
     "pytest>=9.2.0",
     "ruff>=0.17.4",
+    "testcontainers[postgres]>=4.15.0",
 ]

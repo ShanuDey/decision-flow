@@ -119,6 +119,17 @@ def test_start_with_no_outgoing_edge(raw: dict) -> None:
     assert "no_outgoing_edge" in found
 
 
+def test_fan_out_is_rejected_until_parallel_branches_exist(raw: dict) -> None:
+    second = copy.deepcopy(raw["nodes"][1])
+    second.update(id="end_2", name="End 2")
+    raw["nodes"].append(second)
+    raw["edges"].append({"id": "e2", "source": "start", "target": "end_2"})
+    graph, issues = parse_graph(raw)
+    assert graph is None
+    assert [(i.code, i.node_id) for i in issues] == [("parallel_not_supported", "start")]
+    assert "2 outgoing edges" in issues[0].message
+
+
 def test_end_nodes_must_declare_same_outputs(raw: dict) -> None:
     second = copy.deepcopy(raw["nodes"][1])
     second.update(id="end_2", name="End 2")

@@ -141,6 +141,16 @@ def check_structure(graph: Graph) -> list[Issue]:
             )
         if n.accepts_outgoing and not out[n.id]:
             issues.append(_issue("no_outgoing_edge", f"node '{n.id}' has no outgoing edge", n.id))
+        # Temporary: fan-out needs Merge and `vars` reducers (slice 3); lift this check there.
+        if len(out[n.id]) > 1:
+            issues.append(
+                _issue(
+                    "parallel_not_supported",
+                    f"node '{n.id}' has {len(out[n.id])} outgoing edges; parallel branches "
+                    "are not supported yet",
+                    n.id,
+                )
+            )
 
     entries = [n for n in graph.nodes if not n.accepts_incoming]
     if _has_cycle(nodes, out, incoming):

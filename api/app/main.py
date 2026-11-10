@@ -8,6 +8,7 @@ from fastapi.routing import APIRoute
 from app import tracing
 from app.errors import install_error_handlers
 from app.flows import router as flows
+from app.limits import install_body_limit
 from app.ops import router as ops
 from app.runs import router as runs
 from app.settings import get_settings
@@ -31,6 +32,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="decision-flow api", generate_unique_id_function=_operation_id, lifespan=_lifespan
     )
+
+    install_body_limit(app, settings.max_request_bytes)  # before CORS: stays inside it
 
     # Strict CORS: only the configured web origin(s), with credentials (security.md section 6).
     app.add_middleware(
