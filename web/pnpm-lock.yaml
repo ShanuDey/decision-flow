@@ -193,9 +193,6 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
-      shadcn:
-        specifier: ^4.23.0
-        version: 4.23.0(supports-color@7.2.0)
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -230,6 +227,9 @@ importers:
       orval:
         specifier: ^8.47.0
         version: 8.47.0(@modelcontextprotocol/server@2.4.0)(zod@4.6.7)
+      shadcn:
+        specifier: ^4.23.0
+        version: 4.23.0(supports-color@7.2.0)
       tailwindcss:
         specifier: ^4
         version: 4.3.5
@@ -2979,8 +2979,8 @@ packages:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
 
-  postcss-selector-parser@7.1.8:
-    resolution: {integrity: sha512-4CrD1SdKVx3bWOXG6Mh5YI9s/NTEgMq4T+O0T4wj2JqGhxbi8BAPc8BJYDVrVOqXBbWGX7YMO3f3ldOSscdCew==}
+  postcss-selector-parser@7.2.0:
+    resolution: {integrity: sha512-Khh/tERVBn0I1499dvBSHY0pWJloMJWUxDsOBM0CCDPAcVZ10Jl2L1qy1f19uEX22spa8Mv7DCdEQJc0cGwBhQ==}
     engines: {node: '>=4'}
 
   postcss@8.5.23:
@@ -6363,7 +6363,7 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postcss-selector-parser@7.1.8:
+  postcss-selector-parser@7.2.0:
     dependencies:
       util-deprecate: 1.0.2
 
@@ -6563,7 +6563,7 @@ snapshots:
       open: 11.0.4
       ora: 8.2.0
       postcss: 8.5.32
-      postcss-selector-parser: 7.1.8
+      postcss-selector-parser: 7.2.0
       prompts: 2.4.2
       recast: 0.23.21
       socks: 2.8.10
