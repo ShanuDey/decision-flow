@@ -16,7 +16,7 @@ interface Item {
 const ITEMS: Item[] = [
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play, soon: true },
-  { href: "/settings", label: "Settings", icon: Settings, soon: true },
+  { href: "/settings", label: "Settings", icon: Settings },
   { href: "/status", label: "System status", icon: Activity },
 ];
 

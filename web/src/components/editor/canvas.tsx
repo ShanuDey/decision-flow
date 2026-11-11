@@ -2,6 +2,7 @@
 
 import { Background, Controls, ReactFlow, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useTheme } from "next-themes";
 import { useState } from "react";
 
 import { configureNode, deleteFromCanvas } from "./actions";
@@ -17,6 +18,7 @@ export function Canvas() {
   const onConnect = useEditor((s) => s.onConnect);
   const isValidConnection = useEditor((s) => s.isValidConnection);
   const selectOnly = useEditor((s) => s.selectOnly);
+  const { resolvedTheme } = useTheme();
   const { screenToFlowPosition } = useReactFlow();
   const [target, setTarget] = useState<MenuTarget | null>(null);
 
@@ -24,6 +26,7 @@ export function Canvas() {
     <div className="h-full min-w-0 flex-1" aria-label="Flow canvas">
       <CanvasMenu target={target} onReset={() => setTarget(null)}>
         <ReactFlow
+          colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
