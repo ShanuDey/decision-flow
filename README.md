@@ -1,5 +1,9 @@
 # decision-flow
 
+A visual editor for building decision flows as graphs, plus an API that runs them and records every run as a trace.
+
+See [docs/](docs/README.md) for concepts and node reference.
+
 ## Quick start
 
 Needs Docker with Compose v2 (`docker compose`).
