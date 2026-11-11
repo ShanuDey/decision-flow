@@ -7,12 +7,14 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.engine.graph import Graph
+from app.engine.inputs import check_value
 from app.engine.issues import Issue
 from app.engine.nodes import NODE_TYPES, NodeContext, NodeModel, StartNode
 from app.engine.templates import TemplateError, references
 
 RESERVED_IDS = {"input", "vars", "nodes", "secrets", "env", "run"}
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _issue(code: str, message: str, node_id: str | None = None, field: str | None = None) -> Issue:
@@ -108,6 +110,27 @@ def check_structure(graph: Graph) -> list[Issue]:
                 _issue("duplicate_variable", f"duplicate variable '{v.name}'", None, "variables")
             )
         var_names.add(v.name)
+        if not NAME_PATTERN.match(v.name):
+            issues.append(
+                _issue(
+                    "invalid_variable_name",
+                    f"variable '{v.name}' must match {NAME_PATTERN.pattern}",
+                    None,
+                    "variables",
+                )
+            )
+        if v.initial is not None:
+            try:
+                check_value(v, v.initial)
+            except ValueError as exc:
+                issues.append(
+                    _issue(
+                        "invalid_initial",
+                        f"variable '{v.name}' initial value: {exc}",
+                        None,
+                        "variables",
+                    )
+                )
 
     out: dict[str, list[str]] = defaultdict(list)
     incoming: dict[str, int] = defaultdict(int)

@@ -98,6 +98,49 @@ def test_an_enum_variable_needs_values(raw: dict) -> None:
     assert [i.code for i in issues(raw)] == ["schema"]
 
 
+def test_an_initial_value_must_match_the_variable_type(raw: dict) -> None:
+    raw["variables"].append({"name": "count", "type": "number", "initial": "zero"})
+    [issue] = issues(raw)
+    assert issue.code == "invalid_initial"
+    assert "expected number" in issue.message
+
+
+def test_a_variable_name_must_be_referenceable_from_templates(raw: dict) -> None:
+    raw["variables"].append({"name": "my-var", "type": "string"})
+    assert [i.code for i in issues(raw)] == ["invalid_variable_name"]
+
+
+@pytest.mark.anyio
+async def test_structured_values_render_as_json_inside_text_and_keep_type_alone(
+    raw: dict,
+) -> None:
+    raw["variables"] += [
+        {"name": "items", "type": "array", "initial": [1, 2]},
+        {"name": "copy", "type": "array"},
+        {"name": "text", "type": "string"},
+    ]
+    assign_node(raw)["data"]["assignments"] += [
+        {"variable": "copy", "value": "{{ vars.items }}"},
+        {"variable": "text", "value": "items={{ vars.items }}"},
+    ]
+    raw["nodes"][-1]["data"]["outputs"] = [
+        {"name": "copy", "type": "array", "value": "{{ vars.copy }}"},
+        {"name": "text", "type": "string", "value": "{{ vars.text }}"},
+    ]
+    assert (await run(raw, {"amount": 1})).output == {"copy": [1, 2], "text": "items=[1, 2]"}
+
+
+@pytest.mark.anyio
+async def test_reading_a_variable_with_no_value_fails_the_run(raw: dict) -> None:
+    raw["variables"].append({"name": "unset", "type": "string"})
+    assign_node(raw)["data"]["assignments"].append(
+        {"variable": "unset", "value": "{{ vars.unset.x }}"}
+    )
+    result = await run(raw, {"amount": 1})
+    assert result.status == "failed"
+    assert result.error.node_id == "assign_values"
+
+
 @pytest.mark.anyio
 async def test_the_assigned_values_are_the_nodes_recorded_output(raw: dict) -> None:
     class Recorder:

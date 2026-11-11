@@ -22,3 +22,6 @@ def test_type_traits() -> None:
     start, end = by_name["start"], by_name["end"]
     assert (start.min_count, start.max_count, start.accepts_incoming) == (1, 1, False)
     assert (end.min_count, end.max_count, end.accepts_outgoing) == (1, None, False)
+    assign = by_name["assign"]
+    assert (assign.min_count, assign.max_count) == (0, None)
+    assert (assign.accepts_incoming, assign.accepts_outgoing) == (True, True)
