@@ -78,6 +78,30 @@ export const GetFlowResponse = zod.object({
 
 
 /**
+ * @summary Rename Flow
+ */
+export const RenameFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const renameFlowBodyNameMax = 120;
+
+
+
+export const RenameFlowBody = zod.object({
+  "name": zod.string().min(1).max(renameFlowBodyNameMax)
+})
+
+export const RenameFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Saves even an invalid graph (autosave); problems are reported by `validate_flow`.
  * @summary Save Draft
  */

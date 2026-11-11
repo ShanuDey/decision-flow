@@ -12,6 +12,7 @@ from app.flows.schemas import (
     FlowCreate,
     FlowDetail,
     FlowList,
+    FlowRename,
     FlowSummary,
     ValidateResponse,
 )
@@ -52,6 +53,12 @@ async def list_flows(
 async def get_flow(flow_id: uuid.UUID, store: Store) -> FlowDetail:
     flow = await service.require_flow(store, flow_id)
     return FlowDetail.model_validate(flow, from_attributes=True)
+
+
+@router.patch("/flows/{flow_id}", responses=NOT_FOUND)
+async def rename_flow(flow_id: uuid.UUID, body: FlowRename, store: Store) -> FlowSummary:
+    flow = await service.rename_flow(store, flow_id, body.name)
+    return FlowSummary.model_validate(flow, from_attributes=True)
 
 
 @router.put(

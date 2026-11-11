@@ -45,6 +45,8 @@ interface EditorState {
   issues: FieldIssue[];
 
   load: (flow: { id: string; name: string; draftVersion: number; graph: Graph }) => void;
+  // Saved by its own endpoint, so it never dirties the draft.
+  setName: (name: string) => void;
   toGraph: () => Graph;
   onNodesChange: (changes: NodeChange<FlowNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<FlowEdge>[]) => void;
@@ -128,6 +130,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
       savedAt: null,
       issues: [],
     }),
+
+  setName: (name) => set({ name }),
 
   toGraph: () => {
     const { nodes, edges, variables }: EditorGraph = get();

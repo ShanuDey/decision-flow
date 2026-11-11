@@ -10,6 +10,8 @@ import type {
   FlowCreate,
   FlowDetail,
   FlowList,
+  FlowRename,
+  FlowSummary,
   HTTPValidationError,
   HealthResponse,
   ListFlowsParams,
@@ -194,6 +196,76 @@ export const getFlow = async (flowId: string, options?: RequestInit): Promise<ge
 
   const data: getFlowResponse['data'] = body ? JSON.parse(body) : {}
   return { data, status: res.status, headers: res.headers } as getFlowResponse
+}
+
+
+
+export type renameFlowResponse200 = {
+  data: FlowSummary
+  status: 200
+}
+
+export type renameFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type renameFlowResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type renameFlowResponseSuccess = (renameFlowResponse200) & {
+  headers: Headers;
+};
+export type renameFlowResponseError = (renameFlowResponse404 | renameFlowResponse422) & {
+  headers: Headers;
+};
+
+export type renameFlowResponse = (renameFlowResponseSuccess | renameFlowResponseError)
+
+export const getRenameFlowUrl = (flowId: string,) => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}`
+}
+
+/**
+ * @summary Rename Flow
+ */
+export const renameFlow = async (flowId: string,
+    flowRename: FlowRename, options?: RequestInit): Promise<renameFlowResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+const res = await fetch(getRenameFlowUrl(flowId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(flowRename)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: renameFlowResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as renameFlowResponse
 }
 
 

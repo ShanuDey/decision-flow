@@ -62,6 +62,12 @@ describe("dirty tracking", () => {
     expect(state().dirty).toBe(false);
     expect(state().savedAt).not.toBeNull();
   });
+
+  it("renaming the flow does not dirty the draft", () => {
+    state().setName("Renamed");
+    expect(state().name).toBe("Renamed");
+    expect(state().dirty).toBe(false);
+  });
 });
 
 describe("node rules", () => {

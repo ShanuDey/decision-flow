@@ -13,6 +13,7 @@ export * from './flowCreateDraft';
 export * from './flowDetail';
 export * from './flowDetailDraft';
 export * from './flowList';
+export * from './flowRename';
 export * from './flowSummary';
 export * from './healthResponse';
 export * from './hTTPValidationError';
