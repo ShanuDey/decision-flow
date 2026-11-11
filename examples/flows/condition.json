@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "variables": [{ "name": "decision", "type": "string", "initial": "" }],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "position": { "x": 0, "y": 100 },
+      "data": {
+        "inputs": [
+          { "name": "income", "type": "number", "required": true },
+          { "name": "credit_score", "type": "number", "required": true }
+        ]
+      }
+    },
+    {
+      "id": "eligible",
+      "type": "condition",
+      "name": "Eligible?",
+      "position": { "x": 300, "y": 100 },
+      "data": { "expression": "input.income >= 30000 && input.credit_score >= 600" }
+    },
+    {
+      "id": "approve",
+      "type": "assign",
+      "name": "Approve",
+      "position": { "x": 600, "y": 0 },
+      "data": { "assignments": [{ "variable": "decision", "value": "approved" }] }
+    },
+    {
+      "id": "decline",
+      "type": "assign",
+      "name": "Decline",
+      "position": { "x": 600, "y": 200 },
+      "data": { "assignments": [{ "variable": "decision", "value": "declined" }] }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "position": { "x": 900, "y": 100 },
+      "data": { "outputs": [{ "name": "decision", "type": "string", "value": "{{ vars.decision }}" }] }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "eligible", "sourceHandle": null },
+    { "id": "e2", "source": "eligible", "target": "approve", "sourceHandle": "true" },
+    { "id": "e3", "source": "eligible", "target": "decline", "sourceHandle": "false" },
+    { "id": "e4", "source": "approve", "target": "end", "sourceHandle": null },
+    { "id": "e5", "source": "decline", "target": "end", "sourceHandle": null }
+  ]
+}

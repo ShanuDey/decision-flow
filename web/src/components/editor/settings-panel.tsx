@@ -9,6 +9,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import type { FlowNode } from "@/lib/graph/convert";
 import type {
   AssignData,
+  ConditionData,
   EndData,
   FieldDef,
   FieldType,
@@ -18,6 +19,7 @@ import type {
 } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
+import { ExpressionInput } from "./expression-input";
 import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
 import { clampWidth, useLayout } from "./layout";
@@ -160,6 +162,35 @@ function EndForm({ node }: { node: FlowNode }) {
         );
       }}
     />
+  );
+}
+
+function ConditionForm({ node }: { node: FlowNode }) {
+  const setConfig = useEditor((s) => s.setNodeConfig);
+  const issues = useEditor((s) => s.issues);
+  const config = node.data.config as ConditionData;
+
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-medium">Condition</h3>
+      <Labeled
+        id={`${node.id}-expression`}
+        label="Expression (true or false)"
+        issue={fieldIssue(issues, node.id, "data.expression")}
+      >
+        <ExpressionInput
+          id={`${node.id}-expression`}
+          nodeId={node.id}
+          value={config.expression}
+          placeholder="input.amount > 1000"
+          onChange={(expression) => setConfig(node.id, { expression })}
+        />
+      </Labeled>
+      <p className="text-xs text-muted-foreground">
+        Type <code>input.</code>, <code>vars.</code> or <code>nodes.</code> for suggestions (Ctrl+Space
+        opens them). Only nodes that run before this one are offered.
+      </p>
+    </section>
   );
 }
 
@@ -388,6 +419,7 @@ export function SettingsPanel() {
               {node.type === "start" && <StartForm node={node} />}
               {node.type === "end" && <EndForm node={node} />}
               {node.type === "assign" && <AssignForm node={node} />}
+              {node.type === "condition" && <ConditionForm node={node} />}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>

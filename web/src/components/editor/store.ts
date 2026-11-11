@@ -82,7 +82,12 @@ const typeOf = (nodes: FlowNode[], id: string | null | undefined) =>
 const refOf = (n: FlowNode) => ({ id: n.id, name: n.data.name, type: n.type as NodeType });
 
 function countByType(nodes: FlowNode[]): Record<NodeType, number> {
-  const counts: Record<NodeType, number> = { start: 0, assign: 0, end: 0 };
+  const counts: Record<NodeType, number> = {
+    start: 0,
+    assign: 0,
+    condition: 0,
+    end: 0,
+  };
   for (const n of nodes) counts[n.type as NodeType] += 1;
   return counts;
 }
@@ -158,6 +163,13 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const target = typeOf(nodes, c.target);
     if (!source || !target || c.source === c.target) return false;
     if (!canConnect(source, target)) return false;
+    if (NODE_SPECS[source].handles.length > 0) {
+      // a branch node takes one edge per handle
+      return (
+        !!c.sourceHandle &&
+        !edges.some((e) => e.source === c.source && e.sourceHandle === c.sourceHandle)
+      );
+    }
     return !edges.some((e) => e.source === c.source && e.target === c.target);
   },
 

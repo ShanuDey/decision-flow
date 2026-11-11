@@ -106,6 +106,24 @@ describe("node rules", () => {
     expect(ok("start", "assign_values")).toBe(false); // duplicate edge
     expect(ok("start", "end")).toBe(true);
   });
+
+  it("gives a Condition one edge per branch, and allows both to reach the same node", () => {
+    state().addNode("condition");
+    const edge = (sourceHandle: string | null, target: string) =>
+      state().isValidConnection({ source: "condition", target, sourceHandle, targetHandle: null });
+    expect(edge(null, "end")).toBe(false); // must leave from a branch
+    expect(edge("true", "end")).toBe(true);
+    state().onConnect({ source: "condition", target: "end", sourceHandle: "true", targetHandle: null });
+    expect(edge("true", "assign_values")).toBe(false); // branch already used
+    expect(edge("false", "end")).toBe(true);
+    expect(state().toGraph().edges.at(-1)?.sourceHandle).toBe("true");
+  });
+
+  it("starts a Condition with an empty expression", () => {
+    state().addNode("condition");
+    const added = state().toGraph().nodes.find((n) => n.type === "condition");
+    expect(added?.data).toEqual({ expression: "" });
+  });
 });
 
 describe("round trip", () => {

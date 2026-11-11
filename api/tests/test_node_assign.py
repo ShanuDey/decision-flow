@@ -6,6 +6,7 @@ import pytest
 from app.engine.compiler import compile_graph
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
+from tests.recorder import Recorder
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "flows" / "assign-variable.json"
 
@@ -143,17 +144,7 @@ async def test_reading_a_variable_with_no_value_fails_the_run(raw: dict) -> None
 
 @pytest.mark.anyio
 async def test_the_assigned_values_are_the_nodes_recorded_output(raw: dict) -> None:
-    class Recorder:
-        outputs: dict = {}
-
-        async def run_started(self, inputs): ...
-        async def node_started(self, node, inputs): ...
-        async def node_finished(self, node, status, duration_ms, error, outputs=None):
-            self.outputs[node.id] = outputs
-
-        async def run_finished(self, status, error, outputs=None): ...
-
     graph, _ = parse_graph(raw)
     recorder = Recorder()
     await run_flow(compile_graph(graph), {"amount": 7}, recorder)
-    assert recorder.outputs["assign_values"] == {"total": 7, "label": "Order total 7"}
+    assert recorder.node_outputs["assign_values"] == {"total": 7, "label": "Order total 7"}

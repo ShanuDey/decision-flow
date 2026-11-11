@@ -1,6 +1,7 @@
 .git
 .my_docs
 .claude
+CLAUDE.md
 .vscode
 **/.venv
 **/node_modules

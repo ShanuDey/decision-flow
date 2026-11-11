@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
-import { CircleAlert, Flag, type LucideIcon, Play, Variable } from "lucide-react";
+import { CircleAlert, Flag, GitBranch, type LucideIcon, Play, Variable } from "lucide-react";
 
 import type { FlowNode } from "@/lib/graph/convert";
 import { NODE_SPECS } from "@/lib/graph/nodes";
@@ -14,6 +14,7 @@ import { useEditor } from "./store";
 export const NODE_ICONS: Record<NodeType, LucideIcon> = {
   start: Play,
   assign: Variable,
+  condition: GitBranch,
   end: Flag,
 };
 
@@ -22,6 +23,7 @@ function summary(node: FlowNode): string {
   const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
   if ("inputs" in config) return count(config.inputs.length, "input");
   if ("outputs" in config) return count(config.outputs.length, "output");
+  if ("expression" in config) return config.expression.trim() || "No expression yet";
   return count(config.assignments.length, "assignment");
 }
 
@@ -35,13 +37,13 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
   return (
     <div
       className={cn(
-        "w-52 rounded-xl border bg-card px-3 py-2.5 text-card-foreground shadow-sm",
+        "relative w-52 rounded-xl border bg-card px-3 py-2.5 text-card-foreground shadow-sm",
         selected && "ring-2 ring-ring",
         problems > 0 && "border-red-600 dark:border-red-400",
       )}
     >
       {spec.acceptsIncoming && <Handle type="target" position={Position.Left} />}
-      <div className="flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", spec.handles.length > 0 && "pr-7")}>
         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="truncate text-sm font-medium">{data.name}</span>
         {problems > 0 && (
@@ -55,10 +57,38 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
           </span>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">{summary(node)}</p>
-      {spec.acceptsOutgoing && <Handle type="source" position={Position.Right} />}
+      <p
+        className={cn("mt-1 text-xs text-muted-foreground", spec.handles.length > 0 && "pr-8")}
+      >
+        {summary(node)}
+      </p>
+      {spec.handles.length > 0
+        ? spec.handles.map((handle, i) => (
+            <Handle
+              key={handle}
+              id={handle}
+              type="source"
+              position={Position.Right}
+              style={{ top: `${((i + 1) * 100) / (spec.handles.length + 1)}%` }}
+            />
+          ))
+        : spec.acceptsOutgoing && <Handle type="source" position={Position.Right} />}
+      {spec.handles.map((handle, i) => (
+        <span
+          key={handle}
+          className="pointer-events-none absolute right-3 -translate-y-1/2 text-[10px] text-muted-foreground"
+          style={{ top: `${((i + 1) * 100) / (spec.handles.length + 1)}%` }}
+        >
+          {handle}
+        </span>
+      ))}
     </div>
   );
 }
 
-export const nodeTypes = { start: NodeView, assign: NodeView, end: NodeView };
+export const nodeTypes = {
+  start: NodeView,
+  assign: NodeView,
+  condition: NodeView,
+  end: NodeView,
+};

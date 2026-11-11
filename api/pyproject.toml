@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "cel-expr-python>=0.1.4,<0.2",
     "fastapi[standard-no-fastapi-cloud-cli]>=0.162.2",
     "httpx>=0.28.1",
     "langgraph>=1.2.20,<1.3",

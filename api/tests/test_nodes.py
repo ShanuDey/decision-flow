@@ -25,3 +25,7 @@ def test_type_traits() -> None:
     assign = by_name["assign"]
     assert (assign.min_count, assign.max_count) == (0, None)
     assert (assign.accepts_incoming, assign.accepts_outgoing) == (True, True)
+    condition = by_name["condition"]
+    assert (condition.min_count, condition.max_count) == (0, None)
+    assert condition.handles == ("true", "false")
+    assert assign.handles == ()
