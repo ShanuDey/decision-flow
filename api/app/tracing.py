@@ -3,6 +3,8 @@
 import asyncio
 import json
 import logging
+import math
+import re
 from typing import Any
 
 import mlflow
@@ -11,22 +13,87 @@ from mlflow.environment_variables import (
     MLFLOW_HTTP_REQUEST_MAX_RETRIES,
     MLFLOW_HTTP_REQUEST_TIMEOUT,
 )
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL, make_url
 
 from app.engine.observer import NodeInfo, NodeStatus, RunStatus
-from app.settings import Settings
+from app.settings import Settings, query_options
 
 log = logging.getLogger(__name__)
+
+DB_CONNECT_TIMEOUT_SECONDS = 3.0
+LOOPBACK_HOSTS = {None, "", "localhost", "127.0.0.1", "::1"}
 
 _configured = False
 _warmup: "asyncio.Task[bool] | None" = None
 
 
+def is_configured() -> bool:
+    return _configured
+
+
+def database_error(uri: str, timeout: float = DB_CONNECT_TIMEOUT_SECONDS) -> str | None:
+    """Blocking. None if reachable, and always for non-Postgres URIs (HTTP is probed elsewhere)."""
+    try:
+        url = make_url(uri)
+        if url.get_backend_name() != "postgresql":
+            return None
+        engine = create_engine(url, connect_args={"connect_timeout": math.ceil(timeout)})
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        finally:
+            engine.dispose()
+    except Exception as exc:
+        lines = str(exc).strip().splitlines()
+        return f"{type(exc).__name__}: {lines[0] if lines else ''}"
+    return None
+
+
+def database_reachable(uri: str, timeout: float = DB_CONNECT_TIMEOUT_SECONDS) -> bool:
+    return database_error(uri, timeout) is None
+
+
+def _same_server(a: URL, b: URL) -> bool:
+    def endpoint(url: URL) -> tuple[str | None, int]:
+        host = "localhost" if url.host in LOOPBACK_HOSTS else url.host.lower()
+        return host, url.port or 5432
+
+    return endpoint(a) == endpoint(b)
+
+
+def _search_path_schema(options: str) -> str | None:
+    match = re.search(r"search_path=([^\s,]+)", options)
+    return match.group(1) if match else None
+
+
+def writes_into_app_schema(settings: Settings) -> bool:
+    """True if MLflow would create its tables beside ours (its `runs` table would clash)."""
+    try:
+        tracking, app = make_url(settings.mlflow_tracking_uri), make_url(settings.database_url)
+    except Exception:
+        return False
+    if tracking.get_backend_name() != "postgresql" or app.get_backend_name() != "postgresql":
+        return False
+    if not _same_server(tracking, app) or tracking.database != app.database:
+        return False
+    return _search_path_schema(query_options(tracking)) in (None, "public")
+
+
 def configure(settings: Settings) -> bool:
     """Blocking; returns False if MLflow is unreachable."""
     global _configured
+    if writes_into_app_schema(settings):
+        log.error("MLFLOW_TRACKING_URI shares the app database without a search_path; not tracing")
+        return False
     # MLflow's defaults retry for minutes; a down server must not stall startup or runs
     MLFLOW_HTTP_REQUEST_MAX_RETRIES.set(1)
     MLFLOW_HTTP_REQUEST_TIMEOUT.set(5)
+    # MLflow's own database retry (10 tries, ~100 s of backoff, no setting) must not hit a dead DB
+    error = database_error(settings.mlflow_tracking_uri)
+    if error is not None:
+        log.warning("MLflow database unreachable (%s); runs will not be traced", error)
+        return False
     try:
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
         mlflow.set_experiment(settings.mlflow_set_experiment)

@@ -24,45 +24,6 @@ services:
       db:
         condition: service_healthy
 
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v3.18.0
-    # The stock image has no Postgres driver (MLflow's official compose installs it the same way).
-    # MLflow needs its own database (own migrations), so create it here if missing.
-    command:
-      - /bin/bash
-      - -c
-      - |
-        pip install --no-cache-dir psycopg2-binary
-        python - <<'PY'
-        import os, psycopg2
-        e = os.environ
-        c = psycopg2.connect(host="db", user=e["POSTGRES_USER"], password=e["POSTGRES_PASSWORD"], dbname=e["POSTGRES_DB"])
-        c.autocommit = True
-        cur = c.cursor()
-        cur.execute("SELECT 1 FROM pg_database WHERE datname = 'mlflow'")
-        if not cur.fetchone():
-            cur.execute('CREATE DATABASE mlflow OWNER "%s"' % e["POSTGRES_USER"])
-        PY
-        mlflow server --host 0.0.0.0 --port 5000 \
-          --backend-store-uri postgresql+psycopg2://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@db:5432/mlflow \
-          --default-artifact-root /mlflow/artifacts
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-decisionflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-decisionflow}
-    ports:
-      - "127.0.0.1:5000:5000"
-    volumes:
-      - mlflow_artifacts:/mlflow/artifacts
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   app:
     build:
       context: .
@@ -73,7 +34,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-decisionflow}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-decisionflow}
       CORS_ORIGINS: http://localhost:3000
-      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-}
       MLFLOW_SET_EXPERIMENT: ${MLFLOW_SET_EXPERIMENT:-decision-flow}
     ports:
       - "8000:8000"
@@ -81,9 +42,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      mlflow:
-        condition: service_healthy
 
 volumes:
   db_data:
-  mlflow_artifacts:

@@ -1,12 +1,13 @@
 import asyncio
 import json
+import logging
 import time
-import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
-import httpx
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 from app import tracing
 from app.engine.compiler import compile_graph
@@ -87,6 +88,7 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> FakeMlflow:
     monkeypatch.setattr(tracing, "mlflow", fake)
     monkeypatch.setattr(tracing, "_configured", True)
     monkeypatch.setattr(tracing, "_warmup", None)
+    monkeypatch.setattr(tracing, "database_error", lambda *_args, **_kwargs: None)
     return fake
 
 
@@ -109,6 +111,31 @@ def test_configure_reports_failure_instead_of_raising(
     monkeypatch.setattr(tracing, "_configured", False)
     fake.fail = True
     assert tracing.configure(settings()) is False
+
+
+def test_configure_skips_mlflow_and_logs_why_when_the_database_is_unreachable(
+    fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(tracing, "_configured", False)
+    monkeypatch.setattr(tracing, "database_error", lambda *_a, **_k: "OperationalError: no route")
+    with caplog.at_level(logging.WARNING, logger="app.tracing"):
+        assert tracing.configure(settings()) is False
+    assert fake.tracking_uri is None  # MLflow's own retry loop was never entered
+    assert "OperationalError: no route" in caplog.text
+
+
+def test_database_error_is_none_for_non_postgres_uris() -> None:
+    assert tracing.database_error("http://mlflow.test:5000") is None
+    assert tracing.database_error("sqlite:///tracing.db") is None
+
+
+def test_database_error_names_the_failure_without_leaking_the_password() -> None:
+    started = time.monotonic()
+    error = tracing.database_error("postgresql+psycopg://u:s3cret@127.0.0.1:1/mlflow", 1)
+    assert time.monotonic() - started < 5
+    assert error is not None and error.startswith("OperationalError")
+    assert "s3cret" not in error
+    assert tracing.database_reachable("postgresql+psycopg://u:p@127.0.0.1:1/mlflow", 1) is False
 
 
 @pytest.mark.anyio
@@ -257,54 +284,95 @@ async def test_mlflow_failure_never_fails_the_run(fake: FakeMlflow, raw: dict) -
     assert result.output == {"amount": 1, "tier": "silver"}
 
 
-def _mlflow_up() -> bool:
-    try:
-        return httpx.get(
-            f"{Settings(_env_file=None).mlflow_tracking_uri}/health", timeout=1
-        ).is_success
-    except httpx.HTTPError:
-        return False
-
-
-def _delete_experiment(base_url: str, name: str) -> None:
-    r = httpx.get(
-        f"{base_url}/api/2.0/mlflow/experiments/get-by-name", params={"experiment_name": name}
-    )
-    if r.is_success:
-        httpx.post(
-            f"{base_url}/api/2.0/mlflow/experiments/delete",
-            json={"experiment_id": r.json()["experiment"]["experiment_id"]},
-        )
-
-
-@pytest.mark.skipif(not _mlflow_up(), reason="needs a running MLflow (make mlflow)")
+@pytest.mark.db
 @pytest.mark.anyio
-async def test_trace_round_trip_against_a_real_mlflow(raw: dict, monkeypatch) -> None:
-    # throwaway experiment, deleted afterwards, so test runs never clutter the dev MLflow
-    s = Settings(_env_file=None, mlflow_set_experiment=f"decision-flow-test-{uuid.uuid4().hex[:8]}")
+async def test_trace_round_trip_through_a_real_database(
+    raw: dict, postgres_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # the app database, already migrated (that creates the `mlflow` schema); MLflow shares it
+    uri = (
+        make_url(postgres_url)
+        .update_query_dict({"options": "-csearch_path=mlflow"})
+        .render_as_string(hide_password=False)
+    )
+    s = Settings(_env_file=None, database_url=postgres_url, mlflow_tracking_uri=uri)
     monkeypatch.setattr(tracing, "_configured", False)
     monkeypatch.setattr(tracing, "_warmup", None)
-    try:
-        tracing.warm_up(s)  # what the app does at startup
-        assert await tracing.ready() is True
-        observer = tracing.MlflowObserver(s)
-        await run_flow(flow(raw), {"amount": 1}, observer)
-        tracing.flush()
-        assert observer.trace_id is not None
 
-        spans: list[dict] = []
-        deadline = time.monotonic() + 15
-        async with httpx.AsyncClient(base_url=s.mlflow_tracking_uri) as client:
-            while not spans and time.monotonic() < deadline:
-                r = await client.get(
-                    "/api/3.0/mlflow/traces/batchGet", params={"trace_ids": observer.trace_id}
-                )
-                spans = r.json().get("traces", [{}])[0].get("spans", []) if r.is_success else []
-                if not spans:
-                    await asyncio.sleep(0.2)
-        assert {sp["name"] for sp in spans} == {"run", "Start", "End"}
-        keys = {a["key"] for sp in spans for a in sp["attributes"]}
-        assert {"node_id", "node_type", "node_name"} <= keys
-        assert {"mlflow.spanInputs", "mlflow.spanOutputs"} <= keys
+    tracing.warm_up(s)
+    assert await tracing.ready() is True
+    observer = tracing.MlflowObserver(s)
+    await run_flow(flow(raw), {"amount": 1}, observer)
+    await asyncio.to_thread(tracing.flush)
+    assert observer.trace_id is not None
+
+    spans: list = []
+    deadline = time.monotonic() + 15
+    while not spans and time.monotonic() < deadline:
+        trace = await asyncio.to_thread(tracing.mlflow.get_trace, observer.trace_id)
+        spans = list(trace.data.spans) if trace else []
+        if not spans:
+            await asyncio.sleep(0.2)
+    assert {sp.name for sp in spans} == {"run", "Start", "End"}
+    keys = {key for sp in spans for key in sp.attributes}
+    assert {"node_id", "node_type", "node_name"} <= keys
+    assert {"mlflow.spanInputs", "mlflow.spanOutputs"} <= keys
+
+    engine = create_engine(postgres_url)
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT table_schema, table_name FROM information_schema.tables")
+            ).all()
     finally:
-        _delete_experiment(s.mlflow_tracking_uri, s.mlflow_set_experiment)
+        engine.dispose()
+    tables = {(schema, name) for schema, name in rows}
+    assert {("public", "flows"), ("public", "runs"), ("mlflow", "trace_info")} <= tables
+    assert ("public", "trace_info") not in tables and ("public", "experiments") not in tables
+
+
+APP_URL = "postgresql+psycopg://u:p@db.test:5432/decisionflow"
+
+
+@pytest.mark.parametrize(
+    ("tracking", "expected"),
+    [
+        (APP_URL, True),
+        (APP_URL + "?options=-csearch_path%3Dmlflow", False),
+        (APP_URL + "?options=-csearch_path%3Dpublic", True),
+        (APP_URL + "?options=-csearch_path%3Dpublic%2Cmlflow", True),
+        (APP_URL + "?options=-csearch_path%3D", True),
+        (APP_URL + "?options=-csearch_path%3Dmlflow%2Cpublic", False),
+        (APP_URL + "?options=-cstatement_timeout%3D5&options=-csearch_path%3Dmlflow", False),
+        (APP_URL.replace("db.test", "DB.test") + "?options=-csearch_path%3Dmlflow", False),
+        (APP_URL.replace("db.test:5432", "db.test") + "?options=-csearch_path%3Dpublic", True),
+        ("postgresql+psycopg://u:p@db.test:5432/mlflow", False),
+        ("postgresql+psycopg://u:p@other.test:5432/decisionflow", False),
+        ("http://mlflow.test:5000", False),
+    ],
+)
+def test_writes_into_app_schema_only_when_sharing_the_app_database_without_a_schema(
+    tracking: str, expected: bool
+) -> None:
+    s = Settings(_env_file=None, database_url=APP_URL, mlflow_tracking_uri=tracking)
+    assert tracing.writes_into_app_schema(s) is expected
+
+
+@pytest.mark.parametrize("host", ["localhost", "127.0.0.1", "[::1]"])
+def test_loopback_names_count_as_the_same_server(host: str) -> None:
+    app_url = "postgresql+psycopg://u:p@localhost:5432/decisionflow"
+    s = Settings(
+        _env_file=None,
+        database_url=app_url,
+        mlflow_tracking_uri=f"postgresql+psycopg://u:p@{host}:5432/decisionflow",
+    )
+    assert tracing.writes_into_app_schema(s) is True
+
+
+def test_configure_refuses_to_trace_into_the_app_schema(
+    fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(tracing, "_configured", False)
+    s = Settings(_env_file=None, database_url=APP_URL, mlflow_tracking_uri=APP_URL)
+    assert tracing.configure(s) is False
+    assert fake.tracking_uri is None
