@@ -7,9 +7,10 @@ export interface NodeSpec {
   maxCount: number | null;
   acceptsIncoming: boolean;
   acceptsOutgoing: boolean;
+  handles: readonly string[];
 }
 
-// Mirrors the ClassVars on the Python node models (min_count, max_count, accepts_*).
+// Mirrors the ClassVars on the Python node models (min_count, max_count, accepts_*, handles).
 export const NODE_SPECS: Record<NodeType, NodeSpec> = {
   start: {
     label: "Start",
@@ -18,6 +19,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     maxCount: 1,
     acceptsIncoming: false,
     acceptsOutgoing: true,
+    handles: [],
   },
   assign: {
     label: "Assign values",
@@ -26,6 +28,16 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     maxCount: null,
     acceptsIncoming: true,
     acceptsOutgoing: true,
+    handles: [],
+  },
+  condition: {
+    label: "Condition",
+    description: "Branch on a true/false expression",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: ["true", "false"],
   },
   end: {
     label: "End",
@@ -34,6 +46,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     maxCount: null,
     acceptsIncoming: true,
     acceptsOutgoing: false,
+    handles: [],
   },
 };
 
@@ -107,6 +120,8 @@ export function defaultData(type: NodeType): NodeData {
       return { outputs: [] };
     case "assign":
       return { assignments: [] };
+    case "condition":
+      return { expression: "" };
   }
 }
 

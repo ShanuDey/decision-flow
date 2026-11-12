@@ -28,6 +28,8 @@ class NodeModel(StrictBaseModel):
     max_count: ClassVar[int | None] = None
     accepts_incoming: ClassVar[bool] = True
     accepts_outgoing: ClassVar[bool] = True
+    # Named branches for nodes that route: each needs exactly one edge with this `sourceHandle`.
+    handles: ClassVar[tuple[str, ...]] = ()
 
     @classmethod
     def type_name(cls) -> str:
@@ -44,6 +46,14 @@ class NodeModel(StrictBaseModel):
     def templates(self) -> dict[str, str]:
         """Template settings by field path, so the validator can check what they reference."""
         return {}
+
+    def expressions(self) -> dict[str, str]:
+        """CEL settings by field path, so the validator can check what they reference."""
+        return {}
+
+    def route(self, state: dict[str, Any]) -> str:
+        """The handle to follow after `run`; only nodes with `handles` need this."""
+        raise NotImplementedError
 
     @classmethod
     def check_group(cls, nodes: list[Self]) -> list[Issue]:

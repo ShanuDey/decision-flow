@@ -49,9 +49,23 @@ def compile_graph(graph: Graph, checkpointer: Any = None) -> CompiledFlow:
         if not node.accepts_outgoing:
             builder.add_edge(node.id, END)
     builder.add_edge(START, start.id)
+    by_id = {n.id: n for n in graph.nodes}
+    branches: dict[str, dict[str, str]] = {}
     for edge in graph.edges:
-        builder.add_edge(edge.source, edge.target)
+        if by_id[edge.source].handles:
+            branches.setdefault(edge.source, {})[edge.sourceHandle or ""] = edge.target
+        else:
+            builder.add_edge(edge.source, edge.target)
+    for source, path_map in branches.items():
+        builder.add_conditional_edges(source, _router(by_id[source]), path_map)
     return CompiledFlow(graph=builder.compile(checkpointer=checkpointer), start=start)
+
+
+def _router(node: NodeModel) -> Callable[[FlowState], str]:
+    def route(state: FlowState) -> str:
+        return node.route(state)  # type: ignore[arg-type]
+
+    return route
 
 
 def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str, Any]]]:

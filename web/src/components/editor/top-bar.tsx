@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleDot, ListChecks, Save } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleDot, ListChecks, Pencil, Save } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { FlowRenameDialog } from "@/components/flow-rename-dialog";
 import { Button } from "@/components/ui/button";
 
 import { type RunOutcome, save, validate } from "./actions";
@@ -12,7 +13,9 @@ import { useEditor } from "./store";
 import { TestDialog } from "./test-dialog";
 
 export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void }) {
+  const flowId = useEditor((s) => s.flowId);
   const name = useEditor((s) => s.name);
+  const setName = useEditor((s) => s.setName);
   const dirty = useEditor((s) => s.dirty);
   const savedAt = useEditor((s) => s.savedAt);
   const [busy, setBusy] = useState<"save" | "validate" | null>(null);
@@ -38,6 +41,18 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
         <ArrowLeft className="size-4" aria-hidden />
       </Link>
       <h1 className="min-w-0 truncate text-base font-semibold">{name}</h1>
+      {flowId && (
+        <FlowRenameDialog
+          flowId={flowId}
+          currentName={name}
+          onRenamed={setName}
+          trigger={
+            <Button variant="ghost" size="icon" className="size-10" aria-label="Rename flow">
+              <Pencil aria-hidden />
+            </Button>
+          }
+        />
+      )}
       <Badge variant="secondary">Draft</Badge>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
         {dirty ? (

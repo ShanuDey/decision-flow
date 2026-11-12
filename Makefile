@@ -2,13 +2,14 @@ API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
 STUDIO_PORT ?= 2024
+MLFLOW_UI_PORT ?= 5000
 
-.PHONY: start api studio kill-studio kill-port web dbmlflow adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api test-api-fast typecheck-web build-web checks
 
 # containers first (detached), then both dev servers in parallel; Ctrl+C stops only the servers
-start: db mlflow adminer
+start: db adminer
 	$(MAKE) -j2 api web
 
 api: migrate
@@ -28,10 +29,14 @@ web:
 	$(WEB) dev
 
 db:
-	$(COMPOSE) up -d db
+	$(COMPOSE) up -d --wait db
 
-mlflow:
-	$(COMPOSE) up -d mlflow
+# view-only: opens the same database URI the API derives
+mlflow-ui:
+	@uri=$$($(API) python -c "from app.settings import get_settings; print(get_settings().mlflow_tracking_uri)") && \
+	MLFLOW_BACKEND_STORE_URI="$$uri" uv run --no-project \
+		--with "mlflow==3.18.0" --with "psycopg[binary]" \
+		mlflow ui --host 127.0.0.1 --port $(MLFLOW_UI_PORT)
 
 adminer:
 	$(COMPOSE) --profile tools up -d adminer

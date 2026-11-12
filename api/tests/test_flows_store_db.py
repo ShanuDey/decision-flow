@@ -71,6 +71,23 @@ async def test_save_draft_bumps_the_version_and_stores_the_draft(sessions: Sessi
     assert (loaded.draft, loaded.draft_version) == ({"changed": True}, 2)
 
 
+async def test_rename_keeps_the_draft_and_version(sessions: SessionFactory) -> None:
+    (flow,) = await make(sessions, "Demo")
+    async with sessions() as session:
+        renamed = await FlowStore(session).rename_flow(flow.id, "Other")
+    assert renamed is not None and renamed.updated_at >= flow.updated_at
+
+    async with sessions() as other:
+        loaded = await FlowStore(other).get_flow(flow.id)
+    assert loaded is not None
+    assert (loaded.name, loaded.draft, loaded.draft_version) == ("Other", {"name": "Demo"}, 1)
+
+
+async def test_renaming_a_missing_flow_is_none(sessions: SessionFactory) -> None:
+    async with sessions() as session:
+        assert await FlowStore(session).rename_flow(uuid.uuid4(), "x") is None
+
+
 async def test_a_stale_version_changes_nothing(sessions: SessionFactory) -> None:
     (flow,) = await make(sessions, "Demo")
     async with sessions() as session:

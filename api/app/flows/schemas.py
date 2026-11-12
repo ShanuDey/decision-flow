@@ -1,16 +1,22 @@
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import StringConstraints
 
 from app.engine.base import FrozenBaseModel
 
+FlowName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
 
 class FlowCreate(FrozenBaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: FlowName
     # Omitted: a blank Start -> End graph.
     draft: dict[str, Any] | None = None
+
+
+class FlowRename(FrozenBaseModel):
+    name: FlowName
 
 
 class FlowSummary(FrozenBaseModel):

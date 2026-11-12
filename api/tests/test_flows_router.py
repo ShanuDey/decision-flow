@@ -25,6 +25,41 @@ async def test_list_and_get(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.anyio
+async def test_create_strips_the_name_and_rejects_a_blank_one(client: httpx.AsyncClient) -> None:
+    created = await client.post("/flows", json={"name": "  Padded  "})
+    assert created.status_code == 201 and created.json()["name"] == "Padded"
+    assert (await client.post("/flows", json={"name": "   "})).status_code == 422
+
+
+@pytest.mark.anyio
+async def test_rename_changes_the_name_and_keeps_the_draft_version(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client)
+    response = await client.patch(f"/flows/{flow['id']}", json={"name": "  Renamed  "})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed"
+    assert response.json()["draft_version"] == flow["draft_version"]
+    assert (await client.get(f"/flows/{flow['id']}")).json()["name"] == "Renamed"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("name", ["", "   ", "x" * 121])
+async def test_rename_rejects_an_empty_or_too_long_name(
+    client: httpx.AsyncClient, name: str
+) -> None:
+    flow = await create_flow(client)
+    response = await client.patch(f"/flows/{flow['id']}", json={"name": name})
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_rename_missing_flow_is_404(client: httpx.AsyncClient) -> None:
+    response = await client.patch(f"/flows/{uuid.uuid4()}", json={"name": "x"})
+    assert response.status_code == 404 and response.json()["code"] == "not_found"
+
+
+@pytest.mark.anyio
 async def test_save_draft_bumps_version_and_rejects_stale(client: httpx.AsyncClient) -> None:
     flow = await create_flow(client)
     url = f"/flows/{flow['id']}/draft"

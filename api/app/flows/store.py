@@ -41,6 +41,18 @@ class FlowStore:
     async def get_flow(self, flow_id: uuid.UUID) -> Flow | None:
         return await self.session.get(Flow, flow_id)
 
+    async def rename_flow(self, flow_id: uuid.UUID, name: str) -> Flow | None:
+        result = await self.session.execute(
+            update(Flow)
+            .where(Flow.id == flow_id)
+            .values(name=name, updated_at=func.now())
+            .returning(Flow)
+            .execution_options(populate_existing=True)
+        )
+        flow = result.scalar_one_or_none()
+        await self.session.commit()
+        return flow
+
     async def save_draft(
         self, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
     ) -> Flow | None:

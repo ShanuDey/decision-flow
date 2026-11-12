@@ -65,6 +65,13 @@ def validate_draft(flow: Flow) -> None:
         raise invalid_flow(issues)
 
 
+async def rename_flow(store: FlowStore, flow_id: uuid.UUID, name: str) -> Flow:
+    flow = await store.rename_flow(flow_id, name)
+    if flow is None:
+        raise not_found("Flow")
+    return flow
+
+
 async def save_draft(
     store: FlowStore, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
 ) -> Flow:

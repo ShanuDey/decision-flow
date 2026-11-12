@@ -42,10 +42,15 @@ export interface AssignData {
   assignments: Assignment[];
 }
 
+export interface ConditionData {
+  expression: string;
+}
+
 export interface NodeDataByType {
   start: StartData;
   end: EndData;
   assign: AssignData;
+  condition: ConditionData;
 }
 
 export type NodeType = keyof NodeDataByType;

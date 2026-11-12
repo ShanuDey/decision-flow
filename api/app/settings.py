@@ -2,10 +2,27 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from sqlalchemy.engine import URL, make_url
 
 ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+MLFLOW_SCHEMA_OPTION = "-csearch_path=mlflow"
+
+
+def query_options(url: URL) -> str:
+    """The `options` query value; a repeated parameter arrives as a tuple."""
+    value = url.query.get("options", "")
+    return " ".join(value) if isinstance(value, tuple) else value
+
+
+def mlflow_uri_from(database_url: str) -> str:
+    """The app database with MLflow's tables routed to the `mlflow` schema."""
+    url = make_url(database_url)
+    if url.get_backend_name() != "postgresql":
+        return database_url
+    options = " ".join(filter(None, [query_options(url), MLFLOW_SCHEMA_OPTION]))
+    return url.update_query_dict({"options": options}).render_as_string(hide_password=False)
 
 
 class Settings(BaseSettings):
@@ -16,8 +33,15 @@ class Settings(BaseSettings):
     # Largest accepted request body (flow drafts are the biggest legitimate payload).
     max_request_bytes: int = 1_048_576
 
-    mlflow_tracking_uri: str = "http://localhost:5000"
+    # Empty: derive from database_url (schema `mlflow`); set to send traces elsewhere.
+    mlflow_tracking_uri: str = ""
     mlflow_set_experiment: str = "decision-flow"
+
+    @model_validator(mode="after")
+    def _derive_mlflow_tracking_uri(self) -> "Settings":
+        if not self.mlflow_tracking_uri:
+            self.mlflow_tracking_uri = mlflow_uri_from(self.database_url)
+        return self
 
     # NoDecode: accept comma-separated env values instead of JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]

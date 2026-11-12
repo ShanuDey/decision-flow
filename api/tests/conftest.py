@@ -45,6 +45,13 @@ class FakeFlowStore:
     async def get_flow(self, flow_id: uuid.UUID) -> Flow | None:
         return self.flows.get(flow_id)
 
+    async def rename_flow(self, flow_id: uuid.UUID, name: str) -> Flow | None:
+        flow = self.flows.get(flow_id)
+        if flow is not None:
+            flow.name = name
+            flow.updated_at = datetime.now(UTC)
+        return flow
+
     async def save_draft(
         self, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
     ) -> Flow | None:

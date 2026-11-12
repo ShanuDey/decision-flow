@@ -222,3 +222,6 @@ __marimo__/
 
 # LangGraph Studio local state
 .langgraph_api/
+
+# MLflow file store written by local API runs
+api/mlruns/

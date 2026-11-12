@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
@@ -15,11 +16,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${mono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
-        {children}
-        {/* top center: bottom right covers the settings panel; the offset clears the editor bar */}
-        <Toaster position="top-center" offset={64} />
+        <ThemeProvider>
+          {children}
+          {/* top center: bottom right covers the settings panel; the offset clears the editor bar */}
+          <Toaster position="top-center" offset={64} />
+        </ThemeProvider>
       </body>
     </html>
   );
