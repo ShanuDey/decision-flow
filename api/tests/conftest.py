@@ -13,6 +13,7 @@ from app.main import app
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
 from app.runs.store import get_run_store
+from tests.auth_helpers import bearer
 from tests.db_fixtures import postgres_url, sessions  # noqa: F401  (fixtures for -m db tests)
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
@@ -135,9 +136,22 @@ async def client(flow_store: FakeFlowStore, run_store: FakeRunStore):
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test", headers=bearer()
+    ) as c:
         yield c
     for dep in (get_store, get_run_store, get_observer_factory):
+        app.dependency_overrides.pop(dep, None)
+
+
+@pytest.fixture
+async def anon_client(flow_store: FakeFlowStore, run_store: FakeRunStore):
+    app.dependency_overrides[get_store] = lambda: flow_store
+    app.dependency_overrides[get_run_store] = lambda: run_store
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+    for dep in (get_store, get_run_store):
         app.dependency_overrides.pop(dep, None)
 
 

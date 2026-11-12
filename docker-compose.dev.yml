@@ -36,6 +36,9 @@ services:
       CORS_ORIGINS: http://localhost:3000
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-}
       MLFLOW_SET_EXPERIMENT: ${MLFLOW_SET_EXPERIMENT:-decision-flow}
+      AUTH_PROVIDERS: ${AUTH_PROVIDERS:?set AUTH_PROVIDERS, see docs/auth.md}
+      AUTH_ALLOWED_EMAIL_DOMAINS: ${AUTH_ALLOWED_EMAIL_DOMAINS:-}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
     ports:
       - "8000:8000"
       - "3000:3000"

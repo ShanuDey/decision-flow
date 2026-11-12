@@ -21,6 +21,7 @@ export * from './listFlowsParams';
 export * from './listFlowsSort';
 export * from './listRunsParams';
 export * from './listRunsStatus';
+export * from './principal';
 export * from './readyResponse';
 export * from './readyResponseChecks';
 export * from './readyResponseStatus';

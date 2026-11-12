@@ -169,6 +169,18 @@ export const HealthResponse = zod.object({
 
 
 /**
+ * The authenticated caller.
+ * @summary Me
+ */
+export const MeResponse = zod.object({
+  "email": zod.union([zod.string(),zod.null()]).optional(),
+  "name": zod.union([zod.string(),zod.null()]).optional(),
+  "provider": zod.string(),
+  "sub": zod.string()
+})
+
+
+/**
  * Dependencies reachable (Postgres, MLflow).
  * @summary Ready
  */

@@ -17,10 +17,16 @@ class ErrorResponse(FrozenBaseModel):
 
 class ApiError(Exception):
     def __init__(
-        self, status: int, code: str, message: str, details: dict[str, Any] | None = None
+        self,
+        status: int,
+        code: str,
+        message: str,
+        details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.status = status
+        self.headers = headers
         self.body = ErrorResponse(code=code, message=message, details=details or {})
 
 
@@ -31,7 +37,7 @@ def _field(loc: tuple[Any, ...]) -> str:
 
 def install_error_handlers(app: FastAPI) -> None:
     async def handle(_: Request, exc: ApiError) -> JSONResponse:
-        return JSONResponse(exc.body.model_dump(), status_code=exc.status)
+        return JSONResponse(exc.body.model_dump(), status_code=exc.status, headers=exc.headers)
 
     async def handle_request(_: Request, exc: RequestValidationError) -> JSONResponse:
         errors = [

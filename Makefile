@@ -4,7 +4,7 @@ WEB := pnpm --dir web
 STUDIO_PORT ?= 2024
 MLFLOW_UI_PORT ?= 5000
 
-.PHONY: start api studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api auth-setup auth-token studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api test-api-fast typecheck-web build-web checks
 
@@ -12,8 +12,15 @@ MLFLOW_UI_PORT ?= 5000
 start: db adminer
 	$(MAKE) -j2 api web
 
-api: migrate
+api: auth-setup migrate
 	$(API) fastapi dev
+
+auth-setup:
+	$(API) python -m scripts.auth_keys init
+
+# usage: make auth-token [SUB=name]
+auth-token:
+	@$(API) python -m scripts.auth_keys token $(SUB)
 
 studio:
 	$(API) langgraph dev --port $(STUDIO_PORT) $(ARGS)

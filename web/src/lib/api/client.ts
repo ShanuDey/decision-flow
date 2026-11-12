@@ -16,6 +16,7 @@ import type {
   HealthResponse,
   ListFlowsParams,
   ListRunsParams,
+  Principal,
   ReadyResponse,
   RunList,
   RunRequest,
@@ -29,6 +30,16 @@ export type listFlowsResponse200 = {
   status: 200
 }
 
+export type listFlowsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listFlowsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type listFlowsResponse422 = {
   data: HTTPValidationError
   status: 422
@@ -37,7 +48,7 @@ export type listFlowsResponse422 = {
 export type listFlowsResponseSuccess = (listFlowsResponse200) & {
   headers: Headers;
 };
-export type listFlowsResponseError = (listFlowsResponse422) & {
+export type listFlowsResponseError = (listFlowsResponse401 | listFlowsResponse403 | listFlowsResponse422) & {
   headers: Headers;
 };
 
@@ -86,6 +97,16 @@ export type createFlowResponse201 = {
   status: 201
 }
 
+export type createFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type createFlowResponse422 = {
   data: HTTPValidationError
   status: 422
@@ -94,7 +115,7 @@ export type createFlowResponse422 = {
 export type createFlowResponseSuccess = (createFlowResponse201) & {
   headers: Headers;
 };
-export type createFlowResponseError = (createFlowResponse422) & {
+export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse422) & {
   headers: Headers;
 };
 
@@ -150,6 +171,16 @@ export type getFlowResponse200 = {
   status: 200
 }
 
+export type getFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type getFlowResponse404 = {
   data: ErrorResponse
   status: 404
@@ -163,7 +194,7 @@ export type getFlowResponse422 = {
 export type getFlowResponseSuccess = (getFlowResponse200) & {
   headers: Headers;
 };
-export type getFlowResponseError = (getFlowResponse404 | getFlowResponse422) & {
+export type getFlowResponseError = (getFlowResponse401 | getFlowResponse403 | getFlowResponse404 | getFlowResponse422) & {
   headers: Headers;
 };
 
@@ -205,6 +236,16 @@ export type renameFlowResponse200 = {
   status: 200
 }
 
+export type renameFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type renameFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type renameFlowResponse404 = {
   data: ErrorResponse
   status: 404
@@ -218,7 +259,7 @@ export type renameFlowResponse422 = {
 export type renameFlowResponseSuccess = (renameFlowResponse200) & {
   headers: Headers;
 };
-export type renameFlowResponseError = (renameFlowResponse404 | renameFlowResponse422) & {
+export type renameFlowResponseError = (renameFlowResponse401 | renameFlowResponse403 | renameFlowResponse404 | renameFlowResponse422) & {
   headers: Headers;
 };
 
@@ -280,6 +321,16 @@ export type saveDraftResponse400 = {
   status: 400
 }
 
+export type saveDraftResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type saveDraftResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type saveDraftResponse404 = {
   data: ErrorResponse
   status: 404
@@ -303,7 +354,7 @@ export type saveDraftResponse428 = {
 export type saveDraftResponseSuccess = (saveDraftResponse200) & {
   headers: Headers;
 };
-export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
+export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse401 | saveDraftResponse403 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
   headers: Headers;
 };
 
@@ -361,6 +412,16 @@ export type createRunResponse200 = {
   status: 200
 }
 
+export type createRunResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createRunResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type createRunResponse404 = {
   data: ErrorResponse
   status: 404
@@ -374,7 +435,7 @@ export type createRunResponse422 = {
 export type createRunResponseSuccess = (createRunResponse200) & {
   headers: Headers;
 };
-export type createRunResponseError = (createRunResponse404 | createRunResponse422) & {
+export type createRunResponseError = (createRunResponse401 | createRunResponse403 | createRunResponse404 | createRunResponse422) & {
   headers: Headers;
 };
 
@@ -432,6 +493,16 @@ export type validateFlowResponse200 = {
   status: 200
 }
 
+export type validateFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type validateFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type validateFlowResponse404 = {
   data: ErrorResponse
   status: 404
@@ -445,7 +516,7 @@ export type validateFlowResponse422 = {
 export type validateFlowResponseSuccess = (validateFlowResponse200) & {
   headers: Headers;
 };
-export type validateFlowResponseError = (validateFlowResponse404 | validateFlowResponse422) & {
+export type validateFlowResponseError = (validateFlowResponse401 | validateFlowResponse403 | validateFlowResponse404 | validateFlowResponse422) & {
   headers: Headers;
 };
 
@@ -526,6 +597,62 @@ export const health = async ( options?: RequestInit): Promise<healthResponse> =>
 
 
 
+export type meResponse200 = {
+  data: Principal
+  status: 200
+}
+
+export type meResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type meResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type meResponseSuccess = (meResponse200) & {
+  headers: Headers;
+};
+export type meResponseError = (meResponse401 | meResponse403) & {
+  headers: Headers;
+};
+
+export type meResponse = (meResponseSuccess | meResponseError)
+
+export const getMeUrl = () => {
+
+
+
+
+  return `${process.env.NEXT_PUBLIC_API_URL}/me`
+}
+
+/**
+ * The authenticated caller.
+ * @summary Me
+ */
+export const me = async ( options?: RequestInit): Promise<meResponse> => {
+
+  const res = await fetch(getMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: meResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as meResponse
+}
+
+
+
 export type readyResponse200 = {
   data: ReadyResponse
   status: 200
@@ -582,6 +709,16 @@ export type listRunsResponse200 = {
   status: 200
 }
 
+export type listRunsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listRunsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type listRunsResponse422 = {
   data: ErrorResponse
   status: 422
@@ -590,7 +727,7 @@ export type listRunsResponse422 = {
 export type listRunsResponseSuccess = (listRunsResponse200) & {
   headers: Headers;
 };
-export type listRunsResponseError = (listRunsResponse422) & {
+export type listRunsResponseError = (listRunsResponse401 | listRunsResponse403 | listRunsResponse422) & {
   headers: Headers;
 };
 
@@ -640,6 +777,16 @@ export type getRunResponse200 = {
   status: 200
 }
 
+export type getRunResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getRunResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
 export type getRunResponse404 = {
   data: ErrorResponse
   status: 404
@@ -653,7 +800,7 @@ export type getRunResponse422 = {
 export type getRunResponseSuccess = (getRunResponse200) & {
   headers: Headers;
 };
-export type getRunResponseError = (getRunResponse404 | getRunResponse422) & {
+export type getRunResponseError = (getRunResponse401 | getRunResponse403 | getRunResponse404 | getRunResponse422) & {
   headers: Headers;
 };
 
