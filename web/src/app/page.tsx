@@ -70,7 +70,7 @@ export default function Home() {
               />
             </div>
           </div>
-          <div className="min-w-0 rounded-xl border bg-card p-3">
+          <div className="min-w-0 overflow-hidden rounded-xl border">
             <LandingGraph />
           </div>
         </section>
