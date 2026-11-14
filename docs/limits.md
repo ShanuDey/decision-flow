@@ -45,7 +45,7 @@ The container starts uvicorn with `--no-proxy-headers`, so the connection addres
 
 ## Notes
 
-- Deleting a flow removes its runs. Their MLflow traces are not removed.
+- Deleting a flow removes its runs. Their MLflow traces are removed later by the retention job (see [retention](retention.md)), and only if run retention is on.
 - Each limiter tracks at most 10,000 keys; a flood of distinct IPs can push out the oldest counters.
 - Counts and rate limits are held in memory, so they are per server process and reset when it restarts. Run one instance, or accept that each instance counts on its own.
 - The timeout is checked while a run waits, so it cannot interrupt a node that is busy computing.

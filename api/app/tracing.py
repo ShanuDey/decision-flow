@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import re
+import time
 from typing import Any
 
 import mlflow
@@ -122,6 +123,27 @@ async def ready() -> bool:
     if _warmup is not None:
         await _warmup
     return _configured
+
+
+def _delete_traces_sync(settings: Settings, days: int) -> int | None:
+    if not _configured:
+        return None
+    cutoff = int((time.time() - days * 86_400) * 1000)
+    client = mlflow.MlflowClient(tracking_uri=settings.mlflow_tracking_uri)
+    experiment = client.get_experiment_by_name(settings.mlflow_set_experiment)
+    if experiment is None:
+        return 0
+    return client.delete_traces(experiment.experiment_id, max_timestamp_millis=cutoff)
+
+
+async def delete_traces_older_than(settings: Settings, days: int) -> int | None:
+    """Count deleted, or None if MLflow is not available; never raises."""
+    try:
+        await ready()
+        return await asyncio.to_thread(_delete_traces_sync, settings, days)
+    except Exception:
+        log.warning("MLflow trace cleanup failed", exc_info=True)
+        return None
 
 
 def flush() -> None:

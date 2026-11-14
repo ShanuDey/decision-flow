@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     # Proxies in front of the API whose X-Forwarded-For entry is trusted; 0 ignores the header.
     trusted_proxy: int = Field(0, ge=0)
 
+    # Retention (docs/retention.md): 0 keeps everything; the timer runs only if a value is set.
+    run_retention_days: int = Field(0, ge=0)
+    user_retention_days: int = Field(0, ge=0)
+    retention_interval_minutes: int = Field(60, ge=1)
+    retention_keep_emails: Annotated[list[str], NoDecode] = []
+    retention_dry_run: bool = False
+
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False
 
@@ -68,7 +75,18 @@ class Settings(BaseSettings):
     def _clean_domains(cls, domains: list[str]) -> list[str]:
         return [d.strip().lower().lstrip("@") for d in domains]
 
-    @field_validator("cors_origins", "auth_allowed_email_domains", mode="before")
+    @field_validator("retention_keep_emails", mode="after")
+    @classmethod
+    def _clean_keep_emails(cls, emails: list[str]) -> list[str]:
+        return [e.strip().lower() for e in emails if e.strip()]
+
+    @property
+    def retention_enabled(self) -> bool:
+        return bool(self.run_retention_days or self.user_retention_days)
+
+    @field_validator(
+        "cors_origins", "auth_allowed_email_domains", "retention_keep_emails", mode="before"
+    )
     @classmethod
     def _split_commas(cls, value: object) -> object:
         if isinstance(value, str):

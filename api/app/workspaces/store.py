@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +36,12 @@ class WorkspaceStore:
         if member is None:
             raise RuntimeError("user exists without a workspace")
         return member, created
+
+    async def touch(self, user_id: uuid.UUID) -> None:
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(last_seen_at=func.now())
+        )
+        await self.session.commit()
 
     async def find_member(self, principal: Principal) -> Member | None:
         row = (

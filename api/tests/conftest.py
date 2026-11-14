@@ -27,6 +27,10 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
 class FakeWorkspaceStore:
     def __init__(self) -> None:
         self.members: dict[tuple[str, str], Member] = {}
+        self.touched: list[uuid.UUID] = []
+
+    async def touch(self, user_id: uuid.UUID) -> None:
+        self.touched.append(user_id)
 
     async def find_member(self, principal: Principal) -> Member | None:
         return self.members.get((principal.provider, principal.sub))
