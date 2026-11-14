@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { SelectField } from "@/components/ui/select-field";
 import { Textarea } from "@/components/ui/textarea";
 import type { FieldIssue } from "@/lib/call";
 import { FIELD_TYPES, type FieldType } from "@/lib/graph/types";
@@ -53,13 +53,12 @@ export function TypeSelect({
   onChange: (type: FieldType) => void;
 }) {
   return (
-    <NativeSelect id={id} value={value} onChange={(e) => onChange(e.target.value as FieldType)}>
-      {FIELD_TYPES.map((t) => (
-        <option key={t} value={t}>
-          {t}
-        </option>
-      ))}
-    </NativeSelect>
+    <SelectField
+      id={id}
+      value={value}
+      onValueChange={(v) => onChange(v as FieldType)}
+      options={FIELD_TYPES.map((t) => ({ value: t, label: t }))}
+    />
   );
 }
 
@@ -117,30 +116,28 @@ export function TypedValueInput({
   switch (type) {
     case "boolean":
       return (
-        <NativeSelect
+        <SelectField
           id={id}
           value={value === true ? "true" : value === false ? "false" : ""}
-          onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value === "true")}
-        >
-          <option value="">(none)</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
-        </NativeSelect>
+          onValueChange={(v) => onChange(v === "" ? undefined : v === "true")}
+          options={[
+            { value: "", label: "(none)" },
+            { value: "true", label: "true" },
+            { value: "false", label: "false" },
+          ]}
+        />
       );
     case "enum":
       return (
-        <NativeSelect
+        <SelectField
           id={id}
           value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value === "" ? undefined : e.target.value)}
-        >
-          <option value="">(none)</option>
-          {(values ?? []).map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </NativeSelect>
+          onValueChange={(v) => onChange(v === "" ? undefined : v)}
+          options={[
+            { value: "", label: "(none)" },
+            ...(values ?? []).map((v) => ({ value: v, label: v })),
+          ]}
+        />
       );
     case "number":
       return (
