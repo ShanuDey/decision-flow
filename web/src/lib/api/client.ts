@@ -16,6 +16,7 @@ import type {
   HealthResponse,
   ListFlowsParams,
   ListRunsParams,
+  Principal,
   ReadyResponse,
   RunList,
   RunRequest,
@@ -24,9 +25,20 @@ import type {
   ValidateResponse
 } from './models';
 
+import { apiFetch } from '../fetcher';
 export type listFlowsResponse200 = {
   data: FlowList
   status: 200
+}
+
+export type listFlowsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listFlowsResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type listFlowsResponse422 = {
@@ -37,7 +49,7 @@ export type listFlowsResponse422 = {
 export type listFlowsResponseSuccess = (listFlowsResponse200) & {
   headers: Headers;
 };
-export type listFlowsResponseError = (listFlowsResponse422) & {
+export type listFlowsResponseError = (listFlowsResponse401 | listFlowsResponse403 | listFlowsResponse422) & {
   headers: Headers;
 };
 
@@ -55,35 +67,38 @@ export const getListFlowsUrl = (params?: ListFlowsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `${process.env.NEXT_PUBLIC_API_URL}/flows?${stringifiedParams}` : `${process.env.NEXT_PUBLIC_API_URL}/flows`
+  return stringifiedParams.length > 0 ? `/flows?${stringifiedParams}` : `/flows`
 }
 
 /**
  * @summary List Flows
  */
-export const listFlows = async (params?: ListFlowsParams, options?: RequestInit): Promise<listFlowsResponse> => {
+export const listFlows = async (params?: ListFlowsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listFlowsResponse> => {
 
-  const res = await fetch(getListFlowsUrl(params),
+  return apiFetch<listFlowsResponse>(getListFlowsUrl(params),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: listFlowsResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as listFlowsResponse
-}
+);}
 
 
 
 export type createFlowResponse201 = {
   data: FlowDetail
   status: 201
+}
+
+export type createFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type createFlowResponse422 = {
@@ -94,7 +109,7 @@ export type createFlowResponse422 = {
 export type createFlowResponseSuccess = (createFlowResponse201) & {
   headers: Headers;
 };
-export type createFlowResponseError = (createFlowResponse422) & {
+export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse422) & {
   headers: Headers;
 };
 
@@ -105,13 +120,13 @@ export const getCreateFlowUrl = () => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows`
+  return `/flows`
 }
 
 /**
  * @summary Create Flow
  */
-export const createFlow = async (flowCreate: FlowCreate, options?: RequestInit): Promise<createFlowResponse> => {
+export const createFlow = async (flowCreate: FlowCreate, options?: Parameters<typeof apiFetch>[1]): Promise<createFlowResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -127,27 +142,30 @@ export const createFlow = async (flowCreate: FlowCreate, options?: RequestInit):
     }
     return headers;
   };
-const res = await fetch(getCreateFlowUrl(),
+return apiFetch<createFlowResponse>(getCreateFlowUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(flowCreate)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: createFlowResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as createFlowResponse
-}
+);}
 
 
 
 export type getFlowResponse200 = {
   data: FlowDetail
   status: 200
+}
+
+export type getFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type getFlowResponse404 = {
@@ -163,7 +181,7 @@ export type getFlowResponse422 = {
 export type getFlowResponseSuccess = (getFlowResponse200) & {
   headers: Headers;
 };
-export type getFlowResponseError = (getFlowResponse404 | getFlowResponse422) & {
+export type getFlowResponseError = (getFlowResponse401 | getFlowResponse403 | getFlowResponse404 | getFlowResponse422) & {
   headers: Headers;
 };
 
@@ -174,35 +192,38 @@ export const getGetFlowUrl = (flowId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}`
+  return `/flows/${flowId}`
 }
 
 /**
  * @summary Get Flow
  */
-export const getFlow = async (flowId: string, options?: RequestInit): Promise<getFlowResponse> => {
+export const getFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getFlowResponse> => {
 
-  const res = await fetch(getGetFlowUrl(flowId),
+  return apiFetch<getFlowResponse>(getGetFlowUrl(flowId),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: getFlowResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getFlowResponse
-}
+);}
 
 
 
 export type renameFlowResponse200 = {
   data: FlowSummary
   status: 200
+}
+
+export type renameFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type renameFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type renameFlowResponse404 = {
@@ -218,7 +239,7 @@ export type renameFlowResponse422 = {
 export type renameFlowResponseSuccess = (renameFlowResponse200) & {
   headers: Headers;
 };
-export type renameFlowResponseError = (renameFlowResponse404 | renameFlowResponse422) & {
+export type renameFlowResponseError = (renameFlowResponse401 | renameFlowResponse403 | renameFlowResponse404 | renameFlowResponse422) & {
   headers: Headers;
 };
 
@@ -229,14 +250,14 @@ export const getRenameFlowUrl = (flowId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}`
+  return `/flows/${flowId}`
 }
 
 /**
  * @summary Rename Flow
  */
 export const renameFlow = async (flowId: string,
-    flowRename: FlowRename, options?: RequestInit): Promise<renameFlowResponse> => {
+    flowRename: FlowRename, options?: Parameters<typeof apiFetch>[1]): Promise<renameFlowResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -252,21 +273,14 @@ export const renameFlow = async (flowId: string,
     }
     return headers;
   };
-const res = await fetch(getRenameFlowUrl(flowId),
+return apiFetch<renameFlowResponse>(getRenameFlowUrl(flowId),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(flowRename)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: renameFlowResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as renameFlowResponse
-}
+);}
 
 
 
@@ -278,6 +292,16 @@ export type saveDraftResponse200 = {
 export type saveDraftResponse400 = {
   data: ErrorResponse
   status: 400
+}
+
+export type saveDraftResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type saveDraftResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type saveDraftResponse404 = {
@@ -303,7 +327,7 @@ export type saveDraftResponse428 = {
 export type saveDraftResponseSuccess = (saveDraftResponse200) & {
   headers: Headers;
 };
-export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
+export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse401 | saveDraftResponse403 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
   headers: Headers;
 };
 
@@ -314,7 +338,7 @@ export const getSaveDraftUrl = (flowId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/draft`
+  return `/flows/${flowId}/draft`
 }
 
 /**
@@ -322,7 +346,7 @@ export const getSaveDraftUrl = (flowId: string,) => {
  * @summary Save Draft
  */
 export const saveDraft = async (flowId: string,
-    saveDraftBody: SaveDraftBody, options?: RequestInit): Promise<saveDraftResponse> => {
+    saveDraftBody: SaveDraftBody, options?: Parameters<typeof apiFetch>[1]): Promise<saveDraftResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -338,27 +362,30 @@ export const saveDraft = async (flowId: string,
     }
     return headers;
   };
-const res = await fetch(getSaveDraftUrl(flowId),
+return apiFetch<saveDraftResponse>(getSaveDraftUrl(flowId),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(saveDraftBody)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: saveDraftResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as saveDraftResponse
-}
+);}
 
 
 
 export type createRunResponse200 = {
   data: RunResponse
   status: 200
+}
+
+export type createRunResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createRunResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type createRunResponse404 = {
@@ -371,10 +398,15 @@ export type createRunResponse422 = {
   status: 422
 }
 
+export type createRunResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type createRunResponseSuccess = (createRunResponse200) & {
   headers: Headers;
 };
-export type createRunResponseError = (createRunResponse404 | createRunResponse422) & {
+export type createRunResponseError = (createRunResponse401 | createRunResponse403 | createRunResponse404 | createRunResponse422 | createRunResponse429) & {
   headers: Headers;
 };
 
@@ -385,15 +417,15 @@ export const getCreateRunUrl = (flowId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/runs`
+  return `/flows/${flowId}/runs`
 }
 
 /**
- * Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422.
+ * Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429.
  * @summary Create Run
  */
 export const createRun = async (flowId: string,
-    runRequest: RunRequest, options?: RequestInit): Promise<createRunResponse> => {
+    runRequest: RunRequest, options?: Parameters<typeof apiFetch>[1]): Promise<createRunResponse> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -409,27 +441,30 @@ export const createRun = async (flowId: string,
     }
     return headers;
   };
-const res = await fetch(getCreateRunUrl(flowId),
+return apiFetch<createRunResponse>(getCreateRunUrl(flowId),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(runRequest)
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: createRunResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as createRunResponse
-}
+);}
 
 
 
 export type validateFlowResponse200 = {
   data: ValidateResponse
   status: 200
+}
+
+export type validateFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type validateFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type validateFlowResponse404 = {
@@ -445,7 +480,7 @@ export type validateFlowResponse422 = {
 export type validateFlowResponseSuccess = (validateFlowResponse200) & {
   headers: Headers;
 };
-export type validateFlowResponseError = (validateFlowResponse404 | validateFlowResponse422) & {
+export type validateFlowResponseError = (validateFlowResponse401 | validateFlowResponse403 | validateFlowResponse404 | validateFlowResponse422) & {
   headers: Headers;
 };
 
@@ -456,29 +491,22 @@ export const getValidateFlowUrl = (flowId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/flows/${flowId}/validate`
+  return `/flows/${flowId}/validate`
 }
 
 /**
  * @summary Validate Flow
  */
-export const validateFlow = async (flowId: string, options?: RequestInit): Promise<validateFlowResponse> => {
+export const validateFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<validateFlowResponse> => {
 
-  const res = await fetch(getValidateFlowUrl(flowId),
+  return apiFetch<validateFlowResponse>(getValidateFlowUrl(flowId),
   {
     ...options,
     method: 'POST'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: validateFlowResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as validateFlowResponse
-}
+);}
 
 
 
@@ -499,30 +527,72 @@ export const getHealthUrl = () => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/health`
+  return `/health`
 }
 
 /**
  * Process is up. Does not check dependencies.
  * @summary Health
  */
-export const health = async ( options?: RequestInit): Promise<healthResponse> => {
+export const health = async ( options?: Parameters<typeof apiFetch>[1]): Promise<healthResponse> => {
 
-  const res = await fetch(getHealthUrl(),
+  return apiFetch<healthResponse>(getHealthUrl(),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
+);}
 
 
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
 
-  const data: healthResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as healthResponse
+export type meResponse200 = {
+  data: Principal
+  status: 200
 }
+
+export type meResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type meResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type meResponseSuccess = (meResponse200) & {
+  headers: Headers;
+};
+export type meResponseError = (meResponse401 | meResponse403) & {
+  headers: Headers;
+};
+
+export type meResponse = (meResponseSuccess | meResponseError)
+
+export const getMeUrl = () => {
+
+
+
+
+  return `/me`
+}
+
+/**
+ * The authenticated caller.
+ * @summary Me
+ */
+export const me = async ( options?: Parameters<typeof apiFetch>[1]): Promise<meResponse> => {
+
+  return apiFetch<meResponse>(getMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
 
 
 
@@ -550,36 +620,39 @@ export const getReadyUrl = () => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/ready`
+  return `/ready`
 }
 
 /**
  * Dependencies reachable (Postgres, MLflow).
  * @summary Ready
  */
-export const ready = async ( options?: RequestInit): Promise<readyResponse> => {
+export const ready = async ( options?: Parameters<typeof apiFetch>[1]): Promise<readyResponse> => {
 
-  const res = await fetch(getReadyUrl(),
+  return apiFetch<readyResponse>(getReadyUrl(),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: readyResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as readyResponse
-}
+);}
 
 
 
 export type listRunsResponse200 = {
   data: RunList
   status: 200
+}
+
+export type listRunsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listRunsResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type listRunsResponse422 = {
@@ -590,7 +663,7 @@ export type listRunsResponse422 = {
 export type listRunsResponseSuccess = (listRunsResponse200) & {
   headers: Headers;
 };
-export type listRunsResponseError = (listRunsResponse422) & {
+export type listRunsResponseError = (listRunsResponse401 | listRunsResponse403 | listRunsResponse422) & {
   headers: Headers;
 };
 
@@ -608,36 +681,39 @@ export const getListRunsUrl = (params?: ListRunsParams,) => {
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `${process.env.NEXT_PUBLIC_API_URL}/runs?${stringifiedParams}` : `${process.env.NEXT_PUBLIC_API_URL}/runs`
+  return stringifiedParams.length > 0 ? `/runs?${stringifiedParams}` : `/runs`
 }
 
 /**
  * Newest first; pass `next_cursor` back as `cursor` for the next page.
  * @summary List Runs
  */
-export const listRuns = async (params?: ListRunsParams, options?: RequestInit): Promise<listRunsResponse> => {
+export const listRuns = async (params?: ListRunsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listRunsResponse> => {
 
-  const res = await fetch(getListRunsUrl(params),
+  return apiFetch<listRunsResponse>(getListRunsUrl(params),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: listRunsResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as listRunsResponse
-}
+);}
 
 
 
 export type getRunResponse200 = {
   data: RunResponse
   status: 200
+}
+
+export type getRunResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getRunResponse403 = {
+  data: ErrorResponse
+  status: 403
 }
 
 export type getRunResponse404 = {
@@ -653,7 +729,7 @@ export type getRunResponse422 = {
 export type getRunResponseSuccess = (getRunResponse200) & {
   headers: Headers;
 };
-export type getRunResponseError = (getRunResponse404 | getRunResponse422) & {
+export type getRunResponseError = (getRunResponse401 | getRunResponse403 | getRunResponse404 | getRunResponse422) & {
   headers: Headers;
 };
 
@@ -664,26 +740,19 @@ export const getGetRunUrl = (runId: string,) => {
 
 
 
-  return `${process.env.NEXT_PUBLIC_API_URL}/runs/${runId}`
+  return `/runs/${runId}`
 }
 
 /**
  * @summary Get Run
  */
-export const getRun = async (runId: string, options?: RequestInit): Promise<getRunResponse> => {
+export const getRun = async (runId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getRunResponse> => {
 
-  const res = await fetch(getGetRunUrl(runId),
+  return apiFetch<getRunResponse>(getGetRunUrl(runId),
   {
     ...options,
     method: 'GET'
 
 
   }
-)
-
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: getRunResponse['data'] = body ? JSON.parse(body) : {}
-  return { data, status: res.status, headers: res.headers } as getRunResponse
-}
+);}

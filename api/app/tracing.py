@@ -227,6 +227,10 @@ class MlflowObserver:
     async def run_finished(
         self, status: RunStatus, error: str | None, outputs: dict[str, Any] | None = None
     ) -> None:
+        # A node cancelled mid-run (timeout) never reports finished: close it with the run's error.
+        for span in self._spans.values():
+            span.end(status=_status(False, error))
+        self._spans.clear()
         if self._root is not None:
             self._root.end(outputs=_io(outputs), status=_status(status == "succeeded", error))
             self._root = None

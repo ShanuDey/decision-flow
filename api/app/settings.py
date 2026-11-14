@@ -6,6 +6,8 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
+from app.auth.config import ProviderConfig
+
 ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 MLFLOW_SCHEMA_OPTION = "-csearch_path=mlflow"
 
@@ -30,9 +32,6 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
 
-    # Largest accepted request body (flow drafts are the biggest legitimate payload).
-    max_request_bytes: int = 1_048_576
-
     # Empty: derive from database_url (schema `mlflow`); set to send traces elsewhere.
     mlflow_tracking_uri: str = ""
     mlflow_set_experiment: str = "decision-flow"
@@ -46,7 +45,27 @@ class Settings(BaseSettings):
     # NoDecode: accept comma-separated env values instead of JSON.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
-    @field_validator("cors_origins", mode="before")
+    # Auth is always on; startup fails when auth_providers is empty (docs/auth.md).
+    auth_providers: list[ProviderConfig] = []
+    auth_allowed_email_domains: Annotated[list[str], NoDecode] = []
+
+    # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
+    api_docs_enabled: bool = False
+
+    @field_validator("auth_providers", mode="after")
+    @classmethod
+    def _unique_provider_names(cls, providers: list[ProviderConfig]) -> list[ProviderConfig]:
+        names = [p.name for p in providers]
+        if len(set(names)) != len(names):
+            raise ValueError("auth_providers names must be unique")
+        return providers
+
+    @field_validator("auth_allowed_email_domains", mode="after")
+    @classmethod
+    def _clean_domains(cls, domains: list[str]) -> list[str]:
+        return [d.strip().lower().lstrip("@") for d in domains]
+
+    @field_validator("cors_origins", "auth_allowed_email_domains", mode="before")
     @classmethod
     def _split_commas(cls, value: object) -> object:
         if isinstance(value, str):

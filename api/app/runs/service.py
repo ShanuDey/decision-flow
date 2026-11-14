@@ -16,6 +16,7 @@ from app.flows.models import Flow
 from app.flows.service import invalid_flow
 from app.runs.models import Run
 from app.runs.store import RunStore
+from app.workspaces.schemas import Member
 
 
 class TracingObserver(Observer, Protocol):
@@ -26,14 +27,19 @@ ObserverFactory = Callable[[str], TracingObserver]
 
 
 async def run_draft(
-    store: RunStore, flow: Flow, payload: dict[str, Any], new_observer: ObserverFactory
+    store: RunStore,
+    member: Member,
+    flow: Flow,
+    payload: dict[str, Any],
+    new_observer: ObserverFactory,
+    timeout_seconds: float = 0,
 ) -> Run:
     graph, issues = parse_graph(flow.draft)
     if graph is None:
         raise invalid_flow(issues)
     observer = new_observer(flow.name)
     try:
-        result = await run_flow(compile_graph(graph), payload, observer)
+        result = await run_flow(compile_graph(graph), payload, observer, timeout_seconds)
     except InputValidationError as exc:
         first = exc.issues[0]
         raise ApiError(
@@ -45,6 +51,8 @@ async def run_draft(
     return await store.add_run(
         Run(
             flow_id=flow.id,
+            workspace_id=member.workspace_id,
+            created_by=member.user_id,
             status=result.status,
             test=True,
             input=payload,
@@ -72,6 +80,7 @@ def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
 
 async def list_runs(
     store: RunStore,
+    member: Member,
     *,
     flow_id: uuid.UUID | None,
     status: str | None,
@@ -83,6 +92,8 @@ async def list_runs(
 ) -> tuple[list[Run], str | None]:
     after = decode_cursor(cursor) if cursor else None
     # one extra row tells us whether another page exists
-    rows = await store.list_runs(flow_id, status, test, started_from, started_to, after, limit + 1)
+    rows = await store.list_runs(
+        member, flow_id, status, test, started_from, started_to, after, limit + 1
+    )
     page = rows[:limit]
     return page, encode_cursor(page[-1]) if len(rows) > limit else None

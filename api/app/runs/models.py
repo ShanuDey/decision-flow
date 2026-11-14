@@ -14,6 +14,12 @@ class Run(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     flow_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("flows.id"), index=True)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
     status: Mapped[str] = mapped_column(String(20))
     test: Mapped[bool]
     input: Mapped[dict[str, Any]] = mapped_column(JSONB)

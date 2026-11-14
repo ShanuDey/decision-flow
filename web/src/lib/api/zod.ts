@@ -121,7 +121,7 @@ export const SaveDraftResponse = zod.object({
 
 
 /**
- * Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422.
+ * Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429.
  * @summary Create Run
  */
 export const CreateRunParams = zod.object({
@@ -165,6 +165,18 @@ export const ValidateFlowResponse = zod.object({
  */
 export const HealthResponse = zod.object({
   "status": zod.literal("ok").meta({ title: 'Status' })
+})
+
+
+/**
+ * The authenticated caller.
+ * @summary Me
+ */
+export const MeResponse = zod.object({
+  "email": zod.union([zod.string(),zod.null()]).optional(),
+  "name": zod.union([zod.string(),zod.null()]).optional(),
+  "provider": zod.string(),
+  "sub": zod.string()
 })
 
 

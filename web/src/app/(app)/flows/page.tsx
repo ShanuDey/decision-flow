@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listFlows } from "@/lib/api/client";
+import { serverApiInit } from "@/lib/auth/session";
 import { call } from "@/lib/call";
 import { ListFlowsSort } from "@/lib/api/models";
 import { formatDateTime } from "@/lib/format";
@@ -59,7 +60,7 @@ export default async function FlowsPage({
   const result = await call(
     listFlows(
       { q, sort: sort as ListFlowsSort, page, page_size: PAGE_SIZE },
-      { cache: "no-store" },
+      await serverApiInit(),
     ),
   );
 

@@ -14,6 +14,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.auth.models import Principal
+from app.workspaces.schemas import Member
+from app.workspaces.store import WorkspaceStore
+
 API_DIR = Path(__file__).resolve().parents[1]
 IMAGE = "postgres:17"  # keep in step with docker-compose.dev.yml
 
@@ -58,5 +62,12 @@ async def sessions(postgres_url: str) -> AsyncIterator[SessionFactory]:
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE runs, flows"))
+        await conn.execute(text("TRUNCATE runs, flows, workspace_members, users, workspaces"))
     await engine.dispose()
+
+
+async def make_member(sessions: SessionFactory, sub: str = "user-1") -> Member:
+    async with sessions() as session:
+        return await WorkspaceStore(session).ensure_member(
+            Principal(sub=sub, provider="web", email=f"{sub}@example.com", name=sub)
+        )

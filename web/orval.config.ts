@@ -10,7 +10,7 @@ export default defineConfig({
       mode: "single",
       target: "src/lib/api/client.ts",
       schemas: "src/lib/api/models",
-      baseUrl: { runtime: "process.env.NEXT_PUBLIC_API_URL" },
+      override: { mutator: { path: "./src/lib/fetcher.ts", name: "apiFetch" } },
       clean: true,
     },
   },

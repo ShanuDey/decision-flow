@@ -5,7 +5,7 @@ set -u
 cd /srv/api
 alembic upgrade head || exit 1
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 30 &
 api=$!
 (cd /srv/web && HOSTNAME=0.0.0.0 PORT=3000 exec node server.js) &
 web=$!

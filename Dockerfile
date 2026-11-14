@@ -6,9 +6,6 @@ RUN npm install -g pnpm@12.18.0
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY web/ .
-# Inlined into the browser bundle at build time: must be the URL the *browser* uses.
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm build
 
 FROM python:3.12-slim AS api-build

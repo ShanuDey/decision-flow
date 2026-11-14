@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -26,6 +27,27 @@ def build(raw: dict):
     graph, issues = parse_graph(raw)
     assert issues == [], issues
     return compile_graph(graph)
+
+
+class SlowRecorder(Recorder):
+    async def node_started(self, node, inputs) -> None:
+        await super().node_started(node, inputs)
+        await asyncio.sleep(5)
+
+
+@pytest.mark.anyio
+async def test_a_run_over_the_timeout_fails_and_closes_the_trace(raw: dict) -> None:
+    recorder = SlowRecorder()
+    result = await run_flow(build(raw), {"amount": 5000}, recorder, timeout_seconds=0.05)
+    assert result.status == "failed" and result.output is None
+    assert result.error is not None and result.error.message == "Run timed out after 0.05 seconds"
+    assert recorder.events[-1][:2] == ("run_finished", "failed")
+
+
+@pytest.mark.anyio
+async def test_a_timeout_of_zero_means_no_limit(raw: dict) -> None:
+    result = await run_flow(build(raw), {"amount": 5000}, timeout_seconds=0)
+    assert result.status == "succeeded"
 
 
 @pytest.mark.anyio

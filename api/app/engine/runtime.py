@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import Any, Literal
 
@@ -19,8 +20,22 @@ class RunResult(FrozenBaseModel):
     duration_ms: int
 
 
+async def _failed(observer: Observer, started: float, node_id: str, message: str) -> RunResult:
+    ms = int((time.perf_counter() - started) * 1000)
+    await observer.run_finished("failed", message)
+    return RunResult(
+        status="failed",
+        output=None,
+        error=RunError(node_id=node_id, message=message),
+        duration_ms=ms,
+    )
+
+
 async def run_flow(
-    flow: CompiledFlow, payload: dict[str, Any], observer: Observer | None = None
+    flow: CompiledFlow,
+    payload: dict[str, Any],
+    observer: Observer | None = None,
+    timeout_seconds: float = 0,
 ) -> RunResult:
     """Raises InputValidationError before anything runs; a failure inside the flow is a result."""
     inputs = validate_input(flow.start.data.inputs, payload)
@@ -30,15 +45,14 @@ async def run_flow(
     await observer.run_started(inputs)
     started = time.perf_counter()
     try:
-        final = await flow.graph.ainvoke(state, config=config)
+        # Fires at an await: synchronous node code is not interrupted.
+        async with asyncio.timeout(timeout_seconds or None):
+            final = await flow.graph.ainvoke(state, config=config)
     except NodeError as exc:
-        ms = int((time.perf_counter() - started) * 1000)
-        await observer.run_finished("failed", str(exc))
-        return RunResult(
-            status="failed",
-            output=None,
-            error=RunError(node_id=exc.node_id, message=exc.message),
-            duration_ms=ms,
+        return await _failed(observer, started, exc.node_id, exc.message)
+    except TimeoutError:
+        return await _failed(
+            observer, started, "", f"Run timed out after {timeout_seconds:g} seconds"
         )
     ms = int((time.perf_counter() - started) * 1000)
     await observer.run_finished("succeeded", None, final["_output"])

@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, GitBranch, type LucideIcon, Play, Settings } from "lucide-react";
+import { GitBranch, type LucideIcon, Play, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,7 +17,6 @@ const ITEMS: Item[] = [
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play, soon: true },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/status", label: "System status", icon: Activity },
 ];
 
 const ROW = "flex h-11 items-center gap-2.5 rounded-lg px-3 text-sm font-medium";

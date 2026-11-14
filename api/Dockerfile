@@ -7,4 +7,4 @@ COPY . .
 ENV PATH="/srv/api/.venv/bin:$PATH"
 EXPOSE 8000
 # Migrate, then serve; exec so uvicorn receives SIGTERM for graceful shutdown.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 30"]

@@ -7,21 +7,24 @@ from app.flows.store import FlowStore
 from app.runs import service
 from app.runs.models import Run
 from app.runs.store import RunStore
-from tests.db_fixtures import SessionFactory, anyio_backend  # noqa: F401
+from app.workspaces.schemas import Member
+from tests.db_fixtures import SessionFactory, anyio_backend, make_member  # noqa: F401
 
 pytestmark = [pytest.mark.db, pytest.mark.anyio]
 
 BASE = datetime(2026, 1, 1, 12, 0, 0, 123456)  # naive, with microseconds like the column
 
 
-async def flow_id(sessions: SessionFactory) -> uuid.UUID:
+async def flow_id(sessions: SessionFactory, member: Member) -> uuid.UUID:
     async with sessions() as session:
-        return (await FlowStore(session).create_flow("Demo", {})).id
+        return (await FlowStore(session).create_flow(member, "Demo", {})).id
 
 
-def run(flow: uuid.UUID, **overrides) -> Run:
+def run(flow: uuid.UUID, member: Member, **overrides) -> Run:
     fields = dict(
         flow_id=flow,
+        workspace_id=member.workspace_id,
+        created_by=member.user_id,
         status="succeeded",
         test=True,
         input={"amount": 1},
@@ -32,18 +35,20 @@ def run(flow: uuid.UUID, **overrides) -> Run:
     return Run(**{**fields, **overrides})
 
 
-async def page(store: RunStore, **filters) -> tuple[list[Run], str | None]:
+async def page(store: RunStore, member: Member, **filters) -> tuple[list[Run], str | None]:
     args = (
         dict(flow_id=None, status=None, test=None, started_from=None, started_to=None, cursor=None)
         | filters
     )
-    return await service.list_runs(store, limit=filters.pop("limit", 25), **args)
+    return await service.list_runs(store, member, limit=filters.pop("limit", 25), **args)
 
 
 async def test_a_run_round_trips_through_postgres(sessions: SessionFactory) -> None:
-    flow = await flow_id(sessions)
+    member = await make_member(sessions)
+    flow = await flow_id(sessions, member)
     failed = run(
         flow,
+        member,
         status="failed",
         output=None,
         error={"node_id": "assign_values", "message": "boom"},
@@ -52,29 +57,33 @@ async def test_a_run_round_trips_through_postgres(sessions: SessionFactory) -> N
     async with sessions() as session:
         saved = await RunStore(session).add_run(failed)
     async with sessions() as other:
-        loaded = await RunStore(other).get_run(saved.id)
+        loaded = await RunStore(other).get_run(member, saved.id)
     assert loaded is not None
     assert (loaded.status, loaded.output, loaded.mlflow_trace_id) == ("failed", None, "tr-abc")
     assert loaded.error == {"node_id": "assign_values", "message": "boom"}
     assert loaded.input == {"amount": 1} and loaded.started_at is not None
+    assert (loaded.workspace_id, loaded.created_by) == (member.workspace_id, member.user_id)
 
 
 async def test_get_missing_run_is_none(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
     async with sessions() as session:
-        assert await RunStore(session).get_run(uuid.uuid4()) is None
+        assert await RunStore(session).get_run(member, uuid.uuid4()) is None
 
 
 async def test_keyset_paging_visits_every_run_once_newest_first(sessions: SessionFactory) -> None:
-    flow = await flow_id(sessions)
+    member = await make_member(sessions)
+    flow = await flow_id(sessions, member)
     async with sessions() as session:
         store = RunStore(session)
         for i in range(7):
-            await store.add_run(run(flow, started_at=BASE + timedelta(seconds=i)))
+            await store.add_run(run(flow, member, started_at=BASE + timedelta(seconds=i)))
 
         seen, cursor, pages = [], None, 0
         while True:
             rows, cursor = await service.list_runs(
                 store,
+                member,
                 flow_id=None,
                 status=None,
                 test=None,
@@ -95,16 +104,19 @@ async def test_keyset_paging_visits_every_run_once_newest_first(sessions: Sessio
 async def test_identical_timestamps_page_by_id_without_gaps_or_repeats(
     sessions: SessionFactory,
 ) -> None:
-    flow = await flow_id(sessions)
+    member = await make_member(sessions)
+    flow = await flow_id(sessions, member)
     async with sessions() as session:
         store = RunStore(session)
         for _ in range(5):
-            await store.add_run(run(flow, started_at=BASE))  # every run starts at the same instant
+            # every run starts at the same instant
+            await store.add_run(run(flow, member, started_at=BASE))
 
         seen, cursor = [], None
         while True:
             rows, cursor = await service.list_runs(
                 store,
+                member,
                 flow_id=None,
                 status=None,
                 test=None,
@@ -122,17 +134,21 @@ async def test_identical_timestamps_page_by_id_without_gaps_or_repeats(
 
 
 async def test_filters(sessions: SessionFactory) -> None:
-    one, two = await flow_id(sessions), await flow_id(sessions)
+    member = await make_member(sessions)
+    one, two = await flow_id(sessions, member), await flow_id(sessions, member)
     async with sessions() as session:
         store = RunStore(session)
-        await store.add_run(run(one, started_at=BASE))
-        await store.add_run(run(one, status="failed", started_at=BASE + timedelta(minutes=1)))
-        await store.add_run(run(two, test=False, started_at=BASE + timedelta(minutes=2)))
-        await store.add_run(run(two, started_at=BASE + timedelta(minutes=3)))
+        await store.add_run(run(one, member, started_at=BASE))
+        await store.add_run(
+            run(one, member, status="failed", started_at=BASE + timedelta(minutes=1))
+        )
+        await store.add_run(run(two, member, test=False, started_at=BASE + timedelta(minutes=2)))
+        await store.add_run(run(two, member, started_at=BASE + timedelta(minutes=3)))
 
         async def ids(**filters) -> int:
             rows, _ = await service.list_runs(
                 store,
+                member,
                 flow_id=filters.get("flow_id"),
                 status=filters.get("status"),
                 test=filters.get("test"),
@@ -150,3 +166,15 @@ async def test_filters(sessions: SessionFactory) -> None:
         assert await ids(started_from=BASE + timedelta(minutes=1)) == 3
         assert await ids(started_to=BASE + timedelta(minutes=1)) == 2
         assert await ids(flow_id=two, status="succeeded", test=True) == 1
+
+
+async def test_another_workspace_sees_no_runs(sessions: SessionFactory) -> None:
+    owner, outsider = await make_member(sessions, "a"), await make_member(sessions, "b")
+    flow = await flow_id(sessions, owner)
+    async with sessions() as session:
+        saved = await RunStore(session).add_run(run(flow, owner, started_at=BASE))
+    async with sessions() as other:
+        store = RunStore(other)
+        assert await store.get_run(outsider, saved.id) is None
+        assert (await page(store, outsider))[0] == []
+        assert len((await page(store, owner))[0]) == 1
