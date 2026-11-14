@@ -12,7 +12,7 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
         aria-labelledby="auth-heading"
         className="flex w-full max-w-sm flex-col gap-5 rounded-lg border p-6"
       >
-        <h2 id="auth-heading" className="text-lg font-medium">
+        <h2 id="auth-heading" className="text-center text-lg font-medium">
           {title}
         </h2>
         {children}
