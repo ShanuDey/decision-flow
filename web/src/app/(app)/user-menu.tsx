@@ -34,6 +34,19 @@ interface Props {
 
 const subscribeNever = () => () => {};
 
+// Left/Right move between the pills, matching their horizontal layout.
+function moveAcross(e: React.KeyboardEvent<HTMLElement>) {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const items = Array.from(
+    e.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [],
+  );
+  const at = items.indexOf(e.currentTarget);
+  const step = e.key === "ArrowRight" ? 1 : -1;
+  items[(at + step + items.length) % items.length]?.focus();
+  e.preventDefault();
+  e.stopPropagation();
+}
+
 function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
@@ -42,9 +55,19 @@ function ThemeSwitch() {
   return (
     <DropdownMenuGroup>
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
-      <DropdownMenuRadioGroup value={current} onValueChange={(v) => setTheme(parseTheme(v))}>
+      <DropdownMenuRadioGroup
+        value={current}
+        onValueChange={(v) => setTheme(parseTheme(v))}
+        className="mx-1 mb-1 flex gap-0.5 rounded-lg bg-muted p-[3px]"
+      >
         {THEMES.map((t) => (
-          <DropdownMenuRadioItem key={t} value={t} closeOnClick={false}>
+          <DropdownMenuRadioItem
+            key={t}
+            value={t}
+            closeOnClick={false}
+            onKeyDown={moveAcross}
+            className="flex-1 justify-center rounded-md px-2 py-1 pr-2 text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 data-[checked]:bg-background data-[checked]:font-medium data-[checked]:text-foreground data-[checked]:shadow-sm [&_[data-slot=dropdown-menu-radio-item-indicator]]:hidden"
+          >
             {THEME_LABELS[t]}
           </DropdownMenuRadioItem>
         ))}
