@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-1">
       <aside className="hidden w-[232px] shrink-0 flex-col gap-6 border-r bg-muted/40 p-4 md:flex">
-        <Link href="/flows" aria-label="Decision Flow" className="px-3 pt-2 text-base">
+        <Link href="/" aria-label="Decision Flow home" className="px-3 pt-2 text-base">
           <Logo />
         </Link>
         <SidebarNav />

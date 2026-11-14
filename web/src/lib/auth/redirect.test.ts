@@ -9,9 +9,9 @@ describe("safeNext", () => {
   });
 
   it("falls back when nothing is given", () => {
-    expect(safeNext(undefined)).toBe("/flows");
-    expect(safeNext(null)).toBe("/flows");
-    expect(safeNext("")).toBe("/flows");
+    expect(safeNext(undefined)).toBe("/overview");
+    expect(safeNext(null)).toBe("/overview");
+    expect(safeNext("")).toBe("/overview");
   });
 
   it("uses the first value of a repeated parameter", () => {
@@ -27,7 +27,7 @@ describe("safeNext", () => {
       "flows",
       "/ok\nSet-Cookie: x=1",
     ]) {
-      expect(safeNext(bad)).toBe("/flows");
+      expect(safeNext(bad)).toBe("/overview");
     }
   });
 
@@ -36,9 +36,9 @@ describe("safeNext", () => {
   });
 
   it("never loops back to the login or auth routes", () => {
-    expect(safeNext("/login")).toBe("/flows");
-    expect(safeNext("/login?next=/x")).toBe("/flows");
-    expect(safeNext("/api/auth/sign-out")).toBe("/flows");
+    expect(safeNext("/login")).toBe("/overview");
+    expect(safeNext("/login?next=/x")).toBe("/overview");
+    expect(safeNext("/api/auth/sign-out")).toBe("/overview");
   });
 
   it("honours a custom fallback", () => {

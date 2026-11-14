@@ -1,4 +1,4 @@
-const FALLBACK = "/flows";
+const FALLBACK = "/overview";
 const BASE = "http://local.invalid";
 
 // Only same-site paths may be used as the post-login destination (no open redirect, no login loop).
