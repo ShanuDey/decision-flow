@@ -20,7 +20,7 @@ const ROOTS: Suggestion[] = [
 
 const TOKEN = /[A-Za-z_]\w*(?:\.\w*)*$|\.?$/;
 
-function ancestors(graph: Graph, nodeId: string): Set<string> {
+export function ancestors(graph: Graph, nodeId: string): Set<string> {
   const parents = new Map<string, string[]>();
   for (const e of graph.edges) parents.set(e.target, [...(parents.get(e.target) ?? []), e.source]);
   const seen = new Set<string>();
@@ -36,7 +36,7 @@ function ancestors(graph: Graph, nodeId: string): Set<string> {
   return seen;
 }
 
-function outputKeys(node: GraphNode, graph: Graph): { name: string; type: string }[] {
+export function outputKeys(node: GraphNode, graph: Graph): { name: string; type: string }[] {
   switch (node.type) {
     case "start":
       return node.data.inputs.map((i) => ({ name: i.name, type: i.type }));

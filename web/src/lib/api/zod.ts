@@ -7,6 +7,29 @@
 import * as zod from 'zod';
 
 /**
+ * Stateless helper for the editor's Test pane and validity strip.
+ * @summary Evaluate Expression
+ */
+export const evaluateExpressionBodyKindDefault = `expression`;
+export const evaluateExpressionBodySourceMax = 2000;
+
+
+
+export const EvaluateExpressionBody = zod.object({
+  "kind": zod.enum(['expression', 'template']).default(evaluateExpressionBodyKindDefault),
+  "scope": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).optional(),
+  "source": zod.string().max(evaluateExpressionBodySourceMax)
+})
+
+export const EvaluateExpressionResponse = zod.object({
+  "error": zod.union([zod.string(),zod.null()]).optional(),
+  "result": zod.unknown().optional(),
+  "return_type": zod.union([zod.string(),zod.null()]).optional(),
+  "valid": zod.boolean()
+})
+
+
+/**
  * @summary List Flows
  */
 export const listFlowsQuerySortDefault = `-updated_at`;

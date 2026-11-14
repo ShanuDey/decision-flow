@@ -44,3 +44,17 @@ class DraftSaved(FrozenBaseModel):
 
 class ValidateResponse(FrozenBaseModel):
     valid: Literal[True]
+
+
+class EvaluateRequest(FrozenBaseModel):
+    kind: Literal["expression", "template"] = "expression"
+    source: Annotated[str, StringConstraints(max_length=2000)]
+    # Omitted: only check that the source is well formed.
+    scope: dict[str, Any] | None = None
+
+
+class EvaluateResponse(FrozenBaseModel):
+    valid: bool
+    return_type: str | None = None
+    result: Any = None
+    error: str | None = None

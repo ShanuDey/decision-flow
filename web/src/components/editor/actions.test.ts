@@ -19,9 +19,9 @@ vi.mock("@/lib/api/client", () => ({
   createRun: vi.fn(),
 }));
 
-import { getFlow } from "@/lib/api/client";
+import { getFlow, saveDraft, validateFlow } from "@/lib/api/client";
 
-import { configureNode, deleteFromCanvas, reloadLatest } from "./actions";
+import { configureNode, deleteFromCanvas, reloadLatest, validate } from "./actions";
 import { useLayout } from "./layout";
 import { useEditor } from "./store";
 
@@ -116,5 +116,44 @@ describe("reloadLatest", () => {
       vi.mocked(getFlow).mock.invocationCallOrder[0],
     );
     expect(toast.error).toHaveBeenCalled();
+  });
+});
+
+describe("validate", () => {
+  const reply = (status: number, data: unknown) => Promise.resolve({ status, data });
+  const mocked = <T,>(fn: T) => fn as unknown as ReturnType<typeof vi.fn>;
+
+  it('says "valid" and clears old issues when the API accepts the flow', async () => {
+    useEditor.getState().setIssues([{ code: "x", message: "old", node_id: null, field: null }]);
+    mocked(validateFlow).mockReturnValue(reply(200, { valid: true }));
+    expect(await validate({ quiet: true })).toBe("valid");
+    expect(useEditor.getState().issues).toEqual([]);
+  });
+
+  it('says "invalid" and keeps the issues when the API lists problems', async () => {
+    mocked(validateFlow).mockReturnValue(
+      reply(422, {
+        code: "invalid_flow",
+        message: "bad",
+        details: { errors: [{ code: "c", message: "m", node_id: "end", field: null }] },
+      }),
+    );
+    expect(await validate({ quiet: true })).toBe("invalid");
+    expect(useEditor.getState().issues).toHaveLength(1);
+  });
+
+  it('says "error", not "valid", when it could not find out', async () => {
+    mocked(validateFlow).mockReturnValue(reply(500, { code: "boom", message: "Server error", details: {} }));
+    expect(await validate({ quiet: true })).toBe("error");
+    expect(useEditor.getState().issues).toEqual([]);
+    expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('says "error" without validating when the save that must come first fails', async () => {
+    useEditor.setState({ dirty: true });
+    mocked(saveDraft).mockReturnValue(reply(500, { code: "boom", message: "Server error", details: {} }));
+    mocked(validateFlow).mockClear();
+    expect(await validate({ quiet: true })).toBe("error");
+    expect(validateFlow).not.toHaveBeenCalled();
   });
 });

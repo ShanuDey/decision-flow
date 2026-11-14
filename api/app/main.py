@@ -90,6 +90,12 @@ def create_app() -> FastAPI:
     app.include_router(ops.router)
     app.include_router(auth.router, **protected)
     app.include_router(flows.router, **protected)
+    # Evaluating text changes nothing, so typing in the editor must not use up the write quota.
+    app.include_router(
+        flows.expressions_router,
+        dependencies=[Depends(current_principal), Depends(limit_visitor)],
+        responses=protected["responses"],
+    )
     app.include_router(runs.router, **protected)
     return app
 

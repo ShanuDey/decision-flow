@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { RetryButton } from "@/components/retry-button";
 import { buttonVariants } from "@/components/ui/button";
 import { serverApiInit } from "@/lib/auth/session";
-import { call, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
+import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { getFlow } from "@/lib/api/client";
 import { parseDraft } from "@/lib/graph/convert";
 
@@ -23,7 +23,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
     if (result.error.status === 404 || result.error.status === 422) notFound();
     const message = isUnreachable(result.error)
       ? UNREACHABLE_MESSAGE
-      : `Could not load the flow: ${result.error.message}`;
+      : `Could not load the flow: ${errorText(result.error)}`;
     return <Problem message={message} retry />;
   }
   const graph = parseDraft(result.data.draft);

@@ -1,12 +1,14 @@
 API := uv --directory api run
 COMPOSE := docker compose -f docker-compose.dev.yml
 WEB := pnpm --dir web
+TESTS := pnpm --dir tests
 STUDIO_PORT ?= 2024
 MLFLOW_UI_PORT ?= 5000
 
 .PHONY: start api auth-setup auth-token auth-migrate studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
-	test-api test-api-fast typecheck-web build-web checks
+	test-api test-api-fast typecheck-web build-web checks \
+	e2e-install e2e e2e-ui e2e-api e2e-report
 
 # containers first (detached), then both dev servers in parallel; Ctrl+C stops only the servers
 start: db adminer
@@ -124,3 +126,20 @@ build-web:
 	$(WEB) build
 
 checks: lint format-check-api test-api typecheck-web client-check
+
+# needs a running stack (make start), so not part of checks
+e2e-install:
+	$(TESTS) install --frozen-lockfile
+	$(TESTS) exec playwright install chromium
+
+e2e:
+	$(TESTS) test
+
+e2e-ui:
+	$(TESTS) test:ui
+
+e2e-api:
+	$(TESTS) test:api
+
+e2e-report:
+	$(TESTS) exec playwright show-report

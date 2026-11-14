@@ -1,14 +1,19 @@
 "use client";
 
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FlowNode } from "@/lib/graph/convert";
+import { NODE_SPECS } from "@/lib/graph/nodes";
+import { ioSummary } from "@/lib/graph/picker";
 import type {
   AssignData,
+  NodeType,
   ConditionData,
   EndData,
   FieldDef,
@@ -19,12 +24,16 @@ import type {
 } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
+import { deleteFromCanvas } from "./actions";
+import { ExpandableInput } from "./expand-field";
 import { ExpressionInput } from "./expression-input";
 import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
 import { clampWidth, useLayout } from "./layout";
+import { NODE_ICONS } from "./node-view";
 import { ResizeHandle } from "./resize-handle";
 import { selectedNode, useEditor } from "./store";
+import { TestPane } from "./test-pane";
 
 function patch<T>(list: T[], index: number, change: Partial<T>): T[] {
   return list.map((item, i) => (i === index ? { ...item, ...change } : item));
@@ -150,12 +159,13 @@ function EndForm({ node }: { node: FlowNode }) {
               </Labeled>
             )}
             <Labeled id={`${id}-value`} label="Value" issue={valueIssue}>
-              <Input
+              <ExpandableInput
                 id={`${id}-value`}
-                className="h-10 font-mono text-xs"
+                nodeId={node.id}
+                title={`Output ${output.name || i + 1} value`}
                 value={output.value}
                 placeholder="{{ vars.total }}"
-                onChange={(e) => set(patch(config.outputs, i, { value: e.target.value }))}
+                onChange={(value) => set(patch(config.outputs, i, { value }))}
               />
             </Labeled>
           </>
@@ -181,6 +191,7 @@ function ConditionForm({ node }: { node: FlowNode }) {
         <ExpressionInput
           id={`${node.id}-expression`}
           nodeId={node.id}
+          title="Expression"
           value={config.expression}
           placeholder="input.amount > 1000"
           onChange={(expression) => setConfig(node.id, { expression })}
@@ -237,12 +248,13 @@ function AssignForm({ node }: { node: FlowNode }) {
               label="Value"
               issue={fieldIssue(issues, node.id, `data.assignments.${i}.value`)}
             >
-              <Input
+              <ExpandableInput
                 id={`${id}-value`}
-                className="h-10 font-mono text-xs"
+                nodeId={node.id}
+                title={`Assignment ${i + 1} value`}
                 value={assignment.value}
                 placeholder="{{ input.amount }}"
-                onChange={(e) => set(patch(config.assignments, i, { value: e.target.value }))}
+                onChange={(value) => set(patch(config.assignments, i, { value }))}
               />
             </Labeled>
           </>
@@ -310,6 +322,39 @@ function VariablesForm() {
   );
 }
 
+function NodeTitle({ node }: { node: FlowNode }) {
+  const type = node.type as NodeType;
+  const Icon = NODE_ICONS[type];
+  return (
+    <>
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <h2 className="min-w-0 truncate text-sm font-semibold">{node.data.name}</h2>
+      <Badge variant="secondary">
+        {NODE_SPECS[type].source === "builtin" ? "Built-in" : "Community"}
+      </Badge>
+    </>
+  );
+}
+
+function NodeDocs({ node }: { node: FlowNode }) {
+  const spec = NODE_SPECS[node.type as NodeType];
+  const io = ioSummary(node.type as NodeType);
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      <h3 className="font-semibold">{spec.label}</h3>
+      <p className="text-muted-foreground">{spec.description}</p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+        <dt className="text-muted-foreground">Group</dt>
+        <dd>{spec.group}</dd>
+        <dt className="text-muted-foreground">Inputs</dt>
+        <dd>{io.inputs}</dd>
+        <dt className="text-muted-foreground">Outputs</dt>
+        <dd>{io.outputs}</dd>
+      </dl>
+    </div>
+  );
+}
+
 const subscribeResize = (notify: () => void) => {
   window.addEventListener("resize", notify);
   return () => window.removeEventListener("resize", notify);
@@ -363,19 +408,14 @@ export function SettingsPanel() {
         style={{ "--panel-width": `${width}px` } as React.CSSProperties}
       >
         <ResizeHandle width={width} viewport={viewport} />
-        <aside
-          aria-label="Settings"
-          className="flex h-full flex-col gap-5 overflow-y-auto border-l bg-background p-4"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Settings
-            </h2>
+        <aside aria-label="Settings" className="flex h-full flex-col border-l bg-background">
+          <div className="flex items-center gap-2.5 px-4 pt-3.5">
+            {node ? <NodeTitle node={node} /> : <h2 className="text-sm font-semibold">Settings</h2>}
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="hidden lg:inline-flex"
+              className="ml-auto hidden lg:inline-flex"
               onClick={toggleCollapsed}
               aria-label="Hide settings"
               title="Hide settings"
@@ -384,45 +424,96 @@ export function SettingsPanel() {
             </Button>
           </div>
 
-          {general.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              {general.map((issue, i) => (
-                <FieldError key={i} issue={issue} />
-              ))}
+          {node ? (
+            <Tabs key={node.id} defaultValue="settings" className="mt-1.5 min-h-0 flex-1 gap-0">
+              <TabsList variant="line" className="w-full justify-start gap-4 border-b px-4">
+                <TabsTrigger value="settings" className="flex-none px-1">
+                  Settings
+                </TabsTrigger>
+                <TabsTrigger value="test" className="flex-none px-1">
+                  Test
+                </TabsTrigger>
+                <TabsTrigger value="docs" className="flex-none px-1">
+                  Docs
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="settings" className="flex flex-col gap-5 overflow-y-auto p-4">
+                {general.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    {general.map((issue, i) => (
+                      <FieldError key={i} issue={issue} />
+                    ))}
+                  </div>
+                )}
+                <section className="flex flex-col gap-3">
+                  <Labeled id="node-name" label="Name" issue={fieldIssue(issues, node.id, "name")}>
+                    <Input
+                      id="node-name"
+                      className="h-10"
+                      value={node.data.name}
+                      onChange={(e) => renameNode(node.id, e.target.value)}
+                    />
+                  </Labeled>
+                  <p className="text-xs text-muted-foreground">
+                    Id: <code>{node.id}</code> (never changes)
+                  </p>
+                  {issuesForNode(issues, node.id)
+                    .filter((i) => !i.field)
+                    .map((issue, i) => (
+                      <FieldError key={i} issue={issue} />
+                    ))}
+                </section>
+                {node.type === "start" && <StartForm node={node} />}
+                {node.type === "end" && <EndForm node={node} />}
+                {node.type === "assign" && <AssignForm node={node} />}
+                {node.type === "condition" && <ConditionForm node={node} />}
+                <VariablesForm />
+              </TabsContent>
+              <TabsContent value="test" className="overflow-y-auto p-4">
+                {node.type === "condition" ? (
+                  <TestPane
+                    nodeId={node.id}
+                    kind="expression"
+                    source={(node.data.config as ConditionData).expression}
+                    idPrefix="panel"
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This node has nothing to test on its own. Use Run in the top bar to test the
+                    whole flow.
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent value="docs" className="overflow-y-auto p-4">
+                <NodeDocs node={node} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
+              {general.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {general.map((issue, i) => (
+                    <FieldError key={i} issue={issue} />
+                  ))}
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>
+              <VariablesForm />
             </div>
           )}
 
-          {node ? (
-            <>
-              <section className="flex flex-col gap-3">
-                <h3 className="text-sm font-medium">Node</h3>
-                <Labeled id="node-name" label="Name" issue={fieldIssue(issues, node.id, "name")}>
-                  <Input
-                    id="node-name"
-                    className="h-10"
-                    value={node.data.name}
-                    onChange={(e) => renameNode(node.id, e.target.value)}
-                  />
-                </Labeled>
-                <p className="text-xs text-muted-foreground">
-                  Id: <code>{node.id}</code> (never changes)
-                </p>
-                {issuesForNode(issues, node.id)
-                  .filter((i) => !i.field)
-                  .map((issue, i) => (
-                    <FieldError key={i} issue={issue} />
-                  ))}
-              </section>
-              {node.type === "start" && <StartForm node={node} />}
-              {node.type === "end" && <EndForm node={node} />}
-              {node.type === "assign" && <AssignForm node={node} />}
-              {node.type === "condition" && <ConditionForm node={node} />}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>
+          {node && (
+            <div className="border-t px-4 py-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="-ml-2 text-red-700 hover:text-red-700 dark:text-red-400"
+                onClick={() => deleteFromCanvas([node.id], [])}
+              >
+                <Trash2 aria-hidden /> Delete node
+              </Button>
+            </div>
           )}
-
-          <VariablesForm />
         </aside>
       </div>
     </>

@@ -52,7 +52,8 @@ interface EditorState {
   onEdgesChange: (changes: EdgeChange<FlowEdge>[]) => void;
   onConnect: (connection: Connection) => void;
   isValidConnection: (connection: Connection | FlowEdge) => boolean;
-  addNode: (type: NodeType, position?: Position) => void;
+  // `from` also connects the new node to that node's output (the contextual "+" on a handle).
+  addNode: (type: NodeType, position?: Position, from?: { id: string; handle: string | null }) => void;
   // Selection is not a graph change: it never makes the draft dirty.
   selectOnly: (id: string) => void;
   // Returns the new node's id, or null when it cannot be duplicated (at the type's limit).
@@ -179,12 +180,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   onConnect: (connection) => set((s) => ({ edges: addEdge(connection, s.edges), ...touch(s) })),
 
-  addNode: (type, position) =>
+  addNode: (type, position, from) =>
     set((s) => {
       if (!canAdd(type, s.nodes.map(refOf))) return s;
+      const source = from ? s.nodes.find((n) => n.id === from.id) : undefined;
+      if (from && (!source || !canConnect(source.type as NodeType, type))) return s;
       const x = s.nodes.length ? Math.max(...s.nodes.map((n) => n.position.x)) + 280 : 0;
       const y = s.nodes.length ? s.nodes[s.nodes.length - 1].position.y : 0;
-      const node = createNode(type, s.nodes.map(refOf), position ?? { x, y });
+      const spot = position ?? (source ? { x: source.position.x + 280, y: source.position.y } : { x, y });
+      const node = createNode(type, s.nodes.map(refOf), spot);
       const added: FlowNode = {
         id: node.id,
         type: node.type,
@@ -192,8 +196,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
         data: { name: node.name, config: node.data },
         selected: true,
       };
+      const wire = from && source;
       return {
         nodes: [...s.nodes.map((n) => ({ ...n, selected: false })), added],
+        edges: wire
+          ? addEdge(
+              { source: from.id, sourceHandle: from.handle, target: added.id, targetHandle: null },
+              s.edges,
+            )
+          : s.edges,
         ...touch(s),
       };
     }),

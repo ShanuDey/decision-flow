@@ -7,6 +7,8 @@
 import type {
   DraftSaved,
   ErrorResponse,
+  EvaluateRequest,
+  EvaluateResponse,
   FlowCreate,
   FlowDetail,
   FlowList,
@@ -26,6 +28,79 @@ import type {
 } from './models';
 
 import { apiFetch } from '../fetcher';
+export type evaluateExpressionResponse200 = {
+  data: EvaluateResponse
+  status: 200
+}
+
+export type evaluateExpressionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type evaluateExpressionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type evaluateExpressionResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type evaluateExpressionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type evaluateExpressionResponseSuccess = (evaluateExpressionResponse200) & {
+  headers: Headers;
+};
+export type evaluateExpressionResponseError = (evaluateExpressionResponse401 | evaluateExpressionResponse403 | evaluateExpressionResponse422 | evaluateExpressionResponse429) & {
+  headers: Headers;
+};
+
+export type evaluateExpressionResponse = (evaluateExpressionResponseSuccess | evaluateExpressionResponseError)
+
+export const getEvaluateExpressionUrl = () => {
+
+
+
+
+  return `/expressions/evaluate`
+}
+
+/**
+ * Stateless helper for the editor's Test pane and validity strip.
+ * @summary Evaluate Expression
+ */
+export const evaluateExpression = async (evaluateRequest: EvaluateRequest, options?: Parameters<typeof apiFetch>[1]): Promise<evaluateExpressionResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<evaluateExpressionResponse>(getEvaluateExpressionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(evaluateRequest)
+  }
+);}
+
+
+
 export type listFlowsResponse200 = {
   data: FlowList
   status: 200

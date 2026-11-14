@@ -106,3 +106,48 @@ async def test_save_draft_rejects_a_malformed_if_match(client: httpx.AsyncClient
         f"/flows/{flow['id']}/draft", json={}, headers={"If-Match": "latest"}
     )
     assert response.status_code == 400 and response.json()["code"] == "invalid_if_match"
+
+
+@pytest.mark.anyio
+async def test_evaluate_checks_and_runs_an_expression(client: httpx.AsyncClient) -> None:
+    source = "input.score > 650 && input.income > 30000"
+    checked = (await client.post("/expressions/evaluate", json={"source": source})).json()
+    assert checked == {"valid": True, "return_type": "BOOL", "result": None, "error": None}
+    scope = {"input": {"score": 700, "income": 52000}}
+    body = {"source": source, "scope": scope}
+    ran = (await client.post("/expressions/evaluate", json=body)).json()
+    assert ran["valid"] is True and ran["result"] is True
+
+
+@pytest.mark.anyio
+async def test_evaluate_reports_bad_expressions_and_templates(client: httpx.AsyncClient) -> None:
+    bad = (await client.post("/expressions/evaluate", json={"source": "input.score >"})).json()
+    assert bad["valid"] is False and bad["error"]
+    missing = (
+        await client.post(
+            "/expressions/evaluate",
+            json={"kind": "template", "source": "{{ vars.total }}", "scope": {"vars": {}}},
+        )
+    ).json()
+    assert missing["valid"] is False and "not set" in missing["error"]
+    ok = (
+        await client.post(
+            "/expressions/evaluate",
+            json={
+                "kind": "template",
+                "source": "{{ vars.total }}",
+                "scope": {"vars": {"total": 3}},
+            },
+        )
+    ).json()
+    assert ok["valid"] is True and ok["result"] == 3
+
+
+@pytest.mark.anyio
+async def test_evaluate_returns_json_safe_results(client: httpx.AsyncClient) -> None:
+    response = await client.post(
+        "/expressions/evaluate", json={"source": "b'abc'", "scope": {"input": {}}}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is True and body["result"] is not None

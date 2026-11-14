@@ -251,3 +251,29 @@ describe("selectOnly", () => {
     expect(state().nodes.some((n) => n.selected)).toBe(false);
   });
 });
+
+describe("addNode from an output", () => {
+  const countOf = (type: string) => state().nodes.filter((n) => n.type === type).length;
+
+  it("adds the node and connects it to the source", () => {
+    state().addNode("condition", { x: 100, y: 100 }, { id: "assign_values", handle: null });
+    const added = state().nodes.find((n) => n.type === "condition")!;
+    expect(
+      state().edges.some((e) => e.source === "assign_values" && e.target === added.id),
+    ).toBe(true);
+  });
+
+  it("adds nothing when the new node cannot follow the source", () => {
+    const before = state().nodes.length;
+    // Nothing may connect out of End.
+    state().addNode("condition", { x: 100, y: 100 }, { id: "end", handle: null });
+    expect(state().nodes.length).toBe(before);
+    expect(countOf("condition")).toBe(0);
+  });
+
+  it("adds nothing when the source node does not exist", () => {
+    const before = state().nodes.length;
+    state().addNode("condition", { x: 0, y: 0 }, { id: "missing", handle: null });
+    expect(state().nodes.length).toBe(before);
+  });
+});

@@ -1,7 +1,8 @@
 "use client";
 
-import { useReactFlow } from "@xyflow/react";
-import { Copy, Maximize, PenLine, Plus, Settings2, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import { Copy, PenLine, Settings2, Trash2 } from "lucide-react";
 
 import {
   ContextMenu,
@@ -13,16 +14,13 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { canAdd, NODE_SPECS, NODE_TYPES } from "@/lib/graph/nodes";
-import type { NodeType, Position } from "@/lib/graph/types";
+import { canAdd, NODE_SPECS } from "@/lib/graph/nodes";
+import type { NodeType } from "@/lib/graph/types";
 
 import { configureNode, deleteFromCanvas } from "./actions";
 import { removableIds, useEditor } from "./store";
 
-export type MenuTarget =
-  | { kind: "node"; id: string }
-  | { kind: "edge"; id: string }
-  | { kind: "pane"; position: Position };
+export type MenuTarget = { kind: "node"; id: string } | { kind: "edge"; id: string };
 
 function NodeItems({ id }: { id: string }) {
   const nodes = useEditor((s) => s.nodes);
@@ -65,34 +63,6 @@ function NodeItems({ id }: { id: string }) {
   );
 }
 
-function PaneItems({ position }: { position: Position }) {
-  const nodes = useEditor((s) => s.nodes);
-  const addNode = useEditor((s) => s.addNode);
-  const { fitView } = useReactFlow();
-  const refs = nodes.map((n) => ({ id: n.id, name: n.data.name, type: n.type as NodeType }));
-
-  return (
-    <>
-      <ContextMenuGroup>
-        <ContextMenuLabel>Add node here</ContextMenuLabel>
-        {NODE_TYPES.map((type) => {
-          const allowed = canAdd(type, refs);
-          return (
-            <ContextMenuItem key={type} disabled={!allowed} onClick={() => addNode(type, position)}>
-              <Plus aria-hidden /> {NODE_SPECS[type].label}
-              {!allowed && <ContextMenuShortcut>already in the flow</ContextMenuShortcut>}
-            </ContextMenuItem>
-          );
-        })}
-      </ContextMenuGroup>
-      <ContextMenuSeparator />
-      <ContextMenuItem onClick={() => fitView({ padding: 0.3, maxZoom: 1, duration: 200 })}>
-        <Maximize aria-hidden /> Fit view
-      </ContextMenuItem>
-    </>
-  );
-}
-
 export function CanvasMenu({
   target,
   onReset,
@@ -103,9 +73,18 @@ export function CanvasMenu({
   onReset: () => void;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="h-full min-w-0 flex-1" onContextMenuCapture={onReset}>
+    // Only a node or an edge opens the menu; the empty canvas has no custom actions.
+    <ContextMenu open={open && target !== null} onOpenChange={setOpen}>
+      <ContextMenuTrigger
+        className="h-full min-w-0 flex-1"
+        onContextMenuCapture={() => {
+          setOpen(false);
+          onReset();
+        }}
+      >
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent>
@@ -116,8 +95,6 @@ export function CanvasMenu({
             <ContextMenuShortcut>Del</ContextMenuShortcut>
           </ContextMenuItem>
         )}
-        {target?.kind === "pane" && <PaneItems position={target.position} />}
-        {target === null && <ContextMenuItem disabled>No actions here</ContextMenuItem>}
       </ContextMenuContent>
     </ContextMenu>
   );

@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 
+import { errorToast } from "@/lib/api-error";
 import { type ApiFailure, call, issuesOf } from "@/lib/call";
 import { createRun, getFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
@@ -49,26 +50,30 @@ export async function save(): Promise<boolean> {
       duration: 10000,
     });
   } else {
-    toast.error(`Could not save: ${result.error.message}`);
+    errorToast("Could not save", result.error);
   }
   return false;
 }
 
-export async function validate(): Promise<void> {
-  if (useEditor.getState().dirty && !(await save())) return;
+export type ValidateResult = "valid" | "invalid" | "error";
+
+// "error" means we could not find out (failed save, network); `quiet` skips the toasts.
+export async function validate({ quiet = false }: { quiet?: boolean } = {}): Promise<ValidateResult> {
+  if (useEditor.getState().dirty && !(await save())) return "error";
   const result = await call(validateFlow(useEditor.getState().flowId));
   if (result.ok) {
     useEditor.getState().setIssues([]);
-    toast.success("The flow is valid");
-    return;
+    if (!quiet) toast.success("The flow is valid");
+    return "valid";
   }
   const issues = issuesOf(result.error);
   if (result.error.code === "invalid_flow" && issues.length) {
     useEditor.getState().setIssues(issues);
-    toast.error(`${issues.length} problem${issues.length === 1 ? "" : "s"} found`);
-  } else {
-    toast.error(`Could not validate: ${result.error.message}`);
+    if (!quiet) toast.error(`${issues.length} problem${issues.length === 1 ? "" : "s"} found`);
+    return "invalid";
   }
+  errorToast("Could not validate", result.error);
+  return "error";
 }
 
 // Returns null when the run could not be attempted (the save failed).

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteFlow } from "@/lib/api/client";
+import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
 
 export function FlowDeleteDialog({
@@ -44,7 +45,7 @@ export function FlowDeleteDialog({
     const result = await call(deleteFlow(flowId));
     setBusy(false);
     if (!result.ok) {
-      toast.error(`Could not delete the flow: ${result.error.message}`);
+      errorToast("Could not delete the flow", result.error);
       return;
     }
     setOpen(false);

@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
 import { createFlow } from "@/lib/api/client";
 
@@ -34,7 +34,7 @@ export function NewFlowButton() {
     const result = await call(createFlow({ name: trimmed }));
     if (!result.ok) {
       setBusy(false);
-      toast.error(`Could not create the flow: ${result.error.message}`);
+      errorToast("Could not create the flow", result.error);
       return;
     }
     router.push(`/flows/${result.data.id}`);

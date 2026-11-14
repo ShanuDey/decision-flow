@@ -46,3 +46,76 @@ describe("isUnreachable", () => {
     }
   });
 });
+
+import { errorText, noticeOf } from "./call";
+import type { ApiFailure } from "./call";
+
+const fail = (code: string, details: Record<string, unknown> = {}, extra: Partial<ApiFailure> = {}): ApiFailure => ({
+  status: 429,
+  code,
+  message: "raw api message",
+  details,
+  ...extra,
+});
+
+describe("call: Retry-After", () => {
+  it("reads the header into retryAfter on a failure", async () => {
+    const response = {
+      status: 429,
+      data: { code: "run_limit", message: "busy", details: {} },
+      headers: new Headers({ "Retry-After": "3" }),
+    };
+    const result = await call(Promise.resolve(response));
+    expect(result).toMatchObject({ ok: false, error: { code: "run_limit", retryAfter: 3 } });
+  });
+});
+
+describe("errorText", () => {
+  it("words a per-user or per-IP rate limit with the wait", () => {
+    expect(errorText(fail("rate_limited", { scope: "user", retry_after: 12 }))).toBe(
+      "You're going a bit fast. Try again in 12 seconds.",
+    );
+    expect(errorText(fail("rate_limited", { scope: "ip", retry_after: 1 }))).toBe(
+      "You're going a bit fast. Try again in 1 second.",
+    );
+  });
+
+  it("words run limits", () => {
+    expect(errorText(fail("rate_limited", { scope: "runs", retry_after: 5 }))).toBe(
+      "You've run this flow a lot just now. Try again in 5 seconds.",
+    );
+    expect(errorText(fail("run_limit", { scope: "app" }, { retryAfter: 3 }))).toBe(
+      "The server is busy running other flows. Try again in 3 seconds.",
+    );
+  });
+
+  it("falls back to a vague wait when no seconds are known", () => {
+    expect(errorText(fail("rate_limited", { scope: "user" }))).toBe(
+      "You're going a bit fast. Try again in a few seconds.",
+    );
+  });
+
+  it("explains the flow limit", () => {
+    expect(errorText(fail("flow_limit_reached", { limit: 20, count: 20 }, { status: 409 }))).toBe(
+      "You have reached the limit of 20 flows. Delete a flow to create a new one.",
+    );
+  });
+
+  it("leaves sign-in limits and all other errors as the API sent them", () => {
+    expect(errorText(fail("rate_limited", { scope: "failed_auth" }))).toBe("raw api message");
+    expect(errorText(fail("not_found", {}, { status: 404 }))).toBe("raw api message");
+  });
+});
+
+describe("noticeOf", () => {
+  it("returns the configured notice, and the link only when it is http(s)", () => {
+    expect(noticeOf(fail("rate_limited", { notice: "Free demo", notice_url: "https://example.com" }))).toEqual({
+      text: "Free demo",
+      url: "https://example.com",
+    });
+    expect(noticeOf(fail("rate_limited", { notice: "Free demo", notice_url: "javascript:alert(1)" }))).toEqual({
+      text: "Free demo",
+    });
+    expect(noticeOf(fail("rate_limited", {}))).toBeNull();
+  });
+});
