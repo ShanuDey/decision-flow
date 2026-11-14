@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS web-build
+FROM node:26-slim AS web-build
 WORKDIR /src/web
 RUN npm install -g pnpm@12.18.0
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
@@ -15,9 +15,10 @@ COPY api/pyproject.toml api/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 FROM python:3.12-slim
-COPY --from=node:24-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:26-slim /usr/local/bin/node /usr/local/bin/node
 # Pull Debian security fixes that the base image has not picked up yet.
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends libatomic1 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --no-create-home app
 WORKDIR /srv/api
