@@ -12,7 +12,7 @@ describe("proxy matcher", () => {
   });
 
   it("guards app pages", () => {
-    for (const path of ["/flows", "/flows/abc", "/settings/account"]) {
+    for (const path of ["/overview", "/flows", "/flows/abc", "/settings/account"]) {
       expect(guarded(path), path).toBe(true);
     }
   });

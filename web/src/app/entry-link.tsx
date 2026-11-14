@@ -14,7 +14,7 @@ type Props = Omit<ComponentProps<typeof Link>, "href" | "children"> & {
 export function EntryLink({ signedOutLabel, signedInLabel, ...props }: Props) {
   const { data } = authClient.useSession();
   return (
-    <Link href={data ? "/flows" : "/login"} {...props}>
+    <Link href={data ? "/overview" : "/login"} {...props}>
       {data ? signedInLabel : signedOutLabel}
     </Link>
   );

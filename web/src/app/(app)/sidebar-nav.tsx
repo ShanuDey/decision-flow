@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranch, type LucideIcon, Play, Settings } from "lucide-react";
+import { GitBranch, LayoutDashboard, type LucideIcon, Play, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -14,6 +14,7 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
+  { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play, soon: true },
   { href: "/settings", label: "Settings", icon: Settings },
