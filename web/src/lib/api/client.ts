@@ -398,10 +398,15 @@ export type createRunResponse422 = {
   status: 422
 }
 
+export type createRunResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type createRunResponseSuccess = (createRunResponse200) & {
   headers: Headers;
 };
-export type createRunResponseError = (createRunResponse401 | createRunResponse403 | createRunResponse404 | createRunResponse422) & {
+export type createRunResponseError = (createRunResponse401 | createRunResponse403 | createRunResponse404 | createRunResponse422 | createRunResponse429) & {
   headers: Headers;
 };
 
@@ -416,7 +421,8 @@ export const getCreateRunUrl = (flowId: string,) => {
 }
 
 /**
- * Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422.
+ * Runs inline. A failure or timeout inside the flow is a 200 with status "failed"; bad input
+ * is a 422; too many runs in flight is a 429 with `Retry-After`.
  * @summary Create Run
  */
 export const createRun = async (flowId: string,

@@ -32,13 +32,14 @@ async def run_draft(
     flow: Flow,
     payload: dict[str, Any],
     new_observer: ObserverFactory,
+    timeout_seconds: float = 0,
 ) -> Run:
     graph, issues = parse_graph(flow.draft)
     if graph is None:
         raise invalid_flow(issues)
     observer = new_observer(flow.name)
     try:
-        result = await run_flow(compile_graph(graph), payload, observer)
+        result = await run_flow(compile_graph(graph), payload, observer, timeout_seconds)
     except InputValidationError as exc:
         first = exc.issues[0]
         raise ApiError(

@@ -1019,7 +1019,7 @@
     },
     "/flows/{flow_id}/runs": {
       "post": {
-        "description": "Runs inline. A failure inside the flow is a 200 with status \"failed\"; bad input is a 422.",
+        "description": "Runs inline. A failure or timeout inside the flow is a 200 with status \"failed\"; bad input\nis a 422; too many runs in flight is a 429 with `Retry-After`.",
         "operationId": "create_run",
         "parameters": [
           {
@@ -1093,6 +1093,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
           }
         },
         "security": [

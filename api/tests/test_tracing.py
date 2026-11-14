@@ -203,6 +203,24 @@ async def test_oversized_values_are_truncated(
     assert len(recorded["preview"]) == 100
 
 
+class SlowObserver(tracing.MlflowObserver):
+    async def node_started(self, node, inputs) -> None:
+        await super().node_started(node, inputs)
+        await asyncio.sleep(5)
+
+
+@pytest.mark.anyio
+async def test_a_timed_out_run_closes_the_span_of_the_node_it_cancelled(
+    fake: FakeMlflow, raw: dict
+) -> None:
+    observer = SlowObserver(settings())
+    result = await run_flow(flow(raw), {"amount": 1}, observer, timeout_seconds=0.05)
+
+    assert result.status == "failed"
+    assert fake.spans and all(s.ended for s in fake.spans)
+    assert all(s.status.status_code.value == "ERROR" for s in fake.spans)
+
+
 @pytest.mark.anyio
 async def test_failed_node_marks_its_span_and_the_run_as_error(fake: FakeMlflow, raw: dict) -> None:
     raw["nodes"][0]["data"]["inputs"].append({"name": "note", "type": "string", "required": False})

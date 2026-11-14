@@ -11,3 +11,4 @@
   - [End](nodes/end.md)
 - Operations
   - [Authentication](auth.md)
+  - [Limits](limits.md)

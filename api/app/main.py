@@ -12,9 +12,10 @@ from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
 from app.errors import ErrorResponse, install_error_handlers
 from app.flows import router as flows
-from app.limits import install_body_limit
+from app.limits import get_limits, install_body_limit
 from app.ops import router as ops
 from app.runs import router as runs
+from app.runs.slots import RunSlots
 from app.settings import get_settings
 
 
@@ -43,7 +44,10 @@ def create_app() -> FastAPI:
         **docs,
     )
 
-    install_body_limit(app, settings.max_request_bytes)  # before CORS: stays inside it
+    limits = get_limits()
+    app.state.run_slots = RunSlots(limits)
+    # before CORS: stays inside it
+    install_body_limit(app, limits.max_request_bytes, limits.notice_details())
 
     # Strict CORS: only the configured web origin(s), with credentials (security.md section 6).
     app.add_middleware(
