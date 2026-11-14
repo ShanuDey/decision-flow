@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-slim AS web-build
+FROM node:25-slim AS web-build
 WORKDIR /src/web
 RUN npm install -g pnpm@12.18.0
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
