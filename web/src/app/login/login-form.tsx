@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -14,13 +15,17 @@ export function LoginForm({ methods, next }: { methods: Method[]; next: string }
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Method | null>(null);
   const social = methods.filter((m) => m !== PASSWORD);
   const password = methods.includes(PASSWORD);
 
   // Back from a provider restores this page from the browser cache with the buttons still disabled.
   useEffect(() => {
     const reset = (event: PageTransitionEvent) => {
-      if (event.persisted) setBusy(false);
+      if (event.persisted) {
+        setBusy(false);
+        setPending(null);
+      }
     };
     window.addEventListener("pageshow", reset);
     return () => window.removeEventListener("pageshow", reset);
@@ -46,11 +51,13 @@ export function LoginForm({ methods, next }: { methods: Method[]; next: string }
 
   async function signInWithProvider(provider: Method) {
     setBusy(true);
+    setPending(provider);
     setError(null);
     const { error: failure } = await authClient.signIn.social({ provider, callbackURL: next });
     if (failure) {
       setError(`Could not start ${methodLabel(provider)} sign-in.`);
       setBusy(false);
+      setPending(null);
     }
   }
 
@@ -94,6 +101,7 @@ export function LoginForm({ methods, next }: { methods: Method[]; next: string }
           disabled={busy}
           onClick={() => signInWithProvider(provider)}
         >
+          {pending === provider && <Loader2 className="animate-spin" aria-hidden />}
           Continue with {methodLabel(provider)}
         </Button>
       ))}
