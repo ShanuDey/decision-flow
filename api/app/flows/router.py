@@ -9,6 +9,8 @@ from app.errors import ApiError, ErrorResponse
 from app.flows import service
 from app.flows.schemas import (
     DraftSaved,
+    EvaluateRequest,
+    EvaluateResponse,
     FlowCreate,
     FlowDetail,
     FlowList,
@@ -21,6 +23,8 @@ from app.limits import Limits, get_limits
 from app.workspaces.deps import CurrentMember
 
 router = APIRouter(tags=["flows"])
+# Stateless, so mounted without the per-user write limit (see main.py).
+expressions_router = APIRouter(tags=["flows"])
 Store = Annotated[FlowStore, Depends(get_store)]
 Lim = Annotated[Limits, Depends(get_limits)]
 
@@ -109,3 +113,9 @@ async def validate_flow(
 ) -> ValidateResponse:
     service.validate_draft(await service.require_flow(store, member, flow_id), limits)
     return ValidateResponse(valid=True)
+
+
+@expressions_router.post("/expressions/evaluate")
+async def evaluate_expression(body: EvaluateRequest) -> EvaluateResponse:
+    """Stateless helper for the editor's Test pane and validity strip."""
+    return service.evaluate_source(body)

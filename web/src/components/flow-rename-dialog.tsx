@@ -1,7 +1,6 @@
 "use client";
 
 import { type ReactElement, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { renameFlow } from "@/lib/api/client";
+import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
 
 export function FlowRenameDialog({
@@ -50,7 +50,7 @@ export function FlowRenameDialog({
     const result = await call(renameFlow(flowId, { name: trimmed }));
     if (!result.ok) {
       setBusy(false);
-      toast.error(`Could not rename the flow: ${result.error.message}`);
+      errorToast("Could not rename the flow", result.error);
       return;
     }
     setOpen(false);

@@ -1,11 +1,12 @@
 "use client";
 
-import { Background, Controls, ReactFlow, useReactFlow } from "@xyflow/react";
+import { Background, Controls, Panel, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTheme } from "next-themes";
 import { useState } from "react";
 
 import { configureNode, deleteFromCanvas } from "./actions";
+import { AddNodeButton } from "./add-node-picker";
 import { CanvasMenu, type MenuTarget } from "./canvas-menu";
 import { nodeTypes } from "./node-view";
 import { useEditor } from "./store";
@@ -19,7 +20,6 @@ export function Canvas() {
   const isValidConnection = useEditor((s) => s.isValidConnection);
   const selectOnly = useEditor((s) => s.selectOnly);
   const { resolvedTheme } = useTheme();
-  const { screenToFlowPosition } = useReactFlow();
   const [target, setTarget] = useState<MenuTarget | null>(null);
 
   return (
@@ -49,18 +49,15 @@ export function Canvas() {
             setTarget({ kind: "node", id: node.id });
           }}
           onEdgeContextMenu={(_, edge) => setTarget({ kind: "edge", id: edge.id })}
-          onPaneContextMenu={(event) =>
-            setTarget({
-              kind: "pane",
-              position: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-            })
-          }
           fitView
           fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
           proOptions={{ hideAttribution: false }}
         >
           <Background />
           <Controls showInteractive={false} />
+          <Panel position="top-left">
+            <AddNodeButton />
+          </Panel>
         </ReactFlow>
       </CanvasMenu>
     </div>

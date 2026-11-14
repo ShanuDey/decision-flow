@@ -33,6 +33,8 @@ A public deployment should set the per-workspace cap and a shorter timeout, for 
 
 When `LIMIT_NOTICE` is set, every limit error (`429`, `413` and `409`) also carries `details.notice`, plus `details.notice_url` if a link is set. The `message` stays the same, so clients keep matching on it. Show the notice as plain text, never as HTML. On a shared demo it can explain why the limit exists, for example: `This is a free demo on shared resources. To get more capacity, self-host it or sponsor the server.`
 
+`POST /expressions/evaluate` (the editor's expression check) is not counted as a write, but it still counts toward the per-IP limit.
+
 A request that is rejected for another reason (unknown flow, invalid input) never takes a slot.
 
 ## Client IP and proxies

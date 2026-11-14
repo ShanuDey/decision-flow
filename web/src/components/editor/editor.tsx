@@ -7,7 +7,7 @@ import type { Graph } from "@/lib/graph/types";
 
 import type { RunOutcome } from "./actions";
 import { Canvas } from "./canvas";
-import { Palette } from "./palette";
+import { LeaveDialog } from "./leave-guard";
 import { RunPanel } from "./run-panel";
 import { SettingsPanel } from "./settings-panel";
 import { useEditor } from "./store";
@@ -37,7 +37,6 @@ export default function Editor({ id, name, draftVersion, graph }: EditorProps) {
     <div className="flex h-screen flex-col">
       <TopBar onOutcome={setOutcome} />
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <Palette />
         <div className="flex min-h-[320px] min-w-0 flex-1 flex-col">
           <ReactFlowProvider>
             <Canvas />
@@ -46,6 +45,7 @@ export default function Editor({ id, name, draftVersion, graph }: EditorProps) {
         </div>
         <SettingsPanel />
       </div>
+      <LeaveDialog />
     </div>
   );
 }

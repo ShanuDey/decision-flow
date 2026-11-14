@@ -1,8 +1,13 @@
 import type { NodeData, NodeDataByType, NodeType, Position } from "./types";
 
+export type NodeGroup = "Flow" | "Logic" | "Data";
+export type NodeSource = "builtin" | "community";
+
 export interface NodeSpec {
   label: string;
   description: string;
+  group: NodeGroup;
+  source: NodeSource;
   minCount: number;
   maxCount: number | null;
   acceptsIncoming: boolean;
@@ -14,6 +19,8 @@ export interface NodeSpec {
 export const NODE_SPECS: Record<NodeType, NodeSpec> = {
   start: {
     label: "Start",
+    group: "Flow",
+    source: "builtin",
     description: "Declares the flow's inputs",
     minCount: 1,
     maxCount: 1,
@@ -23,6 +30,8 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
   },
   assign: {
     label: "Assign values",
+    group: "Data",
+    source: "builtin",
     description: "Set flow variables",
     minCount: 0,
     maxCount: null,
@@ -32,6 +41,8 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
   },
   condition: {
     label: "Condition",
+    group: "Logic",
+    source: "builtin",
     description: "Branch on a true/false expression",
     minCount: 0,
     maxCount: null,
@@ -41,6 +52,8 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
   },
   end: {
     label: "End",
+    group: "Flow",
+    source: "builtin",
     description: "Maps state to the flow's output",
     minCount: 1,
     maxCount: null,
@@ -148,4 +161,21 @@ export function createNode(
     existing.map((n) => n.id),
   );
   return { id, type, name, position, data: defaultData(type) };
+}
+
+// Matches the rendered node card (`w-52` plus its padding) in components/editor/node-view.tsx.
+export const NODE_BOX = { width: 208, height: 72 } as const;
+const NUDGE = 32;
+const MAX_NUDGES = 50;
+
+const overlaps = (a: Position, b: Position) =>
+  Math.abs(a.x - b.x) < NODE_BOX.width && Math.abs(a.y - b.y) < NODE_BOX.height;
+
+export function freeSpot(center: Position, taken: readonly Position[]): Position {
+  const spot = { x: center.x - NODE_BOX.width / 2, y: center.y - NODE_BOX.height / 2 };
+  for (let i = 0; i < MAX_NUDGES && taken.some((t) => overlaps(spot, t)); i++) {
+    spot.x += NUDGE;
+    spot.y += NUDGE;
+  }
+  return spot;
 }

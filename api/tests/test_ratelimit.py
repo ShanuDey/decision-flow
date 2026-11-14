@@ -264,3 +264,12 @@ def test_the_refusal_message_is_singular_for_one_second_and_names_failed_sign_in
     one = Decision(allowed=False, limit=1, remaining=0, reset=1)
     assert refusal(one, "ip", {}).body.message.endswith("in 1 second")
     assert "failed sign-in" in refusal(one, "failed_auth", {}).body.message
+
+
+async def test_evaluating_an_expression_is_not_a_write(client: httpx.AsyncClient) -> None:
+    limiters(rate_limit_user_writes_per_minute=1)
+    for _ in range(5):
+        response = await client.post("/expressions/evaluate", json={"source": "1 > 0"})
+        assert response.status_code == 200
+    assert (await client.post("/flows", json={"name": "a"})).status_code == 201
+    assert (await client.post("/flows", json={"name": "b"})).status_code == 429

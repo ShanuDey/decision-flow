@@ -5,6 +5,8 @@ import { CircleCheck, CircleX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { errorText } from "@/lib/call";
+
 import type { RunOutcome } from "./actions";
 
 function Json({ value }: { value: unknown }) {
@@ -20,7 +22,7 @@ function Status({ outcome }: { outcome: RunOutcome }) {
     return (
       <p role="status" className="flex items-center gap-2 text-sm">
         <CircleX className="size-4 text-red-600 dark:text-red-400" aria-hidden />
-        Not run: {outcome.error.message}
+        Not run: {errorText(outcome.error)}
       </p>
     );
   }

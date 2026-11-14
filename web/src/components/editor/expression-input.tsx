@@ -2,11 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { fromReactFlow } from "@/lib/graph/convert";
 import { suggest } from "@/lib/graph/suggest";
 import { cn } from "@/lib/utils";
 
+import { ExpandButton } from "./expand-field";
 import { useEditor } from "./store";
 
 interface Props {
@@ -14,11 +15,12 @@ interface Props {
   nodeId: string;
   value: string;
   placeholder?: string;
+  title?: string;
   onChange: (value: string) => void;
 }
 
-export function ExpressionInput({ id, nodeId, value, placeholder, onChange }: Props) {
-  const input = useRef<HTMLInputElement>(null);
+export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expression", onChange }: Props) {
+  const input = useRef<HTMLTextAreaElement>(null);
   const [cursor, setCursor] = useState(value.length);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -43,14 +45,15 @@ export function ExpressionInput({ id, nodeId, value, placeholder, onChange }: Pr
     requestAnimationFrame(() => input.current?.setSelectionRange(end, end));
   };
 
-  const track = (el: HTMLInputElement) => setCursor(el.selectionStart ?? el.value.length);
+  const track = (el: HTMLTextAreaElement) => setCursor(el.selectionStart ?? el.value.length);
 
   return (
     <div className="relative">
-      <Input
+      <Textarea
         id={id}
         ref={input}
-        className="h-10 font-mono text-xs"
+        rows={3}
+        className="max-h-40 min-h-[72px] resize-none overflow-y-auto py-2 pr-10 font-mono text-xs"
         value={value}
         placeholder={placeholder}
         autoComplete="off"
@@ -93,6 +96,14 @@ export function ExpressionInput({ id, nodeId, value, placeholder, onChange }: Pr
             setOpen(false);
           }
         }}
+      />
+      <ExpandButton
+        nodeId={nodeId}
+        title={title}
+        kind="expression"
+        value={value}
+        onChange={onChange}
+        className="absolute top-1.5 right-1.5"
       />
       {showing && (
         <ul

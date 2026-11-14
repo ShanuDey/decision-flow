@@ -1,6 +1,5 @@
 "use client";
 
-import { Play } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,20 +10,24 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import type { FieldIssue } from "@/lib/call";
+import { errorText, type FieldIssue } from "@/lib/call";
 import type { StartData } from "@/lib/graph/types";
 
 import { type RunOutcome, runTest } from "./actions";
 import { FieldError, Labeled, TypedValueInput } from "./fields";
 import { useEditor } from "./store";
 
-export function TestDialog({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void }) {
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onOutcome: (outcome: RunOutcome) => void;
+}
+
+export function TestDialog({ open, onOpenChange, onOutcome }: Props) {
   const start = useEditor((s) => s.nodes.find((n) => n.type === "start"));
   const inputs = (start?.data.config as StartData | undefined)?.inputs ?? [];
 
-  const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldIssue[]>([]);
@@ -48,16 +51,13 @@ export function TestDialog({ onOutcome }: { onOutcome: (outcome: RunOutcome) => 
       );
       return; // keep the dialog open so the values can be fixed
     }
-    if (outcome.kind === "rejected") setMessage(outcome.error.message);
+    if (outcome.kind === "rejected") setMessage(errorText(outcome.error));
     onOutcome(outcome);
-    if (outcome.kind === "finished") setOpen(false);
+    if (outcome.kind === "finished") onOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" className="h-10" />}>
-        <Play aria-hidden /> Test run
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>

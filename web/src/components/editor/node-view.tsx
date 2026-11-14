@@ -1,13 +1,14 @@
 "use client";
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
-import { CircleAlert, Flag, GitBranch, type LucideIcon, Play, Variable } from "lucide-react";
+import { CircleAlert, Flag, GitBranch, type LucideIcon, Play, Plus, Variable } from "lucide-react";
 
 import type { FlowNode } from "@/lib/graph/convert";
 import { NODE_SPECS } from "@/lib/graph/nodes";
 import type { NodeType } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
+import { AddNodePicker } from "./add-node-picker";
 import { issuesForNode } from "./issues";
 import { useEditor } from "./store";
 
@@ -25,6 +26,28 @@ function summary(node: FlowNode): string {
   if ("outputs" in config) return count(config.outputs.length, "output");
   if ("expression" in config) return config.expression.trim() || "No expression yet";
   return count(config.assignments.length, "assignment");
+}
+
+function OutputAdd({ id, handle, top }: { id: string; handle: string | null; top: string }) {
+  const connected = useEditor((s) => s.edges.some((e) => e.source === id && e.sourceHandle === handle));
+  if (connected) return null;
+  return (
+    <div className="nodrag nopan absolute -right-11 -translate-y-1/2" style={{ top }}>
+      <AddNodePicker
+        side="right"
+        from={{ id, handle }}
+        trigger={
+          <button
+            type="button"
+            aria-label={handle ? `Add node after ${handle}` : "Add next node"}
+            className="flex size-6 items-center justify-center rounded-full border-2 border-dashed border-primary bg-background text-primary outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <Plus className="size-3.5" aria-hidden />
+          </button>
+        }
+      />
+    </div>
+  );
 }
 
 export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
@@ -73,6 +96,16 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
             />
           ))
         : spec.acceptsOutgoing && <Handle type="source" position={Position.Right} />}
+      {spec.handles.length > 0
+        ? spec.handles.map((handle, i) => (
+            <OutputAdd
+              key={handle}
+              id={id}
+              handle={handle}
+              top={`${((i + 1) * 100) / (spec.handles.length + 1)}%`}
+            />
+          ))
+        : spec.acceptsOutgoing && <OutputAdd id={id} handle={null} top="50%" />}
       {spec.handles.map((handle, i) => (
         <span
           key={handle}

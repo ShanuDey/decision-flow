@@ -1,0 +1,19 @@
+{
+  "name": "tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Black-box automation against a running stack (make start): UI and API.",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --project=ui",
+    "test:api": "playwright test --project=api",
+    "typecheck": "tsc --noEmit",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

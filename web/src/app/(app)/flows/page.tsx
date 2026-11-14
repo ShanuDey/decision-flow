@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { listFlows } from "@/lib/api/client";
 import { serverApiInit } from "@/lib/auth/session";
-import { call, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
+import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { ListFlowsSort } from "@/lib/api/models";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -109,7 +109,7 @@ export default async function FlowsPage({
           <CircleX className="size-4 text-red-600 dark:text-red-400" aria-hidden />
           {isUnreachable(result.error)
             ? UNREACHABLE_MESSAGE
-            : `Could not load flows: ${result.error.message}`}
+            : `Could not load flows: ${errorText(result.error)}`}
           <RetryButton />
         </p>
       ) : result.data.total === 0 ? (

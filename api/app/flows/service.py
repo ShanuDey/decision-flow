@@ -3,10 +3,14 @@
 import uuid
 from typing import Any
 
+from fastapi.encoders import jsonable_encoder
+
+from app.engine import expressions, templates
 from app.engine.issues import Issue
 from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow
+from app.flows.schemas import EvaluateRequest, EvaluateResponse
 from app.flows.store import FlowStore
 from app.limits import Limits
 from app.workspaces.schemas import Member
@@ -110,3 +114,30 @@ async def save_draft(
         "The draft changed since you loaded it",
         {"draft_version": current.draft_version},
     )
+
+
+def _json_safe(value: Any) -> Any:
+    # CEL can return bytes or durations, which JSON cannot carry; show their text instead.
+    try:
+        return jsonable_encoder(value)
+    except Exception:  # noqa: BLE001
+        return str(value)
+
+
+def evaluate_source(body: EvaluateRequest) -> EvaluateResponse:
+    """Checks (and, with a scope, evaluates) one expression or template for the editor."""
+    scope = body.scope or {}
+    try:
+        if body.kind == "template":
+            templates.references(body.source)
+            result = templates.render(body.source, scope) if body.scope is not None else None
+            return EvaluateResponse(valid=True, result=_json_safe(result))
+        compiled = expressions.compile(body.source)
+        if body.scope is None:
+            return EvaluateResponse(valid=True, return_type=compiled.return_type)
+        result = expressions.evaluate(compiled, scope)
+        return EvaluateResponse(
+            valid=True, return_type=compiled.return_type, result=_json_safe(result)
+        )
+    except (expressions.ExpressionError, templates.TemplateError) as exc:
+        return EvaluateResponse(valid=False, error=str(exc))
