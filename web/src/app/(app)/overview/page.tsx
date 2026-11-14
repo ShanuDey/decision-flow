@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RetryButton } from "@/components/retry-button";
-import { Badge } from "@/components/ui/badge";
-import { listFlows } from "@/lib/api/client";
-import { ListFlowsSort, type FlowSummary } from "@/lib/api/models";
+import { listFlows, listRuns } from "@/lib/api/client";
+import { ListFlowsSort, type FlowSummary, type RunSummary } from "@/lib/api/models";
 import { requireSession, serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { formatDateTime } from "@/lib/format";
 
 import { NewFlowButton } from "../flows/new-flow-button";
+import { RunStatus } from "../runs/run-status";
 
 export const metadata: Metadata = { title: "Overview · Decision Flow" };
 export const maxDuration = 60;
@@ -19,12 +19,14 @@ const RECENT = 5;
 
 export default async function OverviewPage() {
   const { user } = await requireSession();
-  const result = await call(
-    listFlows(
-      { sort: "-updated_at" as ListFlowsSort, page: 1, page_size: RECENT },
-      await serverApiInit(),
-    ),
-  );
+  const init = await serverApiInit();
+  const [result, runs, names] = await Promise.all([
+    call(listFlows({ sort: "-updated_at" as ListFlowsSort, page: 1, page_size: RECENT }, init)),
+    call(listRuns({ limit: RECENT }, init)),
+    call(listFlows({ sort: "name" as ListFlowsSort, page: 1, page_size: 100 }, init)),
+  ]);
+  const recentRuns = runs.ok ? runs.data.items : [];
+  const flowNames = new Map((names.ok ? names.data.items : []).map((f) => [f.id, f.name]));
   const firstName = user.name?.trim().split(/\s+/)[0] || null;
 
   return (
@@ -48,9 +50,15 @@ export default async function OverviewPage() {
           <RetryButton />
         </p>
       ) : result.data.total === 0 ? (
-        <GettingStarted email={user.email} />
+        <GettingStarted email={user.email} runsFailed={!runs.ok} />
       ) : (
-        <Summary total={result.data.total} items={result.data.items} />
+        <Summary
+          total={result.data.total}
+          items={result.data.items}
+          runs={recentRuns}
+          flowNames={flowNames}
+          runsFailed={!runs.ok}
+        />
       )}
     </div>
   );
@@ -66,7 +74,19 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
   );
 }
 
-function Summary({ total, items }: { total: number; items: FlowSummary[] }) {
+function Summary({
+  total,
+  items,
+  runs,
+  flowNames,
+  runsFailed,
+}: {
+  total: number;
+  items: FlowSummary[];
+  runs: RunSummary[];
+  flowNames: Map<string, string>;
+  runsFailed: boolean;
+}) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -99,24 +119,52 @@ function Summary({ total, items }: { total: number; items: FlowSummary[] }) {
             ))}
           </ul>
         </section>
-        <RunsPanel />
+        <RunsPanel runs={runs} flowNames={flowNames} failed={runsFailed} />
       </div>
     </>
   );
 }
 
-function RunsPanel() {
+function RunsPanel({
+  runs,
+  flowNames,
+  failed = false,
+}: {
+  runs: RunSummary[];
+  flowNames: Map<string, string>;
+  failed?: boolean;
+}) {
   return (
     <section className="rounded-xl border" aria-labelledby="recent-runs">
       <header className="flex items-center justify-between border-b px-4 py-3">
         <h2 id="recent-runs" className="font-semibold">
           Recent runs
         </h2>
-        <Badge variant="secondary">Soon</Badge>
+        <Link href="/runs" className="text-sm text-muted-foreground hover:underline">
+          View all runs
+        </Link>
       </header>
-      <p className="m-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Runs will appear here once running flows is available.
-      </p>
+      {failed ? (
+        <p className="m-4 text-sm text-muted-foreground">Could not load recent runs.</p>
+      ) : runs.length === 0 ? (
+        <p className="m-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          No runs yet. Run a flow from the editor and it will show up here.
+        </p>
+      ) : (
+        <ul>
+          {runs.map((run) => (
+            <li key={run.run_id} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{flowNames.get(run.flow_id) ?? run.flow_id.slice(0, 8)}</p>
+                <RunStatus run={run} />
+              </div>
+              <time dateTime={run.started_at} className="text-sm whitespace-nowrap text-muted-foreground">
+                {formatDateTime(run.started_at)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -127,7 +175,7 @@ const STEPS = [
   { title: "Run it", hint: "Run it with real input." },
 ];
 
-function GettingStarted({ email }: { email: string }) {
+function GettingStarted({ email, runsFailed }: { email: string; runsFailed: boolean }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       <section className="rounded-xl border" aria-labelledby="get-started">
@@ -160,7 +208,7 @@ function GettingStarted({ email }: { email: string }) {
           ))}
         </ol>
       </section>
-      <RunsPanel />
+      <RunsPanel runs={[]} flowNames={new Map()} failed={runsFailed} />
     </div>
   );
 }
