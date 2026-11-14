@@ -5,7 +5,7 @@ import { useEffect, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { SelectField } from "@/components/ui/select-field";
 import type { FlowNode } from "@/lib/graph/convert";
 import type {
   AssignData,
@@ -219,21 +219,18 @@ function AssignForm({ node }: { node: FlowNode }) {
               label="Variable"
               issue={fieldIssue(issues, node.id, `data.assignments.${i}.variable`)}
             >
-              <NativeSelect
+              <SelectField
                 id={`${id}-var`}
                 value={assignment.variable}
-                onChange={(e) => set(patch(config.assignments, i, { variable: e.target.value }))}
-              >
-                <option value="">Select a variable…</option>
-                {!known && assignment.variable && (
-                  <option value={assignment.variable}>{assignment.variable} (undeclared)</option>
-                )}
-                {variables.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name}
-                  </option>
-                ))}
-              </NativeSelect>
+                placeholder="Select a variable…"
+                onValueChange={(v) => set(patch(config.assignments, i, { variable: v }))}
+                options={[
+                  ...(!known && assignment.variable
+                    ? [{ value: assignment.variable, label: `${assignment.variable} (undeclared)` }]
+                    : []),
+                  ...variables.map((v) => ({ value: v.name, label: v.name })),
+                ]}
+              />
             </Labeled>
             <Labeled
               id={`${id}-value`}

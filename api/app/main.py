@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import Depends, FastAPI
@@ -10,10 +11,13 @@ from app import tracing
 from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
+from app.db import get_engine
 from app.errors import ErrorResponse, install_error_handlers
 from app.flows import router as flows
 from app.limits import get_limits, install_body_limit
 from app.ops import router as ops
+from app.ratelimit import RateLimiters, RateLimitMiddleware, limit_visitor, limit_writes
+from app.retention import runner as retention
 from app.runs import router as runs
 from app.runs.slots import RunSlots
 from app.settings import get_settings
@@ -28,7 +32,12 @@ def _operation_id(route: APIRoute) -> str:
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Background: an unreachable MLflow must not delay or fail startup.
     tracing.warm_up(get_settings())
+    retention_task = retention.start(get_engine(), get_settings())
     yield
+    if retention_task is not None:
+        retention_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await retention_task
     await tracing.shutdown()
     await app.state.authenticator.aclose()
 
@@ -46,8 +55,10 @@ def create_app() -> FastAPI:
 
     limits = get_limits()
     app.state.run_slots = RunSlots(limits)
+    app.state.rate_limiters = RateLimiters(limits, settings.trusted_proxy)
     # before CORS: stays inside it
     install_body_limit(app, limits.max_request_bytes, limits.notice_details())
+    app.add_middleware(RateLimitMiddleware)
 
     # Strict CORS: only the configured web origin(s), with credentials (security.md section 6).
     app.add_middleware(
@@ -65,8 +76,16 @@ def create_app() -> FastAPI:
         settings.auth_providers, settings.auth_allowed_email_domains
     )
     protected: dict[str, Any] = {
-        "dependencies": [Depends(current_principal)],
-        "responses": {401: {"model": ErrorResponse}, 403: {"model": ErrorResponse}},
+        "dependencies": [
+            Depends(current_principal),
+            Depends(limit_visitor),
+            Depends(limit_writes),
+        ],
+        "responses": {
+            401: {"model": ErrorResponse},
+            403: {"model": ErrorResponse},
+            429: {"model": ErrorResponse},
+        },
     }
     app.include_router(ops.router)
     app.include_router(auth.router, **protected)

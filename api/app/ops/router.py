@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.errors import ErrorResponse
 from app.ops import checks
 from app.ops.schemas import HealthResponse, ReadyResponse
 
@@ -18,7 +19,7 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@router.get("/ready", responses={503: {"model": ReadyResponse}})
+@router.get("/ready", responses={503: {"model": ReadyResponse}, 429: {"model": ErrorResponse}})
 async def ready(
     response: Response, session: Annotated[AsyncSession, Depends(get_session)]
 ) -> ReadyResponse:

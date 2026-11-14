@@ -22,8 +22,29 @@ def _issue(code: str, message: str, node_id: str | None = None, field: str | Non
     return Issue(code=code, message=message, node_id=node_id, field=field)
 
 
-def parse_graph(raw: Any) -> tuple[Graph | None, list[Issue]]:
-    """Stages 1 (schema), 2 (structure), 3 (settings); each runs only if the last passed."""
+def check_size(raw: Any, max_nodes: int, max_edges: int) -> list[Issue]:
+    """0 means no cap. Runs on the raw JSON so an oversized graph is refused before parsing."""
+    if not isinstance(raw, dict):
+        return []
+    issues: list[Issue] = []
+    for key, cap, code in (
+        ("nodes", max_nodes, "too_many_nodes"),
+        ("edges", max_edges, "too_many_edges"),
+    ):
+        items = raw.get(key)
+        if cap and isinstance(items, list) and len(items) > cap:
+            issues.append(
+                _issue(code, f"flow has {len(items)} {key}; the limit is {cap}", None, key)
+            )
+    return issues
+
+
+def parse_graph(
+    raw: Any, max_nodes: int = 0, max_edges: int = 0
+) -> tuple[Graph | None, list[Issue]]:
+    """Stages 0 (size), 1 (schema), 2 (structure), 3 (settings); each needs the last to pass."""
+    if size_issues := check_size(raw, max_nodes, max_edges):
+        return None, size_issues
     try:
         graph = Graph.model_validate(raw)
     except ValidationError as exc:

@@ -1,4 +1,5 @@
 import {
+  API_TIMEOUT_MS,
   errorResponse,
   hasBody,
   isAllowedOrigin,
@@ -10,10 +11,12 @@ import {
 import { getConfig } from "@/lib/auth/server";
 import { apiToken, currentSession } from "@/lib/auth/session";
 
+export const maxDuration = 60;
+
 type Context = { params: Promise<{ path: string[] }> };
 
 async function handle(request: Request, { params }: Context): Promise<Response> {
-  const { apiUrl, baseURL, trustedOrigins } = getConfig();
+  const { apiUrl, baseURL, trustedOrigins, ipHeader } = getConfig();
 
   if (!isSafeMethod(request.method) && !isAllowedOrigin(request.headers.get("origin"), baseURL, trustedOrigins)) {
     return errorResponse(403, "forbidden_origin", "Cross-origin request refused");
@@ -27,9 +30,9 @@ async function handle(request: Request, { params }: Context): Promise<Response> 
   const search = new URL(request.url).search;
   const init: RequestInit & { duplex?: "half" } = {
     method: request.method,
-    headers: upstreamHeaders(request.headers, await apiToken(session.user)),
+    headers: upstreamHeaders(request.headers, await apiToken(session.user), ipHeader),
     redirect: "manual",
-    signal: request.signal,
+    signal: AbortSignal.any([request.signal, AbortSignal.timeout(API_TIMEOUT_MS)]),
   };
   if (hasBody(request.method) && request.body) {
     init.body = request.body;

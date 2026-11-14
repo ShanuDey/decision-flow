@@ -10,6 +10,7 @@ from app.errors import ApiError, ErrorResponse
 from app.flows import service as flows_service
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
+from app.ratelimit import limit_runs
 from app.runs import service
 from app.runs.models import Run
 from app.runs.schemas import RunList, RunRequest, RunResponse, RunSummary
@@ -43,7 +44,11 @@ def _run_response(run: Run) -> RunResponse:
     )
 
 
-@router.post("/flows/{flow_id}/runs", responses={**NOT_FOUND, **INVALID, **TOO_MANY})
+@router.post(
+    "/flows/{flow_id}/runs",
+    responses={**NOT_FOUND, **INVALID, **TOO_MANY},
+    dependencies=[Depends(limit_runs)],
+)
 async def create_run(
     flow_id: uuid.UUID,
     body: RunRequest,
@@ -60,7 +65,14 @@ async def create_run(
         raise ApiError(422, "not_published", "Flow has no published version; run with test=true")
     async with slots.hold(member.workspace_id):
         run = await service.run_draft(
-            runs, member, flow, body.input, new_observer, limits.run_timeout_seconds
+            runs,
+            member,
+            flow,
+            body.input,
+            new_observer,
+            timeout_seconds=limits.run_timeout_seconds,
+            max_nodes=limits.max_nodes,
+            max_edges=limits.max_edges,
         )
     return _run_response(run)
 

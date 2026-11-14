@@ -1,4 +1,6 @@
 export const PROXY_PREFIX = "/backend";
+// Below the 60 s `maxDuration`: pages also spend time on the session lookup.
+export const API_TIMEOUT_MS = 45_000;
 
 const REQUEST_HEADERS = ["accept", "accept-language", "content-type", "if-match", "if-none-match"];
 const RESPONSE_HEADER_BLOCKLIST = [
@@ -43,13 +45,37 @@ export function upstreamPath(segments: string[]): string | null {
   return "/" + segments.map(encodeURIComponent).join("/");
 }
 
-export function upstreamHeaders(incoming: Headers, token: string): Headers {
+export const CLIENT_IP_HEADER = "x-client-ip";
+
+// The API cannot see the visitor behind this server, so the platform's client IP goes with the token.
+export function clientIpHeaders(incoming: Headers, ipHeader: string): Record<string, string> {
+  const ip = incoming.get(ipHeader)?.split(",")[0]?.trim();
+  return ip ? { [CLIENT_IP_HEADER]: ip } : {};
+}
+
+// Request options for the generated client when it runs in a server component.
+export function apiInit(token: string, incoming: Headers, ipHeader: string): RequestInit {
+  return {
+    headers: { Authorization: `Bearer ${token}`, ...clientIpHeaders(incoming, ipHeader) },
+    cache: "no-store",
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  };
+}
+
+export function upstreamHeaders(
+  incoming: Headers,
+  token: string,
+  ipHeader = "x-forwarded-for",
+): Headers {
   const out = new Headers();
   for (const name of REQUEST_HEADERS) {
     const value = incoming.get(name);
     if (value !== null) out.set(name, value);
   }
   out.set("authorization", `Bearer ${token}`);
+  for (const [name, value] of Object.entries(clientIpHeaders(incoming, ipHeader))) {
+    out.set(name, value);
+  }
   return out;
 }
 

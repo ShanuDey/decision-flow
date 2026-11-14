@@ -8,6 +8,7 @@ from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow
 from app.flows.store import FlowStore
+from app.limits import Limits
 from app.workspaces.schemas import Member
 
 
@@ -60,10 +61,24 @@ async def require_flow(store: FlowStore, member: Member, flow_id: uuid.UUID) -> 
     return flow
 
 
-def validate_draft(flow: Flow) -> None:
-    _, issues = parse_graph(flow.draft)
+def validate_draft(flow: Flow, limits: Limits) -> None:
+    _, issues = parse_graph(flow.draft, limits.max_nodes, limits.max_edges)
     if issues:
         raise invalid_flow(issues)
+
+
+async def create_flow(
+    store: FlowStore, member: Member, name: str, draft: dict[str, Any] | None, limits: Limits
+) -> Flow:
+    cap = limits.max_flows_per_user
+    if cap and (count := await store.count_flows(member)) >= cap:
+        raise ApiError(
+            409,
+            "flow_limit_reached",
+            f"You have {count} flows; the limit is {cap}.",
+            {"limit": cap, "count": count, **limits.notice_details()},
+        )
+    return await store.create_flow(member, name, draft or blank_draft())
 
 
 async def rename_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, name: str) -> Flow:
@@ -71,6 +86,11 @@ async def rename_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, name
     if flow is None:
         raise not_found("Flow")
     return flow
+
+
+async def delete_flow(store: FlowStore, member: Member, flow_id: uuid.UUID) -> None:
+    if not await store.delete_flow(member, flow_id):
+        raise not_found("Flow")
 
 
 async def save_draft(

@@ -4,11 +4,16 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import select, tuple_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.runs.models import Run
 from app.workspaces.schemas import Member
+
+
+class FlowGone(Exception):
+    """The run's flow was deleted while the run was in flight."""
 
 
 class RunStore:
@@ -17,7 +22,11 @@ class RunStore:
 
     async def add_run(self, run: Run) -> Run:
         self.session.add(run)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise FlowGone from exc
         await self.session.refresh(run)
         return run
 

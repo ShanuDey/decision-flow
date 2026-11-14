@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { apiInit } from "../backend-proxy";
 import { signApiToken, type TokenUser } from "./api-token";
 import { getAuth, getConfig } from "./server";
 
@@ -24,5 +25,5 @@ export function apiToken(user: TokenUser): Promise<string> {
 // Request options for the generated client when it runs in a server component.
 export async function serverApiInit(): Promise<RequestInit> {
   const { user } = await requireSession();
-  return { headers: { Authorization: `Bearer ${await apiToken(user)}` }, cache: "no-store" };
+  return apiInit(await apiToken(user), await headers(), getConfig().ipHeader);
 }

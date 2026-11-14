@@ -152,3 +152,26 @@ async def test_another_workspace_sees_and_changes_nothing(sessions: SessionFacto
         loaded = await FlowStore(other).get_flow(owner, flow.id)
     assert loaded is not None
     assert (loaded.name, loaded.draft, loaded.draft_version) == ("Demo", {"name": "Demo"}, 1)
+
+
+async def test_count_flows_counts_only_the_members_own(sessions: SessionFactory) -> None:
+    mine = await make_member(sessions)
+    other = await make_member(sessions, "user-2")
+    await make(sessions, mine, "A", "B")
+    await make(sessions, other, "C")
+    async with sessions() as session:
+        store = FlowStore(session)
+        assert await store.count_flows(mine) == 2
+        assert await store.count_flows(other) == 1
+
+
+async def test_delete_flow_is_scoped_to_the_workspace(sessions: SessionFactory) -> None:
+    mine = await make_member(sessions)
+    other = await make_member(sessions, "user-2")
+    (flow,) = await make(sessions, mine, "A")
+    async with sessions() as session:
+        store = FlowStore(session)
+        assert await store.delete_flow(other, flow.id) is False
+        assert await store.get_flow(mine, flow.id) is not None
+        assert await store.delete_flow(mine, flow.id) is True
+        assert await store.delete_flow(mine, flow.id) is False

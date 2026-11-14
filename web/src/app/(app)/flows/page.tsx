@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, CircleX } from "lucide-r
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { RetryButton } from "@/components/retry-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,15 +15,16 @@ import {
 } from "@/components/ui/table";
 import { listFlows } from "@/lib/api/client";
 import { serverApiInit } from "@/lib/auth/session";
-import { call } from "@/lib/call";
+import { call, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { ListFlowsSort } from "@/lib/api/models";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { FlowRowMenu } from "./flow-row-menu";
 import { NewFlowButton } from "./new-flow-button";
-import { RenameFlowButton } from "./rename-flow-button";
 
 export const metadata: Metadata = { title: "Flows · Decision Flow" };
+export const maxDuration = 60;
 
 const PAGE_SIZE = 25;
 const SORTABLE = ["name", "updated_at", "created_at"] as const;
@@ -105,7 +107,10 @@ export default async function FlowsPage({
       {!result.ok ? (
         <p role="alert" className="flex items-center gap-2 rounded-xl border p-4 text-sm">
           <CircleX className="size-4 text-red-600 dark:text-red-400" aria-hidden />
-          Could not load flows: {result.error.message}
+          {isUnreachable(result.error)
+            ? UNREACHABLE_MESSAGE
+            : `Could not load flows: ${result.error.message}`}
+          <RetryButton />
         </p>
       ) : result.data.total === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -138,7 +143,7 @@ export default async function FlowsPage({
                       {formatDateTime(flow.updated_at)}
                     </TableCell>
                     <TableCell className="w-12 text-right">
-                      <RenameFlowButton id={flow.id} name={flow.name} />
+                      <FlowRowMenu id={flow.id} name={flow.name} />
                     </TableCell>
                   </TableRow>
                 ))}

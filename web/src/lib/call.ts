@@ -51,6 +51,17 @@ export async function call<R extends Response>(request: Promise<R>): Promise<Api
   return { ok: false, error: failure(res.status, res.data) };
 }
 
+// A gateway answers 502-504 while the API starts; the API's own 503s carry a code.
+const GATEWAY_CODES = ["http_error", "upstream_unavailable"];
+
+export function isUnreachable(error: ApiFailure): boolean {
+  if (error.status === 0) return true;
+  return [502, 503, 504].includes(error.status) && GATEWAY_CODES.includes(error.code);
+}
+
+export const UNREACHABLE_MESSAGE =
+  "The server is starting up (the free plan sleeps when idle). Try again in a few seconds.";
+
 export interface FieldIssue {
   code: string;
   message: string;

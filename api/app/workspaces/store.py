@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,17 +21,29 @@ class WorkspaceStore:
         self.session = session
 
     async def ensure_member(self, principal: Principal) -> Member:
-        """The caller's user and workspace, created together on their first request."""
-        member = await self._find(principal)
+        return (await self.create_member(principal))[0]
+
+    async def create_member(self, principal: Principal) -> tuple[Member, bool]:
+        """The caller's user and workspace, created together on their first request.
+
+        The flag says whether this call created them, not a concurrent one.
+        """
+        member = await self.find_member(principal)
         if member is not None:
-            return member
-        await self._create(principal)
-        member = await self._find(principal)
+            return member, False
+        created = await self._create(principal)
+        member = await self.find_member(principal)
         if member is None:
             raise RuntimeError("user exists without a workspace")
-        return member
+        return member, created
 
-    async def _find(self, principal: Principal) -> Member | None:
+    async def touch(self, user_id: uuid.UUID) -> None:
+        await self.session.execute(
+            update(User).where(User.id == user_id).values(last_seen_at=func.now())
+        )
+        await self.session.commit()
+
+    async def find_member(self, principal: Principal) -> Member | None:
         row = (
             await self.session.execute(
                 select(User.id, WorkspaceMember.workspace_id)
@@ -43,7 +55,7 @@ class WorkspaceStore:
         ).first()
         return Member(user_id=row.id, workspace_id=row.workspace_id) if row else None
 
-    async def _create(self, principal: Principal) -> None:
+    async def _create(self, principal: Principal) -> bool:
         user_id = await self.session.scalar(
             insert(User)
             .values(
@@ -57,9 +69,10 @@ class WorkspaceStore:
             .returning(User.id)
         )
         if user_id is None:  # a concurrent first request created the user and its workspace
-            return
+            return False
         workspace = Workspace(id=uuid.uuid4(), name=workspace_name(principal))
         self.session.add_all(
             [workspace, WorkspaceMember(workspace_id=workspace.id, user_id=user_id, role=OWNER)]
         )
         await self.session.commit()
+        return True

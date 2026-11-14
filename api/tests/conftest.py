@@ -10,7 +10,9 @@ import pytest
 from app.auth.models import Principal
 from app.flows.models import Flow
 from app.flows.store import get_store
+from app.limits import Limits
 from app.main import app
+from app.ratelimit import RateLimiters
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
 from app.runs.store import get_run_store
@@ -25,12 +27,23 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
 class FakeWorkspaceStore:
     def __init__(self) -> None:
         self.members: dict[tuple[str, str], Member] = {}
+        self.touched: list[uuid.UUID] = []
+
+    async def touch(self, user_id: uuid.UUID) -> None:
+        self.touched.append(user_id)
+
+    async def find_member(self, principal: Principal) -> Member | None:
+        return self.members.get((principal.provider, principal.sub))
+
+    async def create_member(self, principal: Principal) -> tuple[Member, bool]:
+        key = (principal.provider, principal.sub)
+        created = key not in self.members
+        if created:
+            self.members[key] = Member(user_id=uuid.uuid4(), workspace_id=uuid.uuid4())
+        return self.members[key], created
 
     async def ensure_member(self, principal: Principal) -> Member:
-        key = (principal.provider, principal.sub)
-        if key not in self.members:
-            self.members[key] = Member(user_id=uuid.uuid4(), workspace_id=uuid.uuid4())
-        return self.members[key]
+        return (await self.create_member(principal))[0]
 
 
 class FakeFlowStore:
@@ -56,6 +69,15 @@ class FakeFlowStore:
         )
         self.flows[flow.id] = flow
         return flow
+
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID) -> bool:
+        return self._visible(member, flow_id) is not None and self.flows.pop(flow_id) is not None
+
+    async def count_flows(self, member: Member) -> int:
+        return sum(
+            f.workspace_id == member.workspace_id and f.created_by == member.user_id
+            for f in self.flows.values()
+        )
 
     async def list_flows(
         self, member: Member, q: str | None, sort: str, page: int, page_size: int
@@ -143,6 +165,15 @@ class StubObserver:
     async def node_finished(self, *args: Any, **kwargs: Any) -> None: ...
 
     async def run_finished(self, *args: Any, **kwargs: Any) -> None: ...
+
+
+RATE_LIMIT_FIELDS = [name for name in Limits.model_fields if name.startswith("rate_limit_")]
+
+
+@pytest.fixture(autouse=True)
+def _rate_limits_off() -> None:
+    off = {name: 0 for name in RATE_LIMIT_FIELDS}
+    app.state.rate_limiters = RateLimiters(Limits(_env_file=None, **off))
 
 
 @pytest.fixture

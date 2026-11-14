@@ -128,3 +128,26 @@
     @apply font-sans;
   }
 }
+/* Loading fallbacks are not hydrated while their route is pending, so the delay must be CSS. */
+@keyframes reveal-slow {
+  from {
+    visibility: hidden;
+    opacity: 0;
+  }
+  to {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* `visibility` keeps the text out of screen readers until it shows. */
+.reveal-after-3s {
+  visibility: hidden;
+  animation: reveal-slow 400ms ease 3s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-after-3s {
+    animation-duration: 1ms;
+  }
+}

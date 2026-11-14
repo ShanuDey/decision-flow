@@ -23,13 +23,22 @@ export function FlowRenameDialog({
   currentName,
   onRenamed,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   flowId: string;
   currentName: string;
   onRenamed: (name: string) => void;
-  trigger: ReactElement;
+  trigger?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = controlledOpen ?? innerOpen;
+  const setOpen = (next: boolean) => {
+    setInnerOpen(next);
+    onOpenChange?.(next);
+  };
   const [name, setName] = useState(currentName);
   const [busy, setBusy] = useState(false);
   const trimmed = name.trim();
@@ -57,7 +66,7 @@ export function FlowRenameDialog({
         setOpen(next);
       }}
     >
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { call } from "./call";
+import { call, isUnreachable } from "./call";
 
 const respond = (status: number, data: unknown) => Promise.resolve({ status, data });
 
@@ -27,5 +27,22 @@ describe("call: 401 responses", () => {
   it("leaves other errors as the API sent them", async () => {
     const result = await call(respond(404, { code: "not_found", message: "No such flow", details: {} }));
     expect(result).toMatchObject({ ok: false, error: { status: 404, message: "No such flow" } });
+  });
+});
+
+describe("isUnreachable", () => {
+  it("is true for a network error and gateway answers, false for the API's own errors", () => {
+    const failure = (status: number, code = "http_error") => ({
+      status,
+      code,
+      message: "m",
+      details: {},
+    });
+    for (const status of [0, 502, 503, 504]) expect(isUnreachable(failure(status))).toBe(true);
+    expect(isUnreachable(failure(502, "upstream_unavailable"))).toBe(true);
+    expect(isUnreachable(failure(503, "auth_unavailable"))).toBe(false);
+    for (const status of [400, 401, 404, 422, 429, 500]) {
+      expect(isUnreachable(failure(status))).toBe(false);
+    }
   });
 });
