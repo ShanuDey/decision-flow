@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Logo } from "@/components/logo";
@@ -6,7 +7,9 @@ export function AuthShell({ title, children }: { title: string; children: ReactN
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <h1>
-        <Logo className="text-3xl" markClassName="size-10" />
+        <Link href="/" aria-label="Decision Flow home">
+          <Logo className="text-3xl" markClassName="size-10" />
+        </Link>
       </h1>
       <section
         aria-labelledby="auth-heading"

@@ -42,7 +42,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-1 flex-col">
       <header className="flex items-center justify-between gap-3 border-b px-5 py-3.5 md:px-8">
-        <Link href="/" aria-label="Decision Flow">
+        <Link href="/" aria-label="Decision Flow home">
           <Logo />
         </Link>
         <EntryLink
