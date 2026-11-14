@@ -7,6 +7,8 @@ import {
   isSafeMethod,
   publicLocation,
   responseHeaders,
+  apiInit,
+  clientIpHeaders,
   upstreamHeaders,
   upstreamPath,
 } from "./backend-proxy";
@@ -73,6 +75,32 @@ describe("upstreamHeaders", () => {
     for (const name of ["cookie", "x-forwarded-for", "x-auth-provider"]) {
       expect(out.has(name)).toBe(false);
     }
+  });
+});
+
+describe("visitor IP", () => {
+  it("forwards the first entry of the configured header, never the browser's own x-client-ip", () => {
+    const incoming = new Headers({ "x-forwarded-for": "5.5.5.5, 10.0.0.1", "x-client-ip": "6.6.6.6" });
+    expect(upstreamHeaders(incoming, "tok").get("x-client-ip")).toBe("5.5.5.5");
+    expect(upstreamHeaders(incoming, "tok", "x-other").has("x-client-ip")).toBe(false);
+    expect(clientIpHeaders(new Headers(), "x-forwarded-for")).toEqual({});
+  });
+});
+
+describe("apiInit", () => {
+  it("sends the token and the visitor IP from the configured header", () => {
+    const incoming = new Headers({ "x-forwarded-for": "5.5.5.5, 10.0.0.1", "x-client-ip": "6.6.6.6" });
+    expect(apiInit("tok", incoming, "x-forwarded-for").headers).toEqual({
+      Authorization: "Bearer tok",
+      "x-client-ip": "5.5.5.5",
+    });
+  });
+
+  it("omits the visitor IP when the platform header is missing", () => {
+    const incoming = new Headers({ "x-client-ip": "6.6.6.6" });
+    expect(apiInit("tok", incoming, "x-forwarded-for").headers).toEqual({
+      Authorization: "Bearer tok",
+    });
   });
 });
 

@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Auth is always on; startup fails when auth_providers is empty (docs/auth.md).
     auth_providers: list[ProviderConfig] = []
     auth_allowed_email_domains: Annotated[list[str], NoDecode] = []
+
+    # Proxies in front of the API whose X-Forwarded-For entry is trusted; 0 ignores the header.
+    trusted_proxy: int = Field(0, ge=0)
 
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False

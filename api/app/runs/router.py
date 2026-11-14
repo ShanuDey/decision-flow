@@ -10,6 +10,7 @@ from app.errors import ApiError, ErrorResponse
 from app.flows import service as flows_service
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
+from app.ratelimit import limit_runs
 from app.runs import service
 from app.runs.models import Run
 from app.runs.schemas import RunList, RunRequest, RunResponse, RunSummary
@@ -43,7 +44,11 @@ def _run_response(run: Run) -> RunResponse:
     )
 
 
-@router.post("/flows/{flow_id}/runs", responses={**NOT_FOUND, **INVALID, **TOO_MANY})
+@router.post(
+    "/flows/{flow_id}/runs",
+    responses={**NOT_FOUND, **INVALID, **TOO_MANY},
+    dependencies=[Depends(limit_runs)],
+)
 async def create_run(
     flow_id: uuid.UUID,
     body: RunRequest,

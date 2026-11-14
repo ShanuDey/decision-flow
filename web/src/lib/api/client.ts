@@ -46,10 +46,15 @@ export type listFlowsResponse422 = {
   status: 422
 }
 
+export type listFlowsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type listFlowsResponseSuccess = (listFlowsResponse200) & {
   headers: Headers;
 };
-export type listFlowsResponseError = (listFlowsResponse401 | listFlowsResponse403 | listFlowsResponse422) & {
+export type listFlowsResponseError = (listFlowsResponse401 | listFlowsResponse403 | listFlowsResponse422 | listFlowsResponse429) & {
   headers: Headers;
 };
 
@@ -111,10 +116,15 @@ export type createFlowResponse422 = {
   status: 422
 }
 
+export type createFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type createFlowResponseSuccess = (createFlowResponse201) & {
   headers: Headers;
 };
-export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse409 | createFlowResponse422) & {
+export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse409 | createFlowResponse422 | createFlowResponse429) & {
   headers: Headers;
 };
 
@@ -183,10 +193,15 @@ export type deleteFlowResponse422 = {
   status: 422
 }
 
+export type deleteFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type deleteFlowResponseSuccess = (deleteFlowResponse204) & {
   headers: Headers;
 };
-export type deleteFlowResponseError = (deleteFlowResponse401 | deleteFlowResponse403 | deleteFlowResponse404 | deleteFlowResponse422) & {
+export type deleteFlowResponseError = (deleteFlowResponse401 | deleteFlowResponse403 | deleteFlowResponse404 | deleteFlowResponse422 | deleteFlowResponse429) & {
   headers: Headers;
 };
 
@@ -242,10 +257,15 @@ export type getFlowResponse422 = {
   status: 422
 }
 
+export type getFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type getFlowResponseSuccess = (getFlowResponse200) & {
   headers: Headers;
 };
-export type getFlowResponseError = (getFlowResponse401 | getFlowResponse403 | getFlowResponse404 | getFlowResponse422) & {
+export type getFlowResponseError = (getFlowResponse401 | getFlowResponse403 | getFlowResponse404 | getFlowResponse422 | getFlowResponse429) & {
   headers: Headers;
 };
 
@@ -300,10 +320,15 @@ export type renameFlowResponse422 = {
   status: 422
 }
 
+export type renameFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type renameFlowResponseSuccess = (renameFlowResponse200) & {
   headers: Headers;
 };
-export type renameFlowResponseError = (renameFlowResponse401 | renameFlowResponse403 | renameFlowResponse404 | renameFlowResponse422) & {
+export type renameFlowResponseError = (renameFlowResponse401 | renameFlowResponse403 | renameFlowResponse404 | renameFlowResponse422 | renameFlowResponse429) & {
   headers: Headers;
 };
 
@@ -388,10 +413,15 @@ export type saveDraftResponse428 = {
   status: 428
 }
 
+export type saveDraftResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type saveDraftResponseSuccess = (saveDraftResponse200) & {
   headers: Headers;
 };
-export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse401 | saveDraftResponse403 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428) & {
+export type saveDraftResponseError = (saveDraftResponse400 | saveDraftResponse401 | saveDraftResponse403 | saveDraftResponse404 | saveDraftResponse409 | saveDraftResponse422 | saveDraftResponse428 | saveDraftResponse429) & {
   headers: Headers;
 };
 
@@ -541,10 +571,15 @@ export type validateFlowResponse422 = {
   status: 422
 }
 
+export type validateFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type validateFlowResponseSuccess = (validateFlowResponse200) & {
   headers: Headers;
 };
-export type validateFlowResponseError = (validateFlowResponse401 | validateFlowResponse403 | validateFlowResponse404 | validateFlowResponse422) & {
+export type validateFlowResponseError = (validateFlowResponse401 | validateFlowResponse403 | validateFlowResponse404 | validateFlowResponse422 | validateFlowResponse429) & {
   headers: Headers;
 };
 
@@ -626,10 +661,15 @@ export type meResponse403 = {
   status: 403
 }
 
+export type meResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type meResponseSuccess = (meResponse200) & {
   headers: Headers;
 };
-export type meResponseError = (meResponse401 | meResponse403) & {
+export type meResponseError = (meResponse401 | meResponse403 | meResponse429) & {
   headers: Headers;
 };
 
@@ -665,6 +705,11 @@ export type readyResponse200 = {
   status: 200
 }
 
+export type readyResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type readyResponse503 = {
   data: ReadyResponse
   status: 503
@@ -673,7 +718,7 @@ export type readyResponse503 = {
 export type readyResponseSuccess = (readyResponse200) & {
   headers: Headers;
 };
-export type readyResponseError = (readyResponse503) & {
+export type readyResponseError = (readyResponse429 | readyResponse503) & {
   headers: Headers;
 };
 
@@ -724,10 +769,15 @@ export type listRunsResponse422 = {
   status: 422
 }
 
+export type listRunsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type listRunsResponseSuccess = (listRunsResponse200) & {
   headers: Headers;
 };
-export type listRunsResponseError = (listRunsResponse401 | listRunsResponse403 | listRunsResponse422) & {
+export type listRunsResponseError = (listRunsResponse401 | listRunsResponse403 | listRunsResponse422 | listRunsResponse429) & {
   headers: Headers;
 };
 
@@ -790,10 +840,15 @@ export type getRunResponse422 = {
   status: 422
 }
 
+export type getRunResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
 export type getRunResponseSuccess = (getRunResponse200) & {
   headers: Headers;
 };
-export type getRunResponseError = (getRunResponse401 | getRunResponse403 | getRunResponse404 | getRunResponse422) & {
+export type getRunResponseError = (getRunResponse401 | getRunResponse403 | getRunResponse404 | getRunResponse422 | getRunResponse429) & {
   headers: Headers;
 };
 

@@ -25,6 +25,12 @@ class Limits(BaseSettings):
     max_nodes: int = Field(50, ge=0)
     max_edges: int = Field(100, ge=0)
     max_flows_per_user: int = Field(20, ge=0)
+    rate_limit_ip_per_minute: int = Field(120, ge=0)
+    rate_limit_ready_per_minute: int = Field(6, ge=0)
+    rate_limit_failed_auth_per_minute: int = Field(10, ge=0)
+    rate_limit_user_writes_per_minute: int = Field(60, ge=0)
+    rate_limit_user_runs_per_minute: int = Field(20, ge=0)
+    rate_limit_new_workspaces_per_ip_per_hour: int = Field(5, ge=0)
     limit_notice: str = Field("", max_length=300)
     limit_notice_url: str = Field("", max_length=300)
 
