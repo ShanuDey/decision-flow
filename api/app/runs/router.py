@@ -16,6 +16,7 @@ from app.runs.service import ObserverFactory
 from app.runs.store import RunStore, get_run_store
 from app.settings import get_settings
 from app.tracing import MlflowObserver
+from app.workspaces.deps import CurrentMember
 
 router = APIRouter(tags=["runs"])
 
@@ -43,20 +44,22 @@ def _run_response(run: Run) -> RunResponse:
 async def create_run(
     flow_id: uuid.UUID,
     body: RunRequest,
+    member: CurrentMember,
     flows: Annotated[FlowStore, Depends(get_store)],
     runs: Annotated[RunStore, Depends(get_run_store)],
     new_observer: Annotated[ObserverFactory, Depends(get_observer_factory)],
 ) -> RunResponse:
     """Runs inline. A failure inside the flow is a 200 with status "failed"; bad input is a 422."""
-    flow = await flows_service.require_flow(flows, flow_id)
+    flow = await flows_service.require_flow(flows, member, flow_id)
     if not body.test:
         raise ApiError(422, "not_published", "Flow has no published version; run with test=true")
-    return _run_response(await service.run_draft(runs, flow, body.input, new_observer))
+    return _run_response(await service.run_draft(runs, member, flow, body.input, new_observer))
 
 
 @router.get("/runs", responses=INVALID)
 async def list_runs(
     runs: Annotated[RunStore, Depends(get_run_store)],
+    member: CurrentMember,
     flow_id: uuid.UUID | None = None,
     status: Literal["succeeded", "failed"] | None = None,
     test: bool | None = None,
@@ -68,6 +71,7 @@ async def list_runs(
     """Newest first; pass `next_cursor` back as `cursor` for the next page."""
     page, next_cursor = await service.list_runs(
         runs,
+        member,
         flow_id=flow_id,
         status=status,
         test=test,
@@ -95,9 +99,9 @@ async def list_runs(
 
 @router.get("/runs/{run_id}", responses=NOT_FOUND)
 async def get_run(
-    run_id: uuid.UUID, runs: Annotated[RunStore, Depends(get_run_store)]
+    run_id: uuid.UUID, member: CurrentMember, runs: Annotated[RunStore, Depends(get_run_store)]
 ) -> RunResponse:
-    run = await runs.get_run(run_id)
+    run = await runs.get_run(member, run_id)
     if run is None:
         raise flows_service.not_found("Run")
     return _run_response(run)

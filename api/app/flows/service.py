@@ -8,6 +8,7 @@ from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow
 from app.flows.store import FlowStore
+from app.workspaces.schemas import Member
 
 
 def blank_draft() -> dict[str, Any]:
@@ -52,8 +53,8 @@ def not_found(what: str) -> ApiError:
     return ApiError(404, "not_found", f"{what} not found")
 
 
-async def require_flow(store: FlowStore, flow_id: uuid.UUID) -> Flow:
-    flow = await store.get_flow(flow_id)
+async def require_flow(store: FlowStore, member: Member, flow_id: uuid.UUID) -> Flow:
+    flow = await store.get_flow(member, flow_id)
     if flow is None:
         raise not_found("Flow")
     return flow
@@ -65,20 +66,24 @@ def validate_draft(flow: Flow) -> None:
         raise invalid_flow(issues)
 
 
-async def rename_flow(store: FlowStore, flow_id: uuid.UUID, name: str) -> Flow:
-    flow = await store.rename_flow(flow_id, name)
+async def rename_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, name: str) -> Flow:
+    flow = await store.rename_flow(member, flow_id, name)
     if flow is None:
         raise not_found("Flow")
     return flow
 
 
 async def save_draft(
-    store: FlowStore, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
+    store: FlowStore,
+    member: Member,
+    flow_id: uuid.UUID,
+    draft: dict[str, Any],
+    expected_version: int,
 ) -> Flow:
-    saved = await store.save_draft(flow_id, draft, expected_version)
+    saved = await store.save_draft(member, flow_id, draft, expected_version)
     if saved is not None:
         return saved
-    current = await require_flow(store, flow_id)
+    current = await require_flow(store, member, flow_id)
     raise ApiError(
         409,
         "draft_conflict",

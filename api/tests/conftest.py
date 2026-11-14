@@ -7,26 +7,47 @@ from typing import Any
 import httpx
 import pytest
 
+from app.auth.models import Principal
 from app.flows.models import Flow
 from app.flows.store import get_store
 from app.main import app
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
 from app.runs.store import get_run_store
+from app.workspaces.deps import get_workspace_store
+from app.workspaces.schemas import Member
 from tests.auth_helpers import bearer
 from tests.db_fixtures import postgres_url, sessions  # noqa: F401  (fixtures for -m db tests)
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
 
 
+class FakeWorkspaceStore:
+    def __init__(self) -> None:
+        self.members: dict[tuple[str, str], Member] = {}
+
+    async def ensure_member(self, principal: Principal) -> Member:
+        key = (principal.provider, principal.sub)
+        if key not in self.members:
+            self.members[key] = Member(user_id=uuid.uuid4(), workspace_id=uuid.uuid4())
+        return self.members[key]
+
+
 class FakeFlowStore:
     def __init__(self) -> None:
         self.flows: dict[uuid.UUID, Flow] = {}
 
-    async def create_flow(self, name: str, draft: dict[str, Any]) -> Flow:
+    def _visible(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        flow = self.flows.get(flow_id)
+        return flow if flow is not None and flow.workspace_id == member.workspace_id else None
+
+    async def create_flow(self, member: Member, name: str, draft: dict[str, Any]) -> Flow:
         now = datetime.now(UTC)
         flow = Flow(
             id=uuid.uuid4(),
+            workspace_id=member.workspace_id,
+            created_by=member.user_id,
+            updated_by=member.user_id,
             name=name,
             draft=draft,
             draft_version=1,
@@ -37,30 +58,36 @@ class FakeFlowStore:
         return flow
 
     async def list_flows(
-        self, q: str | None, sort: str, page: int, page_size: int
+        self, member: Member, q: str | None, sort: str, page: int, page_size: int
     ) -> tuple[list[Flow], int]:
-        flows = [f for f in self.flows.values() if not q or q.lower() in f.name.lower()]
+        flows = [
+            f
+            for f in self.flows.values()
+            if f.workspace_id == member.workspace_id and (not q or q.lower() in f.name.lower())
+        ]
         start = (page - 1) * page_size
         return flows[start : start + page_size], len(flows)
 
-    async def get_flow(self, flow_id: uuid.UUID) -> Flow | None:
-        return self.flows.get(flow_id)
+    async def get_flow(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        return self._visible(member, flow_id)
 
-    async def rename_flow(self, flow_id: uuid.UUID, name: str) -> Flow | None:
-        flow = self.flows.get(flow_id)
+    async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
+        flow = self._visible(member, flow_id)
         if flow is not None:
             flow.name = name
+            flow.updated_by = member.user_id
             flow.updated_at = datetime.now(UTC)
         return flow
 
     async def save_draft(
-        self, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
+        self, member: Member, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int
     ) -> Flow | None:
-        flow = self.flows.get(flow_id)
+        flow = self._visible(member, flow_id)
         if flow is None or flow.draft_version != expected_version:
             return None
         flow.draft = draft
         flow.draft_version += 1
+        flow.updated_by = member.user_id
         return flow
 
 
@@ -76,6 +103,7 @@ class FakeRunStore:
 
     async def list_runs(
         self,
+        member: Member,
         flow_id: uuid.UUID | None,
         status: str | None,
         test: bool | None,
@@ -88,7 +116,8 @@ class FakeRunStore:
         keep = [
             r
             for r in rows
-            if (flow_id is None or r.flow_id == flow_id)
+            if r.workspace_id == member.workspace_id
+            and (flow_id is None or r.flow_id == flow_id)
             and (status is None or r.status == status)
             and (test is None or r.test == test)
             and (started_from is None or r.started_at >= started_from)
@@ -97,8 +126,9 @@ class FakeRunStore:
         ]
         return keep[:limit]
 
-    async def get_run(self, run_id: uuid.UUID) -> Run | None:
-        return self.runs.get(run_id)
+    async def get_run(self, member: Member, run_id: uuid.UUID) -> Run | None:
+        run = self.runs.get(run_id)
+        return run if run is not None and run.workspace_id == member.workspace_id else None
 
 
 class StubObserver:
@@ -131,27 +161,38 @@ def run_store() -> FakeRunStore:
 
 
 @pytest.fixture
-async def client(flow_store: FakeFlowStore, run_store: FakeRunStore):
+def workspace_store() -> FakeWorkspaceStore:
+    return FakeWorkspaceStore()
+
+
+@pytest.fixture
+async def client(
+    flow_store: FakeFlowStore, run_store: FakeRunStore, workspace_store: FakeWorkspaceStore
+):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_run_store] = lambda: run_store
+    app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport, base_url="http://test", headers=bearer()
     ) as c:
         yield c
-    for dep in (get_store, get_run_store, get_observer_factory):
+    for dep in (get_store, get_run_store, get_workspace_store, get_observer_factory):
         app.dependency_overrides.pop(dep, None)
 
 
 @pytest.fixture
-async def anon_client(flow_store: FakeFlowStore, run_store: FakeRunStore):
+async def anon_client(
+    flow_store: FakeFlowStore, run_store: FakeRunStore, workspace_store: FakeWorkspaceStore
+):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_run_store] = lambda: run_store
+    app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-    for dep in (get_store, get_run_store):
+    for dep in (get_store, get_run_store, get_workspace_store):
         app.dependency_overrides.pop(dep, None)
 
 

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.runs.models import Run
+from app.workspaces.schemas import Member
 
 
 class RunStore:
@@ -22,6 +23,7 @@ class RunStore:
 
     async def list_runs(
         self,
+        member: Member,
         flow_id: uuid.UUID | None,
         status: str | None,
         test: bool | None,
@@ -31,7 +33,7 @@ class RunStore:
         limit: int,
     ) -> list[Run]:
         """Newest first, at most `limit` rows."""
-        query = select(Run)
+        query = select(Run).where(Run.workspace_id == member.workspace_id)
         for column, value in ((Run.flow_id, flow_id), (Run.status, status), (Run.test, test)):
             if value is not None:
                 query = query.where(column == value)
@@ -46,8 +48,10 @@ class RunStore:
         )
         return list(rows)
 
-    async def get_run(self, run_id: uuid.UUID) -> Run | None:
-        return await self.session.get(Run, run_id)
+    async def get_run(self, member: Member, run_id: uuid.UUID) -> Run | None:
+        return await self.session.scalar(
+            select(Run).where(Run.id == run_id, Run.workspace_id == member.workspace_id)
+        )
 
 
 def get_run_store(session: Annotated[AsyncSession, Depends(get_session)]) -> RunStore:

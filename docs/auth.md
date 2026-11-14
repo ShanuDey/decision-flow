@@ -141,6 +141,14 @@ To call the API by hand:
 curl -H "Authorization: Bearer $(make -s auth-token)" http://localhost:8000/me
 ```
 
+## Workspaces
+
+On a person's first request the API creates a local user (keyed by `provider` and `sub`) and a workspace they own. Flows and runs belong to a workspace, and each row records who created or last changed it. A request only sees its own workspace's data: another workspace's flow or run answers `404`, the same as a missing one. Users are never deleted, so authorship stays intact.
+
+A user is identified by the provider `name` plus the token's `sub`. Do not rename a provider entry in `AUTH_PROVIDERS` once people have signed in: they would be treated as new users and start with an empty workspace.
+
+Rows saved before workspaces existed have no workspace and no longer appear. Attach them to a workspace by hand (an `UPDATE` on `flows` and `runs`) before upgrading a database that holds data you want to keep.
+
 ## Responses
 
 | Status | Meaning |
