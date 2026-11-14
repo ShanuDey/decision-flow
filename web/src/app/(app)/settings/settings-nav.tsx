@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const ITEMS = [{ href: "/settings/appearance", label: "Appearance" }];
+const ITEMS = [
+  { href: "/settings/appearance", label: "Appearance" },
+  { href: "/settings/account", label: "Account" },
+  { href: "/settings/system", label: "System" },
+];
 
 export function SettingsNav() {
   const pathname = usePathname();

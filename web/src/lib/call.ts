@@ -15,8 +15,15 @@ export type ApiResult<T> =
 type Response = { status: number; data: unknown };
 type Success<R extends Response> = Extract<R, { status: 200 | 201 | 202 }>["data"];
 
+const TOKEN_REJECTED =
+  "The API rejected the web server's sign-in token. Check that AUTH_PROVIDERS matches BETTER_AUTH_URL and AUTH_TOKEN_AUDIENCE.";
+
 function failure(status: number, data: unknown): ApiFailure {
   const body = (data ?? {}) as Record<string, unknown>;
+  // The web proxy answers a missing session with "session_expired"; "unauthenticated" comes from the API.
+  if (status === 401 && body.code === "unauthenticated") {
+    return { status, code: body.code, message: TOKEN_REJECTED, details: {} };
+  }
   if (typeof body.code === "string" && typeof body.message === "string") {
     return {
       status,

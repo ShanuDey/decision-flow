@@ -7,21 +7,19 @@ import { ready } from "@/lib/api/client";
 import type { ReadyResponse as Ready } from "@/lib/api/models";
 import { ReadyResponse as ReadySchema } from "@/lib/api/zod";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
 type Status =
   | { kind: "loading" }
-  | { kind: "misconfigured" }
   | { kind: "unreachable"; checkedAt: Date }
+  | { kind: "signedOut"; checkedAt: Date }
   | { kind: "reachable"; ready: Ready; checkedAt: Date };
 
 const LABELS: Record<string, string> = { postgres: "Postgres", mlflow: "MLflow" };
 
 // /ready answers 503 with the same JSON body, so any HTTP response proves the API is reachable.
 async function fetchStatus(signal: AbortSignal): Promise<Status> {
-  if (!API_URL) return { kind: "misconfigured" };
   try {
     const res = await ready({ signal, cache: "no-store" });
+    if ((res.status as number) === 401) return { kind: "signedOut", checkedAt: new Date() };
     return { kind: "reachable", ready: ReadySchema.parse(res.data), checkedAt: new Date() };
   } catch {
     return { kind: "unreachable", checkedAt: new Date() };
@@ -69,12 +67,12 @@ function rowsFor(status: Status): { label: string; state: RowState; text: string
       text: "Checking…",
     }));
   }
-  if (status.kind === "unreachable" || status.kind === "misconfigured") {
+  if (status.kind === "unreachable" || status.kind === "signedOut") {
     return [
       {
         label: "API",
         state: "failed",
-        text: status.kind === "unreachable" ? "Unreachable" : "URL not configured",
+        text: status.kind === "unreachable" ? "Unreachable" : "Sign in again",
       },
       { label: "Postgres", state: "unknown", text: "Unknown" },
       { label: "MLflow", state: "unknown", text: "Unknown" },
@@ -93,7 +91,7 @@ function rowsFor(status: Status): { label: string; state: RowState; text: string
 function summary(status: Status): { state: RowState; text: string } {
   if (status.kind === "loading") return { state: "checking", text: "Checking…" };
   if (status.kind === "unreachable") return { state: "failed", text: "Unreachable" };
-  if (status.kind === "misconfigured") return { state: "failed", text: "Misconfigured" };
+  if (status.kind === "signedOut") return { state: "failed", text: "Session expired" };
   return status.ready.status === "ok"
     ? { state: "ok", text: "All OK" }
     : { state: "failed", text: "Degraded" };

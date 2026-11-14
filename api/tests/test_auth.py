@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -397,3 +398,14 @@ async def test_docs_routes_follow_the_setting(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         for path in ("/docs", "/redoc", "/openapi.json"):
             assert (await c.get(path)).status_code == status
+
+
+@pytest.mark.anyio
+async def test_a_rejected_token_is_logged_with_the_reason_but_not_shown_to_the_client(
+    anon_client: httpx.AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO, logger="app.auth.service"):
+        response = await anon_client.get("/me", headers=bearer(mint(issuer="https://evil.test")))
+    assert response.status_code == 401
+    assert "issuer mismatch" in caplog.text
+    assert "issuer" not in response.text

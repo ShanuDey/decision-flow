@@ -4,7 +4,7 @@ WEB := pnpm --dir web
 STUDIO_PORT ?= 2024
 MLFLOW_UI_PORT ?= 5000
 
-.PHONY: start api auth-setup auth-token studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api auth-setup auth-token auth-migrate studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api test-api-fast typecheck-web build-web checks
 
@@ -17,6 +17,10 @@ api: auth-setup migrate
 
 auth-setup:
 	$(API) python -m scripts.auth_keys init
+
+# the web server also migrates at start unless AUTH_AUTO_MIGRATE=false
+auth-migrate:
+	$(WEB) exec node scripts/auth-migrate.mjs
 
 # usage: make auth-token [SUB=name]
 auth-token:

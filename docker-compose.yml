@@ -1,6 +1,6 @@
 # Deployment file (published image); copy it with a .env to a host or Dockge. Dev: docker-compose.dev.yml.
-# .env: POSTGRES_PASSWORD (required; letters and digits only, it goes into URLs) and AUTH_PROVIDERS (required; docs/auth.md).
-# Optional: POSTGRES_USER, POSTGRES_DB (default decisionflow), MLFLOW_TRACKING_URI, MLFLOW_SET_EXPERIMENT, APP_VERSION, WEB_URL, WEB_PORT, API_PORT.
+# .env: POSTGRES_PASSWORD (letters and digits only, it goes into URLs), AUTH_PROVIDERS, BETTER_AUTH_SECRET, AUTH_SIGNING_KEY (required; docs/auth.md); AUTH_METHODS to change the login methods.
+# Optional: POSTGRES_USER, POSTGRES_DB (default decisionflow), MLFLOW_TRACKING_URI, MLFLOW_SET_EXPERIMENT, APP_VERSION, WEB_URL, WEB_PORT. Only the web port is published; the API stays internal.
 services:
   db:
     image: postgres:17
@@ -28,9 +28,24 @@ services:
       AUTH_PROVIDERS: ${AUTH_PROVIDERS:?set AUTH_PROVIDERS, see docs/auth.md}
       AUTH_ALLOWED_EMAIL_DOMAINS: ${AUTH_ALLOWED_EMAIL_DOMAINS:-}
       API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET, see docs/auth.md}
+      BETTER_AUTH_URL: ${WEB_URL:-http://localhost:3000}
+      AUTH_SIGNING_KEY: ${AUTH_SIGNING_KEY:?set AUTH_SIGNING_KEY, see docs/auth.md}
+      AUTH_METHODS: ${AUTH_METHODS:-}
+      AUTH_ADMIN_EMAIL: ${AUTH_ADMIN_EMAIL:-}
+      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      # another method NAME in AUTH_METHODS needs NAME_CLIENT_ID and NAME_CLIENT_SECRET added here
+      API_URL: http://localhost:8000
+      AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-}
+      AUTH_IP_HEADER: ${AUTH_IP_HEADER:-}
+      AUTH_TRUSTED_PROXIES: ${AUTH_TRUSTED_PROXIES:-}
+      AUTH_AUTO_MIGRATE: ${AUTH_AUTO_MIGRATE:-true}
     ports:
       - "${WEB_PORT:-3000}:3000"
-      - "${API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy

@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 
 from app.auth.config import JwtProvider, ProviderConfig
@@ -12,6 +14,8 @@ from app.auth.verifiers import (
 from app.errors import ApiError
 
 HTTP_TIMEOUT_SECONDS = 5.0
+
+logger = logging.getLogger(__name__)
 
 
 def unauthenticated(message: str) -> ApiError:
@@ -48,7 +52,9 @@ class Authenticator:
         for name in candidates:
             try:
                 identity = await self._verifiers[name].verify(token)
-            except InvalidToken:
+            except InvalidToken as exc:
+                # Server-side only: a wrong issuer or audience is the usual deployment mistake.
+                logger.info("token rejected by provider %r: %s", name, exc)
                 continue
             except ProviderUnavailable:
                 unavailable = True

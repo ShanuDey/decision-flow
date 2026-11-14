@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
+import { serverApiInit } from "@/lib/auth/session";
 import { call } from "@/lib/call";
 import { getFlow } from "@/lib/api/client";
 import { parseDraft } from "@/lib/graph/convert";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Editor · Decision Flow" };
 
 export default async function EditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const result = await call(getFlow(id, { cache: "no-store" }));
+  const result = await call(getFlow(id, await serverApiInit()));
 
   if (!result.ok) {
     if (result.error.status === 404 || result.error.status === 422) notFound();
