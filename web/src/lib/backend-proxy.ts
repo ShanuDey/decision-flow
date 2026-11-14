@@ -1,4 +1,6 @@
 export const PROXY_PREFIX = "/backend";
+// Below the 60 s `maxDuration`: pages also spend time on the session lookup.
+export const API_TIMEOUT_MS = 45_000;
 
 const REQUEST_HEADERS = ["accept", "accept-language", "content-type", "if-match", "if-none-match"];
 const RESPONSE_HEADER_BLOCKLIST = [
@@ -56,6 +58,7 @@ export function apiInit(token: string, incoming: Headers, ipHeader: string): Req
   return {
     headers: { Authorization: `Bearer ${token}`, ...clientIpHeaders(incoming, ipHeader) },
     cache: "no-store",
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   };
 }
 

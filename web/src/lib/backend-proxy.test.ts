@@ -96,6 +96,10 @@ describe("apiInit", () => {
     });
   });
 
+  it("gives up before the platform kills the request", () => {
+    expect(apiInit("tok", new Headers(), "x-forwarded-for").signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("omits the visitor IP when the platform header is missing", () => {
     const incoming = new Headers({ "x-client-ip": "6.6.6.6" });
     expect(apiInit("tok", incoming, "x-forwarded-for").headers).toEqual({

@@ -1,4 +1,5 @@
 import {
+  API_TIMEOUT_MS,
   errorResponse,
   hasBody,
   isAllowedOrigin,
@@ -9,6 +10,8 @@ import {
 } from "@/lib/backend-proxy";
 import { getConfig } from "@/lib/auth/server";
 import { apiToken, currentSession } from "@/lib/auth/session";
+
+export const maxDuration = 60;
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -29,7 +32,7 @@ async function handle(request: Request, { params }: Context): Promise<Response> 
     method: request.method,
     headers: upstreamHeaders(request.headers, await apiToken(session.user), ipHeader),
     redirect: "manual",
-    signal: request.signal,
+    signal: AbortSignal.any([request.signal, AbortSignal.timeout(API_TIMEOUT_MS)]),
   };
   if (hasBody(request.method) && request.body) {
     init.body = request.body;

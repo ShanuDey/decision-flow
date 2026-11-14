@@ -10,6 +10,7 @@ import { currentSession } from "@/lib/auth/session";
 
 import { AuthShell } from "../auth-shell";
 import { LoginForm } from "./login-form";
+import { WarmUp } from "./warm-up";
 
 export const metadata: Metadata = { title: "Sign in · Decision Flow" };
 
@@ -39,6 +40,7 @@ export default async function LoginPage({
           {error}
         </p>
       )}
+      <WarmUp />
       <LoginForm methods={methods} next={next} />
     </AuthShell>
   );
