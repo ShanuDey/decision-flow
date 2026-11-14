@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
+    branches: [main, dev]
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +20,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require release tags to be on main
+        if: startsWith(github.ref, 'refs/tags/')
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
@@ -30,7 +36,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # tag v1.2.3: 1.2.3, 1.2, sha, latest (not for prereleases); manual: alpha on main, else <branch>
+      # dev: alpha, main: beta, tag v1.2.3 (on main): 1.2.3, 1.2, latest (no latest for prereleases); all: sha
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -41,8 +47,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-') }}
-            type=raw,value=alpha,enable=${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
-            type=ref,event=branch,enable=${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+            type=raw,value=alpha,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build image for scanning
         uses: docker/build-push-action@v7
