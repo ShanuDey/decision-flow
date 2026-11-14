@@ -22,6 +22,9 @@ class Limits(BaseSettings):
     max_concurrent_runs: int = Field(10, ge=0)
     max_concurrent_runs_per_workspace: int = Field(0, ge=0)
     run_timeout_seconds: int = Field(300, ge=0)
+    max_nodes: int = Field(50, ge=0)
+    max_edges: int = Field(100, ge=0)
+    max_flows_per_user: int = Field(20, ge=0)
     limit_notice: str = Field("", max_length=300)
     limit_notice_url: str = Field("", max_length=300)
 

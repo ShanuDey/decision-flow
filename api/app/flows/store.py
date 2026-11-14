@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -30,6 +30,16 @@ class FlowStore:
         await self.session.commit()
         await self.session.refresh(flow)
         return flow
+
+    async def count_flows(self, member: Member) -> int:
+        return (
+            await self.session.scalar(
+                select(func.count())
+                .select_from(Flow)
+                .where(Flow.workspace_id == member.workspace_id, Flow.created_by == member.user_id)
+            )
+            or 0
+        )
 
     async def list_flows(
         self, member: Member, q: str | None, sort: str, page: int, page_size: int
@@ -61,6 +71,16 @@ class FlowStore:
         flow = result.scalar_one_or_none()
         await self.session.commit()
         return flow
+
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID) -> bool:
+        result = await self.session.execute(
+            delete(Flow)
+            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
+            .returning(Flow.id)
+        )
+        deleted = result.scalar_one_or_none()
+        await self.session.commit()
+        return deleted is not None
 
     async def save_draft(
         self, member: Member, flow_id: uuid.UUID, draft: dict[str, Any], expected_version: int

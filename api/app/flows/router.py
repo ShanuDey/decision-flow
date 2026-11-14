@@ -17,19 +17,24 @@ from app.flows.schemas import (
     ValidateResponse,
 )
 from app.flows.store import FlowStore, get_store
+from app.limits import Limits, get_limits
 from app.workspaces.deps import CurrentMember
 
 router = APIRouter(tags=["flows"])
 Store = Annotated[FlowStore, Depends(get_store)]
+Lim = Annotated[Limits, Depends(get_limits)]
 
 NOT_FOUND = {404: {"model": ErrorResponse}}
+CONFLICT = {409: {"model": ErrorResponse}}
 INVALID = {422: {"model": ErrorResponse}}
 Sort = Literal["name", "-name", "created_at", "-created_at", "updated_at", "-updated_at"]
 
 
-@router.post("/flows", status_code=status.HTTP_201_CREATED)
-async def create_flow(body: FlowCreate, store: Store, member: CurrentMember) -> FlowDetail:
-    flow = await store.create_flow(member, body.name, body.draft or service.blank_draft())
+@router.post("/flows", status_code=status.HTTP_201_CREATED, responses=CONFLICT)
+async def create_flow(
+    body: FlowCreate, store: Store, member: CurrentMember, limits: Lim
+) -> FlowDetail:
+    flow = await service.create_flow(store, member, body.name, body.draft, limits)
     return FlowDetail.model_validate(flow, from_attributes=True)
 
 
@@ -65,6 +70,12 @@ async def rename_flow(
     return FlowSummary.model_validate(flow, from_attributes=True)
 
 
+@router.delete("/flows/{flow_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+async def delete_flow(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> None:
+    """Removes the flow and its runs for good."""
+    await service.delete_flow(store, member, flow_id)
+
+
 @router.put(
     "/flows/{flow_id}/draft",
     responses={
@@ -94,7 +105,7 @@ async def save_draft(
 
 @router.post("/flows/{flow_id}/validate", responses={**NOT_FOUND, **INVALID})
 async def validate_flow(
-    flow_id: uuid.UUID, store: Store, member: CurrentMember
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim
 ) -> ValidateResponse:
-    service.validate_draft(await service.require_flow(store, member, flow_id))
+    service.validate_draft(await service.require_flow(store, member, flow_id), limits)
     return ValidateResponse(valid=True)

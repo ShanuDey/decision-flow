@@ -101,6 +101,11 @@ export type createFlowResponse403 = {
   status: 403
 }
 
+export type createFlowResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
 export type createFlowResponse422 = {
   data: HTTPValidationError
   status: 422
@@ -109,7 +114,7 @@ export type createFlowResponse422 = {
 export type createFlowResponseSuccess = (createFlowResponse201) & {
   headers: Headers;
 };
-export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse422) & {
+export type createFlowResponseError = (createFlowResponse401 | createFlowResponse403 | createFlowResponse409 | createFlowResponse422) & {
   headers: Headers;
 };
 
@@ -148,6 +153,65 @@ return apiFetch<createFlowResponse>(getCreateFlowUrl(),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(flowCreate)
+  }
+);}
+
+
+
+export type deleteFlowResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type deleteFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type deleteFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteFlowResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteFlowResponseSuccess = (deleteFlowResponse204) & {
+  headers: Headers;
+};
+export type deleteFlowResponseError = (deleteFlowResponse401 | deleteFlowResponse403 | deleteFlowResponse404 | deleteFlowResponse422) & {
+  headers: Headers;
+};
+
+export type deleteFlowResponse = (deleteFlowResponseSuccess | deleteFlowResponseError)
+
+export const getDeleteFlowUrl = (flowId: string,) => {
+
+
+
+
+  return `/flows/${flowId}`
+}
+
+/**
+ * Removes the flow and its runs for good.
+ * @summary Delete Flow
+ */
+export const deleteFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteFlowResponse> => {
+
+  return apiFetch<deleteFlowResponse>(getDeleteFlowUrl(flowId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
   }
 );}
 

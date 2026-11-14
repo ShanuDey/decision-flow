@@ -57,6 +57,15 @@ class FakeFlowStore:
         self.flows[flow.id] = flow
         return flow
 
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID) -> bool:
+        return self._visible(member, flow_id) is not None and self.flows.pop(flow_id) is not None
+
+    async def count_flows(self, member: Member) -> int:
+        return sum(
+            f.workspace_id == member.workspace_id and f.created_by == member.user_id
+            for f in self.flows.values()
+        )
+
     async def list_flows(
         self, member: Member, q: str | None, sort: str, page: int, page_size: int
     ) -> tuple[list[Flow], int]:

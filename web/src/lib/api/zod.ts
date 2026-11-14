@@ -61,6 +61,17 @@ export const CreateFlowResponse = zod.object({
 
 
 /**
+ * Removes the flow and its runs for good.
+ * @summary Delete Flow
+ */
+export const DeleteFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const DeleteFlowResponse = zod.void()
+
+
+/**
  * @summary Get Flow
  */
 export const GetFlowParams = zod.object({

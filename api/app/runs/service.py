@@ -13,9 +13,9 @@ from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow
-from app.flows.service import invalid_flow
+from app.flows.service import invalid_flow, not_found
 from app.runs.models import Run
-from app.runs.store import RunStore
+from app.runs.store import FlowGone, RunStore
 from app.workspaces.schemas import Member
 
 
@@ -33,8 +33,10 @@ async def run_draft(
     payload: dict[str, Any],
     new_observer: ObserverFactory,
     timeout_seconds: float = 0,
+    max_nodes: int = 0,
+    max_edges: int = 0,
 ) -> Run:
-    graph, issues = parse_graph(flow.draft)
+    graph, issues = parse_graph(flow.draft, max_nodes, max_edges)
     if graph is None:
         raise invalid_flow(issues)
     observer = new_observer(flow.name)
@@ -48,20 +50,22 @@ async def run_draft(
             str(exc),
             {"field": first.field, "errors": [i.model_dump() for i in exc.issues]},
         ) from exc
-    return await store.add_run(
-        Run(
-            flow_id=flow.id,
-            workspace_id=member.workspace_id,
-            created_by=member.user_id,
-            status=result.status,
-            test=True,
-            input=payload,
-            output=result.output,
-            error=result.error.model_dump() if result.error else None,
-            duration_ms=result.duration_ms,
-            mlflow_trace_id=observer.trace_id,
-        )
+    run = Run(
+        flow_id=flow.id,
+        workspace_id=member.workspace_id,
+        created_by=member.user_id,
+        status=result.status,
+        test=True,
+        input=payload,
+        output=result.output,
+        error=result.error.model_dump() if result.error else None,
+        duration_ms=result.duration_ms,
+        mlflow_trace_id=observer.trace_id,
     )
+    try:
+        return await store.add_run(run)
+    except FlowGone:
+        raise not_found("Flow") from None
 
 
 def encode_cursor(run: Run) -> str:

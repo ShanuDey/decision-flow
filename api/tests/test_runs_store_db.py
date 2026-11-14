@@ -6,7 +6,7 @@ import pytest
 from app.flows.store import FlowStore
 from app.runs import service
 from app.runs.models import Run
-from app.runs.store import RunStore
+from app.runs.store import FlowGone, RunStore
 from app.workspaces.schemas import Member
 from tests.db_fixtures import SessionFactory, anyio_backend, make_member  # noqa: F401
 
@@ -178,3 +178,30 @@ async def test_another_workspace_sees_no_runs(sessions: SessionFactory) -> None:
         assert await store.get_run(outsider, saved.id) is None
         assert (await page(store, outsider))[0] == []
         assert len((await page(store, owner))[0]) == 1
+
+
+async def test_deleting_a_flow_removes_its_runs_and_only_its_own(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    gone, kept = await flow_id(sessions, member), await flow_id(sessions, member)
+    async with sessions() as session:
+        runs = RunStore(session)
+        doomed = await runs.add_run(run(gone, member))
+        survivor = await runs.add_run(run(kept, member))
+
+    async with sessions() as session:
+        assert await FlowStore(session).delete_flow(member, gone) is True
+
+    async with sessions() as session:
+        runs = RunStore(session)
+        assert await runs.get_run(member, doomed.id) is None
+        assert await runs.get_run(member, survivor.id) is not None
+
+
+async def test_a_run_for_a_deleted_flow_raises_flow_gone(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    flow = await flow_id(sessions, member)
+    async with sessions() as session:
+        await FlowStore(session).delete_flow(member, flow)
+    async with sessions() as session:
+        with pytest.raises(FlowGone):
+            await RunStore(session).add_run(run(flow, member))

@@ -19,8 +19,8 @@ import { ListFlowsSort } from "@/lib/api/models";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { FlowRowMenu } from "./flow-row-menu";
 import { NewFlowButton } from "./new-flow-button";
-import { RenameFlowButton } from "./rename-flow-button";
 
 export const metadata: Metadata = { title: "Flows · Decision Flow" };
 
@@ -138,7 +138,7 @@ export default async function FlowsPage({
                       {formatDateTime(flow.updated_at)}
                     </TableCell>
                     <TableCell className="w-12 text-right">
-                      <RenameFlowButton id={flow.id} name={flow.name} />
+                      <FlowRowMenu id={flow.id} name={flow.name} />
                     </TableCell>
                   </TableRow>
                 ))}

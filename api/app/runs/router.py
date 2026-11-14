@@ -60,7 +60,14 @@ async def create_run(
         raise ApiError(422, "not_published", "Flow has no published version; run with test=true")
     async with slots.hold(member.workspace_id):
         run = await service.run_draft(
-            runs, member, flow, body.input, new_observer, limits.run_timeout_seconds
+            runs,
+            member,
+            flow,
+            body.input,
+            new_observer,
+            timeout_seconds=limits.run_timeout_seconds,
+            max_nodes=limits.max_nodes,
+            max_edges=limits.max_edges,
         )
     return _run_response(run)
 
