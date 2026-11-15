@@ -35,6 +35,10 @@ export default defineConfig({
       ],
       sidebar: [
         {
+          label: "Start here",
+          items: ["overview", "getting-started"],
+        },
+        {
           label: "Concepts",
           items: [
             "concepts/variables",
