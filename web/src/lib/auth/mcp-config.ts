@@ -1,9 +1,18 @@
-import { ACTIONS } from "./scopes";
+import type { CreateKeyBody } from "./key-request";
+import { ACTIONS, type Action } from "./scopes";
 
 export const MCP_SERVER_NAME = "decision-flow";
 
-// What "Connect an AI agent" creates: full access, so a first try never hits a missing scope.
-export const AGENT_KEY = { name: "AI agent", actions: [...ACTIONS], expiresInDays: 30 } as const;
+export const DEFAULT_AGENT_NAME = "AI agent";
+
+export const DEFAULT_AGENT_EXPIRY = "30";
+
+// Defaults to full access, so a first try never hits a missing scope.
+export const agentKey = (
+  name: string,
+  actions: readonly Action[] = ACTIONS,
+  expiresInDays: CreateKeyBody["expiresInDays"] = 30,
+): CreateKeyBody => ({ name, actions: [...actions], expiresInDays });
 
 export const mcpUrl = (origin: string): string => `${origin.replace(/\/+$/, "")}/mcp`;
 

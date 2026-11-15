@@ -14,4 +14,5 @@
   - [Traces](traces.md)
 - Operations
   - [Authentication](auth.md)
+  - [Connect an AI agent](mcp.md)
   - [Limits](limits.md)

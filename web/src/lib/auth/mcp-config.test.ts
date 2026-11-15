@@ -1,19 +1,31 @@
 import { describe, expect, it } from "vitest";
 
 import { createKeyBody } from "./key-request";
-import { AGENT_KEY, claudeCodeCommand, jsonConfig, mcpUrl } from "./mcp-config";
+import { agentKey, claudeCodeCommand, DEFAULT_AGENT_NAME, jsonConfig, mcpUrl } from "./mcp-config";
 import { ACTIONS } from "./scopes";
 
 const KEY = `df_live_${"c".repeat(64)}`;
 
-describe("AGENT_KEY", () => {
+describe("agentKey", () => {
   it("is a body the key route accepts", () => {
-    expect(createKeyBody.safeParse(AGENT_KEY).success).toBe(true);
+    expect(createKeyBody.safeParse(agentKey(DEFAULT_AGENT_NAME)).success).toBe(true);
   });
 
-  it("holds every scope and expires", () => {
-    expect([...AGENT_KEY.actions]).toEqual([...ACTIONS]);
-    expect(AGENT_KEY.expiresInDays).toBe(30);
+  it("uses the given name", () => {
+    expect(agentKey("Cursor on laptop").name).toBe("Cursor on laptop");
+  });
+
+  it("takes custom scopes and expiry", () => {
+    const key = agentKey("Reader", ["read"], null);
+    expect(key.actions).toEqual(["read"]);
+    expect(key.expiresInDays).toBeNull();
+    expect(createKeyBody.safeParse(key).success).toBe(true);
+  });
+
+  it("holds every scope and expires by default", () => {
+    const key = agentKey(DEFAULT_AGENT_NAME);
+    expect([...key.actions]).toEqual([...ACTIONS]);
+    expect(key.expiresInDays).toBe(30);
   });
 });
 

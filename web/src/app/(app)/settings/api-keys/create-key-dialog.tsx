@@ -27,13 +27,13 @@ import {
 } from "@/lib/auth/key-request";
 import { ACTIONS, type Action } from "@/lib/auth/scopes";
 
-const SCOPES: Record<Action, { title: string; hint: string }> = {
+export const SCOPES: Record<Action, { title: string; hint: string }> = {
   read: { title: "Read", hint: "List and view flows and runs" },
   write: { title: "Write", hint: "Create, edit, publish and delete flows" },
   run: { title: "Run", hint: "Run flows" },
 };
 
-const EXPIRY_CHOICES = EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }));
+export const EXPIRY_CHOICES =EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }));
 
 export function CreateKeyDialog({ atLimit }: { atLimit: boolean }) {
   const router = useRouter();
