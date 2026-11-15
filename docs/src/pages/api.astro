@@ -55,20 +55,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   const el = document.getElementById("api")!;
   const isDark = () => document.documentElement.dataset.theme === "dark";
-  const config = () =>
-    ({
-      url: el.dataset.spec,
-      servers: [{ url: el.dataset.server! }],
-      darkMode: isDark(),
-      forceDarkModeState: isDark() ? "dark" : "light",
-      hideDarkModeToggle: true,
-      hideClientButton: true,
-      showDeveloperTools: "never",
-      agent: { disabled: true },
-      mcp: { disabled: true },
-      telemetry: false,
-      layout: "modern",
-    }) as const;
+  type Config = Parameters<ReturnType<typeof createApiReference>["updateConfiguration"]>[0];
+  const config = (): Config => ({
+    url: el.dataset.spec,
+    servers: [{ url: el.dataset.server! }],
+    darkMode: isDark(),
+    forceDarkModeState: isDark() ? "dark" : "light",
+    hideDarkModeToggle: true,
+    hideClientButton: true,
+    showDeveloperTools: "never",
+    agent: { disabled: true },
+    mcp: { disabled: true },
+    telemetry: false,
+    layout: "modern",
+  });
   const app = createApiReference(el, config());
   new MutationObserver(() => {
     app.updateConfiguration(config());
