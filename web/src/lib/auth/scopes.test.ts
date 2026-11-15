@@ -29,6 +29,7 @@ describe("hasAction", () => {
 describe("requiredAction", () => {
   it.each([
     ["GET", "/flows", "read"],
+    ["GET", "/flow-format", "read"],
     ["GET", "/flows/abc", "read"],
     ["GET", "/flows/abc/versions/3", "read"],
     ["POST", "/flows/abc/validate", "read"],

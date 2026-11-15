@@ -9,9 +9,12 @@ from app.engine.runtime import RunError
 
 
 class RunRequest(FrozenBaseModel):
-    input: dict[str, Any] = Field(default_factory=dict)
-    # true runs the draft; false runs the latest published version.
-    test: bool = False
+    input: dict[str, Any] = Field(
+        default_factory=dict, description="Values for the flow's Start inputs, as an object."
+    )
+    test: bool = Field(
+        False, description="true runs the current draft; false runs the latest published version."
+    )
 
 
 class RunResponse(FrozenBaseModel):

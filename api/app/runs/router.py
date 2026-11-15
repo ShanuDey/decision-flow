@@ -95,7 +95,11 @@ async def create_run(
     slots: Annotated[RunSlots, Depends(get_run_slots)],
     limits: Annotated[Limits, Depends(get_limits)],
 ) -> RunResponse:
-    """Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429."""
+    """Runs a flow inline: the latest published version, or the current draft with `test: true`.
+
+    422 `not_published` if there is no published version. A failure or timeout is a 200 with status
+    `failed`; bad input is 422; too many runs, 429.
+    """
     flow = await flows_service.require_flow(flows, member, flow_id)
     version = None
     if not body.test:
@@ -154,6 +158,10 @@ async def list_runs(
 async def get_run(
     run_id: uuid.UUID, member: CurrentMember, runs: Annotated[RunStore, Depends(get_run_store)]
 ) -> RunDetail:
+    """Returns one run with its input, output and error.
+
+    `get_run_steps` has the step-by-step trace.
+    """
     run = await runs.get_run(member, run_id)
     if run is None:
         raise flows_service.not_found("Run")

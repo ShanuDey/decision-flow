@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 
 export const WAKING_TEXT =
-  "Starting the server. The free plan puts it to sleep when idle, so the first load can take up to a minute. This page opens by itself.";
+  "Starting the server. The free plan puts it to sleep when idle, so the first load can take a few minutes. This page opens by itself.";
 
 // Hidden for 3 s by CSS alone (see globals.css), so quick loads never show it.
 export function WakingNotice() {

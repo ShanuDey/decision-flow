@@ -3,11 +3,12 @@ import { getConfig } from "./auth/server";
 import { apiToken } from "./auth/session";
 import {
   API_TIMEOUT_MS,
-  errorResponse,
   hasBody,
   responseHeaders,
   upstreamHeaders,
+  upstreamUnavailable,
 } from "./backend-proxy";
+import { wakeApi } from "./wake";
 
 export interface ApiCall {
   method: string;
@@ -37,7 +38,8 @@ export async function forwardToApi(call: ApiCall, user: TokenUser): Promise<Resp
   try {
     upstream = await fetch(`${apiUrl}${call.path}${call.search ?? ""}`, init);
   } catch {
-    return errorResponse(502, "upstream_unavailable", "The service is unavailable");
+    wakeApi();
+    return upstreamUnavailable();
   }
   const empty = upstream.status === 204 || upstream.status === 304;
   return new Response(empty ? null : upstream.body, {

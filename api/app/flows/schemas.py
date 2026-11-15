@@ -57,6 +57,20 @@ class FlowList(FrozenBaseModel):
     page_size: int
 
 
+class FlowFormatExample(FrozenBaseModel):
+    id: str
+    title: str
+    summary: str
+    draft: dict[str, Any]
+
+
+class FlowFormat(FrozenBaseModel):
+    guide: str
+    node_types: list[str]
+    graph_schema: dict[str, Any]
+    examples: list[FlowFormatExample]
+
+
 class DraftSaved(FrozenBaseModel):
     draft_version: int
 

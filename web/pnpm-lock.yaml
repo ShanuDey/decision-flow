@@ -187,6 +187,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.15
         version: 6.43.15
+      '@modelcontextprotocol/server':
+        specifier: 2.4.0
+        version: 2.4.0
       '@scalar/api-reference-react':
         specifier: ^0.9.90
         version: 0.9.90(@oxc-project/types@0.156.0)(esbuild@0.28.2)(lightningcss@1.33.0)(react@19.3.0)(rolldown@1.2.16)(supports-color@7.2.0)(tailwindcss@4.3.5)(typescript@5.9.3)(vite@8.3.6(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(zod@4.6.7)

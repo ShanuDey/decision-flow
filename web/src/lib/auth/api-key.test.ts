@@ -1,9 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// The server module reads env on first use; these helpers never touch it.
-vi.mock("./server", () => ({ getAuth: vi.fn(), getRuntime: vi.fn() }));
+// The server module reads env on first use; the helpers never touch it, and authenticateKey gets fakes.
+const verifyApiKey = vi.fn();
+const query = vi.fn();
+vi.mock("./server", () => ({
+  getAuth: () => ({ api: { verifyApiKey } }),
+  getRuntime: () => ({ pool: { query } }),
+}));
 
-import { bearerKey, failureResponse, judge, type VerifyResult } from "./api-key";
+import {
+  authenticateKey,
+  bearerKey,
+  failureResponse,
+  judge,
+  requireAction,
+  type VerifyResult,
+} from "./api-key";
 
 const KEY = `df_live_${"a".repeat(64)}`;
 const headers = (authorization?: string) =>
@@ -40,18 +52,19 @@ describe("bearerKey", () => {
 });
 
 describe("judge", () => {
-  it("accepts a key that holds the action", () => {
-    expect(judge(valid(["read", "run"]), "run")).toEqual({ ok: true, userId: "user-1" });
+  it("returns the owner and the actions the key holds, in canonical order", () => {
+    expect(judge(valid(["run", "read"]))).toEqual({
+      ok: true,
+      userId: "user-1",
+      actions: ["read", "run"],
+    });
   });
 
-  it("refuses a missing scope with 403 and does not treat write as read", () => {
-    expect(judge(valid(["write"]), "read")).toMatchObject({
-      ok: false,
-      status: 403,
-      code: "insufficient_scope",
-    });
-    expect(judge({ valid: true, error: null, key: { referenceId: "u" } }, "read")).toMatchObject({
-      status: 403,
+  it("gives a key with no permissions no actions", () => {
+    expect(judge({ valid: true, error: null, key: { referenceId: "u" } })).toEqual({
+      ok: true,
+      userId: "u",
+      actions: [],
     });
   });
 
@@ -62,18 +75,18 @@ describe("judge", () => {
     ["KEY_EXPIRED", "key_expired"],
     ["KEY_DISABLED", "key_revoked"],
   ])("maps %s to 401 %s", (plugin, code) => {
-    expect(judge(invalid(plugin), "read")).toMatchObject({ ok: false, status: 401, code });
+    expect(judge(invalid(plugin))).toMatchObject({ ok: false, status: 401, code });
   });
 
   it("treats a valid result without a key as invalid", () => {
-    expect(judge({ valid: true, error: null, key: null }, "read")).toMatchObject({
+    expect(judge({ valid: true, error: null, key: null })).toMatchObject({
       status: 401,
       code: "invalid_key",
     });
   });
 
   it("maps rate limiting to 429 and rounds tryAgainIn up to seconds", () => {
-    expect(judge(invalid("RATE_LIMITED", { tryAgainIn: 2500 }), "read")).toMatchObject({
+    expect(judge(invalid("RATE_LIMITED", { tryAgainIn: 2500 }))).toMatchObject({
       status: 429,
       code: "rate_limited",
       retryAfter: 3,
@@ -81,10 +94,66 @@ describe("judge", () => {
   });
 
   it("falls back to 60 seconds when the wait is unknown", () => {
-    expect(judge(invalid("RATE_LIMITED"), "read")).toMatchObject({ retryAfter: 60 });
-    expect(judge(invalid("RATE_LIMITED", { tryAgainIn: "soon" }), "read")).toMatchObject({
+    expect(judge(invalid("RATE_LIMITED"))).toMatchObject({ retryAfter: 60 });
+    expect(judge(invalid("RATE_LIMITED", { tryAgainIn: "soon" }))).toMatchObject({
       retryAfter: 60,
     });
+  });
+});
+
+describe("requireAction", () => {
+  it("allows an action the key holds", () => {
+    expect(requireAction(["read", "run"], "run")).toBeNull();
+  });
+
+  it("refuses a missing action with 403 and does not treat write as read", () => {
+    expect(requireAction(["write"], "read")).toMatchObject({
+      ok: false,
+      status: 403,
+      code: "insufficient_scope",
+      message: 'This key does not have the "read" scope',
+    });
+    expect(requireAction([], "run")).toMatchObject({ status: 403 });
+  });
+});
+
+describe("authenticateKey", () => {
+  beforeEach(() => {
+    verifyApiKey.mockReset();
+    query.mockReset();
+  });
+
+  it("verifies once and returns the user and the key's actions", async () => {
+    verifyApiKey.mockResolvedValue(valid(["read", "write"]));
+    query.mockResolvedValue({ rows: [{ id: "user-1", email: "a@acme.com", name: "Alex" }] });
+
+    const result = await authenticateKey(headers(`Bearer ${KEY}`));
+
+    expect(result).toEqual({
+      ok: true,
+      user: { id: "user-1", email: "a@acme.com", name: "Alex" },
+      actions: ["read", "write"],
+    });
+    expect(verifyApiKey).toHaveBeenCalledTimes(1);
+    expect(verifyApiKey).toHaveBeenCalledWith({ body: { key: KEY } });
+  });
+
+  it("does not look anything up without a key", async () => {
+    expect(await authenticateKey(headers())).toMatchObject({ ok: false, status: 401, code: "missing_key" });
+    expect(await authenticateKey(headers("Bearer aaa.bbb.ccc"))).toMatchObject({ code: "missing_key" });
+    expect(verifyApiKey).not.toHaveBeenCalled();
+  });
+
+  it("passes a plugin refusal through", async () => {
+    verifyApiKey.mockResolvedValue(invalid("KEY_EXPIRED"));
+    expect(await authenticateKey(headers(`Bearer ${KEY}`))).toMatchObject({ code: "key_expired" });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("refuses a key whose owner no longer exists", async () => {
+    verifyApiKey.mockResolvedValue(valid(["read"]));
+    query.mockResolvedValue({ rows: [] });
+    expect(await authenticateKey(headers(`Bearer ${KEY}`))).toMatchObject({ status: 401, code: "invalid_key" });
   });
 });
 

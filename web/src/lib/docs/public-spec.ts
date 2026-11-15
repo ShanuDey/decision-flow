@@ -56,6 +56,18 @@ function usedSchemas(paths: OpenApiDoc["paths"], all: Record<string, unknown>) {
   );
 }
 
+// The API answers 428 without these, though it declares them optional so it can say so itself.
+const REQUIRED_PARAMS: Record<string, string[]> = { save_draft: ["if-match"] };
+
+function requireParams(operation: Operation): Operation {
+  const names = REQUIRED_PARAMS[String(operation.operationId)];
+  if (!names || !Array.isArray(operation.parameters)) return operation;
+  const parameters = (operation.parameters as { name: string }[]).map((param) =>
+    names.includes(param.name.toLowerCase()) ? { ...param, required: true } : param,
+  );
+  return { ...operation, parameters };
+}
+
 function triggerOperation(runs: Operation): Operation {
   return {
     ...runs,
@@ -86,7 +98,7 @@ export function buildPublicSpec(full: OpenApiDoc): OpenApiDoc {
     const source =
       template === TRIGGER ? full.paths[RUNS]?.post : full.paths[template]?.[verb];
     if (!source) throw new Error(`${method} ${template} is missing from the API spec`);
-    const operation = template === TRIGGER ? triggerOperation(source) : { ...source };
+    const operation = requireParams(template === TRIGGER ? triggerOperation(source) : { ...source });
     const scope = `Requires the \`${action}\` scope.`;
     operation.description = operation.description ? `${operation.description}\n\n${scope}` : scope;
     (paths[template] ??= {})[verb] = operation;

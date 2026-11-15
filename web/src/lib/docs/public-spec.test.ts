@@ -53,6 +53,34 @@ describe("buildPublicSpec", () => {
     expect(kept.length).toBeLessThan(Object.keys(full.components.schemas).length);
   });
 
+  it("requires If-Match when saving a draft", () => {
+    const save = spec.paths["/flows/{flow_id}/draft"].put as {
+      parameters: { name: string; required?: boolean; description?: string }[];
+    };
+    const header = save.parameters.find((p) => p.name.toLowerCase() === "if-match");
+    expect(header?.required).toBe(true);
+    expect(header?.description).toContain("draft_version");
+  });
+
+  it("only changes the parameters it means to", () => {
+    const list = spec.paths["/flows"].get as { parameters: { required?: boolean }[] };
+    expect(list.parameters.every((p) => p.required !== true)).toBe(true);
+  });
+
+  it("describes every operation beyond its scope note", () => {
+    for (const { method, template } of GATEWAY_ROUTES) {
+      const operation = spec.paths[template][method.toLowerCase()];
+      const own = (operation.description ?? "").split("Requires the")[0].trim();
+      expect(own.length, `${method} ${template}`).toBeGreaterThan(20);
+    }
+  });
+
+  it("explains the test flag on runs", () => {
+    const run = spec.components.schemas.RunRequest as { properties: { test: { description?: string } } };
+    expect(run.properties.test.description).toContain("draft");
+    expect(run.properties.test.description).toContain("published");
+  });
+
   it("serves relative to the gateway with bearer auth", () => {
     expect(spec.servers).toEqual([{ url: "/api/v1" }]);
     expect(spec.components.securitySchemes).toHaveProperty("HTTPBearer");

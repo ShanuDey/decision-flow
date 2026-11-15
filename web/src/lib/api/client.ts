@@ -12,6 +12,7 @@ import type {
   EvaluateResponse,
   FlowCreate,
   FlowDetail,
+  FlowFormat,
   FlowList,
   FlowRename,
   FlowSummary,
@@ -161,6 +162,62 @@ return apiFetch<evaluateExpressionResponse>(getEvaluateExpressionUrl(),
 
 
 
+export type getFlowFormatResponse200 = {
+  data: FlowFormat
+  status: 200
+}
+
+export type getFlowFormatResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getFlowFormatResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getFlowFormatResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getFlowFormatResponseSuccess = (getFlowFormatResponse200) & {
+  headers: Headers;
+};
+export type getFlowFormatResponseError = (getFlowFormatResponse401 | getFlowFormatResponse403 | getFlowFormatResponse429) & {
+  headers: Headers;
+};
+
+export type getFlowFormatResponse = (getFlowFormatResponseSuccess | getFlowFormatResponseError)
+
+export const getGetFlowFormatUrl = () => {
+
+
+
+
+  return `/flow-format`
+}
+
+/**
+ * Explains how a flow graph is written: a guide, the JSON Schema and worked examples.
+ *
+ * Read it before saving a draft.
+ * @summary Get Flow Format
+ */
+export const getFlowFormat = async ( options?: Parameters<typeof apiFetch>[1]): Promise<getFlowFormatResponse> => {
+
+  return apiFetch<getFlowFormatResponse>(getGetFlowFormatUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export type listFlowsResponse200 = {
   data: FlowList
   status: 200
@@ -211,6 +268,9 @@ export const getListFlowsUrl = (params?: ListFlowsParams,) => {
 }
 
 /**
+ * Lists your flows, most recently edited first.
+ *
+ * `q` filters by name; `published_version` is null until a flow is published.
  * @summary List Flows
  */
 export const listFlows = async (params?: ListFlowsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listFlowsResponse> => {
@@ -274,6 +334,9 @@ export const getCreateFlowUrl = () => {
 }
 
 /**
+ * Creates a flow. Without `draft` it starts as a blank Start to End graph.
+ *
+ * It has no published version yet.
  * @summary Create Flow
  */
 export const createFlow = async (flowCreate: FlowCreate, options?: Parameters<typeof apiFetch>[1]): Promise<createFlowResponse> => {
@@ -415,6 +478,9 @@ export const getGetFlowUrl = (flowId: string,) => {
 }
 
 /**
+ * Returns a flow with its current draft graph and `draft_version`.
+ *
+ * Saving the draft needs that `draft_version` as `If-Match`.
  * @summary Get Flow
  */
 export const getFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getFlowResponse> => {
@@ -478,6 +544,7 @@ export const getRenameFlowUrl = (flowId: string,) => {
 }
 
 /**
+ * Renames a flow. Its draft and history are not affected.
  * @summary Rename Flow
  */
 export const renameFlow = async (flowId: string,
@@ -571,6 +638,9 @@ export const getSaveDraftUrl = (flowId: string,) => {
 }
 
 /**
+ * Replaces the whole draft graph.
+ *
+ * Send the `draft_version` you last read as `If-Match`; a stale value is 409 `draft_conflict`.
  * Saves even an invalid graph (autosave); problems are reported by `validate_flow`.
  * @summary Save Draft
  */
@@ -656,6 +726,8 @@ export const getPublishFlowUrl = (flowId: string,) => {
 
 /**
  * Validates the draft, then freezes it as the next numbered version.
+ *
+ * 409 `nothing_to_publish` if the draft has not changed since the last version.
  * @summary Publish Flow
  */
 export const publishFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<publishFlowResponse> => {
@@ -719,7 +791,10 @@ export const getCreateRunUrl = (flowId: string,) => {
 }
 
 /**
- * Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429.
+ * Runs a flow inline: the latest published version, or the current draft with `test: true`.
+ *
+ * 422 `not_published` if there is no published version. A failure or timeout is a 200 with status
+ * `failed`; bad input is 422; too many runs, 429.
  * @summary Create Run
  */
 export const createRun = async (flowId: string,
@@ -798,6 +873,10 @@ export const getValidateFlowUrl = (flowId: string,) => {
 }
 
 /**
+ * Checks the saved draft without publishing it.
+ *
+ * Returns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`
+ * and `field`.
  * @summary Validate Flow
  */
 export const validateFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<validateFlowResponse> => {
@@ -861,6 +940,9 @@ export const getListVersionsUrl = (flowId: string,) => {
 }
 
 /**
+ * Lists a flow's published versions, newest first.
+ *
+ * `keep_latest` is how many are retained.
  * @summary List Versions
  */
 export const listVersions = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<listVersionsResponse> => {
@@ -925,6 +1007,7 @@ export const getGetVersionUrl = (flowId: string,
 }
 
 /**
+ * Returns one published version with its frozen graph.
  * @summary Get Version
  */
 export const getVersion = async (flowId: string,
@@ -1195,6 +1278,9 @@ export const getGetRunUrl = (runId: string,) => {
 }
 
 /**
+ * Returns one run with its input, output and error.
+ *
+ * `get_run_steps` has the step-by-step trace.
  * @summary Get Run
  */
 export const getRun = async (runId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getRunResponse> => {

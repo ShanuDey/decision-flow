@@ -29,6 +29,7 @@ const route = (method: string, template: string, action: Action) => ({
 // Default deny: a route not listed here is unreachable with a key. Param names match the API spec.
 export const GATEWAY_ROUTES = [
   route("GET", "/flows", "read"),
+  route("GET", "/flow-format", "read"),
   route("GET", "/flows/{flow_id}", "read"),
   route("GET", "/flows/{flow_id}/versions", "read"),
   route("GET", "/flows/{flow_id}/versions/{version}", "read"),

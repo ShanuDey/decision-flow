@@ -241,6 +241,72 @@
         "title": "FlowDetail",
         "type": "object"
       },
+      "FlowFormat": {
+        "additionalProperties": false,
+        "properties": {
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/FlowFormatExample"
+            },
+            "title": "Examples",
+            "type": "array"
+          },
+          "graph_schema": {
+            "additionalProperties": true,
+            "title": "Graph Schema",
+            "type": "object"
+          },
+          "guide": {
+            "title": "Guide",
+            "type": "string"
+          },
+          "node_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Types",
+            "type": "array"
+          }
+        },
+        "required": [
+          "guide",
+          "node_types",
+          "graph_schema",
+          "examples"
+        ],
+        "title": "FlowFormat",
+        "type": "object"
+      },
+      "FlowFormatExample": {
+        "additionalProperties": false,
+        "properties": {
+          "draft": {
+            "additionalProperties": true,
+            "title": "Draft",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "draft"
+        ],
+        "title": "FlowFormatExample",
+        "type": "object"
+      },
       "FlowList": {
         "additionalProperties": false,
         "properties": {
@@ -611,11 +677,13 @@
         "properties": {
           "input": {
             "additionalProperties": true,
+            "description": "Values for the flow's Start inputs, as an object.",
             "title": "Input",
             "type": "object"
           },
           "test": {
             "default": false,
+            "description": "true runs the current draft; false runs the latest published version.",
             "title": "Test",
             "type": "boolean"
           }
@@ -1257,8 +1325,66 @@
         ]
       }
     },
+    "/flow-format": {
+      "get": {
+        "description": "Explains how a flow graph is written: a guide, the JSON Schema and worked examples.\n\nRead it before saving a draft.",
+        "operationId": "get_flow_format",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowFormat"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Flow Format",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
     "/flows": {
       "get": {
+        "description": "Lists your flows, most recently edited first.\n\n`q` filters by name; `published_version` is null until a flow is published.",
         "operationId": "list_flows",
         "parameters": [
           {
@@ -1382,6 +1508,7 @@
         ]
       },
       "post": {
+        "description": "Creates a flow. Without `draft` it starts as a blank Start to End graph.\n\nIt has no published version yet.",
         "operationId": "create_flow",
         "requestBody": {
           "content": {
@@ -1548,6 +1675,7 @@
         ]
       },
       "get": {
+        "description": "Returns a flow with its current draft graph and `draft_version`.\n\nSaving the draft needs that `draft_version` as `If-Match`.",
         "operationId": "get_flow",
         "parameters": [
           {
@@ -1634,6 +1762,7 @@
         ]
       },
       "patch": {
+        "description": "Renames a flow. Its draft and history are not affected.",
         "operationId": "rename_flow",
         "parameters": [
           {
@@ -1732,7 +1861,7 @@
     },
     "/flows/{flow_id}/draft": {
       "put": {
-        "description": "Saves even an invalid graph (autosave); problems are reported by `validate_flow`.",
+        "description": "Replaces the whole draft graph.\n\nSend the `draft_version` you last read as `If-Match`; a stale value is 409 `draft_conflict`.\nSaves even an invalid graph (autosave); problems are reported by `validate_flow`.",
         "operationId": "save_draft",
         "parameters": [
           {
@@ -1746,6 +1875,7 @@
             }
           },
           {
+            "description": "Required: the `draft_version` you last read (from the flow).",
             "in": "header",
             "name": "if-match",
             "required": false,
@@ -1758,6 +1888,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Required: the `draft_version` you last read (from the flow).",
               "title": "If-Match"
             }
           }
@@ -1879,7 +2010,7 @@
     },
     "/flows/{flow_id}/publish": {
       "post": {
-        "description": "Validates the draft, then freezes it as the next numbered version.",
+        "description": "Validates the draft, then freezes it as the next numbered version.\n\n409 `nothing_to_publish` if the draft has not changed since the last version.",
         "operationId": "publish_flow",
         "parameters": [
           {
@@ -1978,7 +2109,7 @@
     },
     "/flows/{flow_id}/runs": {
       "post": {
-        "description": "Runs inline. A failure or timeout is a 200 \"failed\"; bad input is 422; too many runs, 429.",
+        "description": "Runs a flow inline: the latest published version, or the current draft with `test: true`.\n\n422 `not_published` if there is no published version. A failure or timeout is a 200 with status\n`failed`; bad input is 422; too many runs, 429.",
         "operationId": "create_run",
         "parameters": [
           {
@@ -2077,6 +2208,7 @@
     },
     "/flows/{flow_id}/validate": {
       "post": {
+        "description": "Checks the saved draft without publishing it.\n\nReturns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`\nand `field`.",
         "operationId": "validate_flow",
         "parameters": [
           {
@@ -2165,6 +2297,7 @@
     },
     "/flows/{flow_id}/versions": {
       "get": {
+        "description": "Lists a flow's published versions, newest first.\n\n`keep_latest` is how many are retained.",
         "operationId": "list_versions",
         "parameters": [
           {
@@ -2253,6 +2386,7 @@
     },
     "/flows/{flow_id}/versions/{version}": {
       "get": {
+        "description": "Returns one published version with its frozen graph.",
         "operationId": "get_version",
         "parameters": [
           {
@@ -2655,6 +2789,7 @@
     },
     "/runs/{run_id}": {
       "get": {
+        "description": "Returns one run with its input, output and error.\n\n`get_run_steps` has the step-by-step trace.",
         "operationId": "get_run",
         "parameters": [
           {

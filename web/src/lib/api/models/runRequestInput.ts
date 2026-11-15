@@ -5,4 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Values for the flow's Start inputs, as an object.
+ */
 export type RunRequestInput = { [key: string]: unknown };

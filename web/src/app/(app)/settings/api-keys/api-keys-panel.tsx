@@ -14,6 +14,7 @@ import {
 import { formatKeyDate, keyStatus, MAX_KEYS } from "@/lib/auth/key-request";
 import type { Action } from "@/lib/auth/scopes";
 
+import { ConnectAgentDialog } from "./connect-agent-dialog";
 import { CreateKeyDialog } from "./create-key-dialog";
 import { RevokeKeyDialog } from "./revoke-key-dialog";
 
@@ -43,7 +44,10 @@ export function ApiKeysPanel({ rows }: { rows: KeyRow[] }) {
             </Link>
           </p>
         </div>
-        <CreateKeyDialog atLimit={rows.length >= MAX_KEYS} />
+        <div className="flex flex-wrap gap-2">
+          <ConnectAgentDialog atLimit={rows.length >= MAX_KEYS} />
+          <CreateKeyDialog atLimit={rows.length >= MAX_KEYS} />
+        </div>
       </div>
 
       {rows.length === 0 ? (

@@ -67,7 +67,7 @@ export function isUnreachable(error: ApiFailure): boolean {
 }
 
 export const UNREACHABLE_MESSAGE =
-  "The server is starting up (the free plan sleeps when idle). Try again in a few seconds.";
+  "The server is starting up (the free plan sleeps when idle, so it can take a few minutes). Try again shortly.";
 
 export interface FieldIssue {
   code: string;

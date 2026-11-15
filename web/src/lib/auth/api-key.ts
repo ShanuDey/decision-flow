@@ -1,5 +1,6 @@
 import type { TokenUser } from "./api-token";
-import { type Action, hasAction, KEY_PREFIX, type Permissions } from "./scopes";
+import { actionsOf } from "./key-request";
+import { type Action, KEY_PREFIX, type Permissions } from "./scopes";
 import { getAuth, getRuntime } from "./server";
 
 export interface KeyFailure {
@@ -10,7 +11,12 @@ export interface KeyFailure {
   retryAfter?: number;
 }
 
-export type KeyAuth = { ok: true; user: TokenUser } | KeyFailure;
+export interface KeyIdentity {
+  user: TokenUser;
+  actions: Action[];
+}
+
+export type KeyAuth = ({ ok: true } & KeyIdentity) | KeyFailure;
 
 export interface VerifyResult {
   valid: boolean;
@@ -42,7 +48,9 @@ function retrySeconds(error: VerifyResult["error"]): number {
   return Number.isFinite(ms) && ms > 0 ? Math.ceil(ms / 1000) : DEFAULT_RETRY_SECONDS;
 }
 
-export function judge(result: VerifyResult, action: Action): { ok: true; userId: string } | KeyFailure {
+export function judge(
+  result: VerifyResult,
+): { ok: true; userId: string; actions: Action[] } | KeyFailure {
   if (!result.valid || !result.key) {
     switch (result.error?.code) {
       case "KEY_EXPIRED":
@@ -57,10 +65,13 @@ export function judge(result: VerifyResult, action: Action): { ok: true; userId:
         return fail(401, "invalid_key", "Invalid API key");
     }
   }
-  if (!hasAction(result.key.permissions, action)) {
-    return fail(403, "insufficient_scope", `This key does not have the "${action}" scope`);
-  }
-  return { ok: true, userId: result.key.referenceId };
+  return { ok: true, userId: result.key.referenceId, actions: actionsOf(result.key.permissions) };
+}
+
+export function requireAction(actions: readonly Action[], action: Action): KeyFailure | null {
+  return actions.includes(action)
+    ? null
+    : fail(403, "insufficient_scope", `This key does not have the "${action}" scope`);
 }
 
 export function failureResponse(failure: KeyFailure): Response {
@@ -71,12 +82,12 @@ export function failureResponse(failure: KeyFailure): Response {
   return Response.json({ code, message, details: {} }, { status: failure.status, headers });
 }
 
-export async function authenticateKey(headers: Headers, action: Action): Promise<KeyAuth> {
+export async function authenticateKey(headers: Headers): Promise<KeyAuth> {
   const key = bearerKey(headers);
   if (!key) return fail(401, "missing_key", "Send the API key as: Authorization: Bearer <key>");
 
   // Verified without permissions: the plugin reports a missing permission as an unknown key.
-  const verdict = judge(await getAuth().api.verifyApiKey({ body: { key } }), action);
+  const verdict = judge(await getAuth().api.verifyApiKey({ body: { key } }));
   if (!verdict.ok) return verdict;
 
   const { rows } = await getRuntime().pool.query<TokenUser>(
@@ -84,5 +95,5 @@ export async function authenticateKey(headers: Headers, action: Action): Promise
     [verdict.userId],
   );
   const user = rows[0];
-  return user ? { ok: true, user } : fail(401, "invalid_key", "Invalid API key");
+  return user ? { ok: true, user, actions: verdict.actions } : fail(401, "invalid_key", "Invalid API key");
 }
