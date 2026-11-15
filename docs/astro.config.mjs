@@ -1,5 +1,6 @@
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
+import mermaid from "astro-mermaid";
 
 import { PROD_APP_URL } from "./src/lib/prod-app-url.mjs";
 
@@ -18,6 +19,7 @@ export default defineConfig({
   server: { port: 4321 },
   vite: { server: { strictPort: true } },
   integrations: [
+    mermaid(),
     starlight({
       title: "Decision Flow",
       head,

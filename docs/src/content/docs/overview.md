@@ -14,10 +14,17 @@ Decision Flow is a visual editor for business decisions. You draw a decision as 
 
 A flow starts at a [Start](nodes/start) node, which declares the inputs. [Assign](nodes/assign) nodes set variables, [Condition](nodes/condition) nodes pick a branch, and every path finishes at an [End](nodes/end) node, which declares the outputs.
 
-```
-Start ──► Condition ──true──► End (approved)
-              │
-              └──false──► End (declined)
+```mermaid
+flowchart LR
+  S["Start"] --> C{{"Condition<br/>credit_score >= 600"}}
+  C -->|true| A["End<br/>approved"]
+  C -->|false| D["End<br/>declined"]
+  classDef node fill:#1f2a44,stroke:#7c9cff,stroke-width:1.5px,color:#e8eeff
+  classDef yes fill:#12342a,stroke:#4ade80,color:#e6fff1
+  classDef no fill:#3a1d22,stroke:#f87171,color:#ffecec
+  class S,C node
+  class A yes
+  class D no
 ```
 
 Nodes read values with [expressions](concepts/expressions) and [templates](concepts/templates), using `input` for the run's inputs and `vars` for [variables](concepts/variables).
