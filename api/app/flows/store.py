@@ -11,6 +11,7 @@ from app.db import get_session
 from app.flows.models import Flow, FlowVersion
 from app.workspaces.schemas import Member
 
+LIVE = Flow.deleted_at.is_(None)
 SORTABLE = {"name": Flow.name, "created_at": Flow.created_at, "updated_at": Flow.updated_at}
 
 
@@ -52,7 +53,11 @@ class FlowStore:
             await self.session.scalar(
                 select(func.count())
                 .select_from(Flow)
-                .where(Flow.workspace_id == member.workspace_id, Flow.created_by == member.user_id)
+                .where(
+                    Flow.workspace_id == member.workspace_id,
+                    Flow.created_by == member.user_id,
+                    LIVE,
+                )
             )
             or 0
         )
@@ -61,7 +66,7 @@ class FlowStore:
         self, member: Member, q: str | None, sort: str, page: int, page_size: int
     ) -> tuple[list[Flow], int]:
         column = SORTABLE[sort.lstrip("-")]
-        query = select(Flow).where(Flow.workspace_id == member.workspace_id)
+        query = select(Flow).where(Flow.workspace_id == member.workspace_id, LIVE)
         if q:
             query = query.where(Flow.name.icontains(q, autoescape=True))  # % and _ stay literal
         total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
@@ -73,13 +78,13 @@ class FlowStore:
 
     async def get_flow(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         return await self.session.scalar(
-            select(Flow).where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
+            select(Flow).where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
         )
 
     async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
         result = await self.session.execute(
             update(Flow)
-            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
+            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
             .values(name=name, updated_by=member.user_id, updated_at=func.now())
             .returning(Flow)
             .execution_options(populate_existing=True)
@@ -88,12 +93,19 @@ class FlowStore:
         await self.session.commit()
         return flow
 
-    async def delete_flow(self, member: Member, flow_id: uuid.UUID) -> bool:
-        result = await self.session.execute(
-            delete(Flow)
-            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
-            .returning(Flow.id)
-        )
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID, soft: bool = False) -> bool:
+        """Soft marks the flow deleted and keeps its row, versions and runs."""
+        live = (Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
+        if soft:
+            statement = (
+                update(Flow)
+                .where(*live)
+                .values(deleted_at=func.now(), deleted_by=member.user_id)
+                .returning(Flow.id)
+            )
+        else:
+            statement = delete(Flow).where(*live).returning(Flow.id)
+        result = await self.session.execute(statement)
         deleted = result.scalar_one_or_none()
         await self.session.commit()
         return deleted is not None
@@ -108,6 +120,7 @@ class FlowStore:
                 Flow.id == flow_id,
                 Flow.workspace_id == member.workspace_id,
                 Flow.draft_version == expected_version,
+                LIVE,
             )
             .values(
                 draft=draft,
@@ -128,11 +141,12 @@ class FlowStore:
         flow_id: uuid.UUID,
         expected_draft_version: int,
         keep_versions: int = 0,
+        soft: bool = False,
     ) -> FlowVersion:
         """Raises a PublishRefused subclass instead of returning when it cannot publish."""
         flow = await self.session.scalar(
             select(Flow)
-            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
+            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
             .with_for_update()
             .execution_options(populate_existing=True)
         )
@@ -155,12 +169,19 @@ class FlowStore:
         )
         self.session.add(version)
         if keep_versions:
-            await self.session.execute(
-                delete(FlowVersion).where(
-                    FlowVersion.flow_id == flow.id,
-                    FlowVersion.version <= version.version - keep_versions,
-                )
+            old = (
+                FlowVersion.flow_id == flow.id,
+                FlowVersion.version <= version.version - keep_versions,
+                FlowVersion.deleted_at.is_(None),
             )
+            if soft:
+                await self.session.execute(
+                    update(FlowVersion)
+                    .where(*old)
+                    .values(deleted_at=func.now(), deleted_by=member.user_id)
+                )
+            else:
+                await self.session.execute(delete(FlowVersion).where(*old))
         flow.published_version = version.version
         flow.published_draft_version = flow.draft_version
         flow.published_at = func.now()
@@ -173,7 +194,12 @@ class FlowStore:
         rows = await self.session.scalars(
             select(FlowVersion)
             .join(Flow, Flow.id == FlowVersion.flow_id)
-            .where(FlowVersion.flow_id == flow_id, Flow.workspace_id == member.workspace_id)
+            .where(
+                FlowVersion.flow_id == flow_id,
+                Flow.workspace_id == member.workspace_id,
+                LIVE,
+                FlowVersion.deleted_at.is_(None),
+            )
             .order_by(FlowVersion.version.desc())
         )
         return list(rows)
@@ -188,6 +214,8 @@ class FlowStore:
                 FlowVersion.flow_id == flow_id,
                 FlowVersion.version == version,
                 Flow.workspace_id == member.workspace_id,
+                LIVE,
+                FlowVersion.deleted_at.is_(None),
             )
         )
 

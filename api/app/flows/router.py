@@ -23,6 +23,7 @@ from app.flows.schemas import (
 )
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
+from app.settings import Settings, get_settings
 from app.workspaces.deps import CurrentMember
 
 router = APIRouter(tags=["flows"])
@@ -30,6 +31,7 @@ router = APIRouter(tags=["flows"])
 expressions_router = APIRouter(tags=["flows"])
 Store = Annotated[FlowStore, Depends(get_store)]
 Lim = Annotated[Limits, Depends(get_limits)]
+AppSettings = Annotated[Settings, Depends(get_settings)]
 
 NOT_FOUND = {404: {"model": ErrorResponse}}
 CONFLICT = {409: {"model": ErrorResponse}}
@@ -78,9 +80,11 @@ async def rename_flow(
 
 
 @router.delete("/flows/{flow_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
-async def delete_flow(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> None:
-    """Removes the flow and its runs for good."""
-    await service.delete_flow(store, member, flow_id)
+async def delete_flow(
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, settings: AppSettings
+) -> None:
+    """Hard mode removes the flow and its runs for good; soft mode only hides the flow."""
+    await service.delete_flow(store, member, flow_id, settings.delete_mode == "soft")
 
 
 @router.put(
@@ -124,10 +128,12 @@ async def validate_flow(
     responses={**NOT_FOUND, **CONFLICT, **INVALID},
 )
 async def publish_flow(
-    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim, settings: AppSettings
 ) -> VersionDetail:
     """Validates the draft, then freezes it as the next numbered version."""
-    version = await service.publish_flow(store, member, flow_id, limits)
+    version = await service.publish_flow(
+        store, member, flow_id, limits, settings.delete_mode == "soft"
+    )
     return VersionDetail.model_validate(version, from_attributes=True)
 
 

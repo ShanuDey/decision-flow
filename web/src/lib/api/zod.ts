@@ -7,6 +7,15 @@
 import * as zod from 'zod';
 
 /**
+ * Deployment settings the web app needs, such as how deleting works.
+ * @summary Config
+ */
+export const ConfigResponse = zod.object({
+  "delete_mode": zod.enum(['hard', 'soft'])
+}).describe('Deployment settings the web app needs to word its screens.')
+
+
+/**
  * Stateless helper for the editor's Test pane and validity strip.
  * @summary Evaluate Expression
  */
@@ -90,7 +99,7 @@ export const CreateFlowResponse = zod.object({
 
 
 /**
- * Removes the flow and its runs for good.
+ * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
  * @summary Delete Flow
  */
 export const DeleteFlowParams = zod.object({
@@ -311,7 +320,9 @@ export const ListRunsResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_deleted": zod.boolean(),
   "flow_id": zod.uuid(),
+  "flow_name": zod.string(),
   "run_id": zod.uuid(),
   "started_at": zod.iso.datetime({"offset":true}),
   "status": zod.enum(['succeeded', 'failed']),
@@ -334,7 +345,9 @@ export const GetRunResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_deleted": zod.boolean(),
   "flow_id": zod.uuid(),
+  "flow_name": zod.string(),
   "input": zod.record(zod.string(), zod.unknown()),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),

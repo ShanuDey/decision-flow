@@ -1,5 +1,6 @@
 """HTTP only. Run creation lives under /flows/{id}/runs but is owned by this package."""
 
+import logging
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -17,12 +18,14 @@ from app.runs.models import Run
 from app.runs.schemas import RunDetail, RunList, RunRequest, RunResponse, RunSteps, RunSummary
 from app.runs.service import ObserverFactory, TraceReader
 from app.runs.slots import RunSlots, get_run_slots
-from app.runs.store import RunStore, get_run_store
+from app.runs.store import FlowInfo, RunStore, get_run_store
 from app.settings import get_settings
 from app.tracing import MlflowObserver
 from app.workspaces.deps import CurrentMember
+from app.workspaces.schemas import Member
 
 router = APIRouter(tags=["runs"])
+logger = logging.getLogger(__name__)
 
 NOT_FOUND = {404: {"model": ErrorResponse}}
 INVALID = {422: {"model": ErrorResponse}}
@@ -37,10 +40,20 @@ def get_trace_reader() -> TraceReader:
     return lambda trace_id: tracing.read_spans(get_settings(), trace_id)
 
 
-def _summary_fields(run: Run) -> dict[str, Any]:
+async def _flow_infos(runs: RunStore, member: Member, rows: list[Run]) -> dict[uuid.UUID, FlowInfo]:
+    return await runs.flow_infos(member, {r.flow_id for r in rows})
+
+
+def _summary_fields(run: Run, infos: dict[uuid.UUID, FlowInfo]) -> dict[str, Any]:
+    info = infos.get(run.flow_id)
+    if info is None:
+        logger.warning("run %s has no flow row for %s", run.id, run.flow_id)
+        info = FlowInfo(name=str(run.flow_id)[:8], deleted=True)
     return {
         "run_id": run.id,
         "flow_id": run.flow_id,
+        "flow_name": info.name,
+        "flow_deleted": info.deleted,
         "status": run.status,
         "test": run.test,
         "error": run.error,
@@ -49,8 +62,8 @@ def _summary_fields(run: Run) -> dict[str, Any]:
     }
 
 
-def _summary(run: Run) -> RunSummary:
-    return RunSummary.model_validate(_summary_fields(run))
+def _summary(run: Run, infos: dict[uuid.UUID, FlowInfo]) -> RunSummary:
+    return RunSummary.model_validate(_summary_fields(run, infos))
 
 
 def _run_response(run: Run) -> RunResponse:
@@ -122,7 +135,8 @@ async def list_runs(
         cursor=cursor,
         limit=limit,
     )
-    items = [_summary(r) for r in page]
+    infos = await _flow_infos(runs, member, page)
+    items = [_summary(r, infos) for r in page]
     return RunList(items=items, next_cursor=next_cursor)
 
 
@@ -133,8 +147,9 @@ async def get_run(
     run = await runs.get_run(member, run_id)
     if run is None:
         raise flows_service.not_found("Run")
+    infos = await _flow_infos(runs, member, [run])
     return RunDetail.model_validate(
-        {**_summary_fields(run), "input": run.input, "output": run.output}
+        {**_summary_fields(run, infos), "input": run.input, "output": run.output}
     )
 
 

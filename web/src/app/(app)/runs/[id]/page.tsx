@@ -7,11 +7,12 @@ import { RetryButton } from "@/components/retry-button";
 import { TraceView } from "@/components/trace/trace-view";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getFlow, getRun } from "@/lib/api/client";
+import { getRun } from "@/lib/api/client";
 import { serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { formatDateTime, formatDuration } from "@/lib/format";
 
+import { FlowCell } from "../flow-cell";
 import { RunStatus } from "../run-status";
 
 export const metadata: Metadata = { title: "Run · Decision Flow" };
@@ -46,8 +47,6 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   }
 
   const run = result.data;
-  const flow = await call(getFlow(run.flow_id, init));
-  const flowName = flow.ok ? flow.data.name : run.flow_id.slice(0, 8);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -65,9 +64,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
           <div className="flex gap-1.5">
             <dt>Flow</dt>
             <dd>
-              <Link href={`/flows/${run.flow_id}`} className="font-medium text-foreground hover:underline">
-                {flowName}
-              </Link>
+              <FlowCell run={run} />
             </dd>
           </div>
           <div className="flex gap-1.5">

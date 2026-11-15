@@ -1,6 +1,25 @@
 {
   "components": {
     "schemas": {
+      "AppConfig": {
+        "additionalProperties": false,
+        "description": "Deployment settings the web app needs to word its screens.",
+        "properties": {
+          "delete_mode": {
+            "enum": [
+              "hard",
+              "soft"
+            ],
+            "title": "Delete Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delete_mode"
+        ],
+        "title": "AppConfig",
+        "type": "object"
+      },
       "DraftSaved": {
         "additionalProperties": false,
         "properties": {
@@ -459,9 +478,17 @@
               }
             ]
           },
+          "flow_deleted": {
+            "title": "Flow Deleted",
+            "type": "boolean"
+          },
           "flow_id": {
             "format": "uuid",
             "title": "Flow Id",
+            "type": "string"
+          },
+          "flow_name": {
+            "title": "Flow Name",
             "type": "string"
           },
           "input": {
@@ -507,6 +534,8 @@
         "required": [
           "run_id",
           "flow_id",
+          "flow_name",
+          "flow_deleted",
           "status",
           "test",
           "error",
@@ -781,9 +810,17 @@
               }
             ]
           },
+          "flow_deleted": {
+            "title": "Flow Deleted",
+            "type": "boolean"
+          },
           "flow_id": {
             "format": "uuid",
             "title": "Flow Id",
+            "type": "string"
+          },
+          "flow_name": {
+            "title": "Flow Name",
             "type": "string"
           },
           "run_id": {
@@ -812,6 +849,8 @@
         "required": [
           "run_id",
           "flow_id",
+          "flow_name",
+          "flow_deleted",
           "status",
           "test",
           "error",
@@ -1049,6 +1088,63 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/config": {
+      "get": {
+        "description": "Deployment settings the web app needs, such as how deleting works.",
+        "operationId": "config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Config",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/expressions/evaluate": {
       "post": {
         "description": "Stateless helper for the editor's Test pane and validity strip.",
@@ -1337,7 +1433,7 @@
     },
     "/flows/{flow_id}": {
       "delete": {
-        "description": "Removes the flow and its runs for good.",
+        "description": "Hard mode removes the flow and its runs for good; soft mode only hides the flow.",
         "operationId": "delete_flow",
         "parameters": [
           {

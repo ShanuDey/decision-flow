@@ -12,7 +12,9 @@ import type { RunError } from './runError';
 export interface RunDetail {
   duration_ms: number;
   error: RunError | null;
+  flow_deleted: boolean;
   flow_id: string;
+  flow_name: string;
   input: RunDetailInput;
   output: RunDetailOutput;
   run_id: string;

@@ -5,6 +5,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './appConfig';
+export * from './appConfigDeleteMode';
 export * from './draftSaved';
 export * from './errorResponse';
 export * from './errorResponseDetails';

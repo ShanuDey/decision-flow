@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  AppConfig,
   DraftSaved,
   ErrorResponse,
   EvaluateRequest,
@@ -33,6 +34,60 @@ import type {
 } from './models';
 
 import { apiFetch } from '../fetcher';
+export type configResponse200 = {
+  data: AppConfig
+  status: 200
+}
+
+export type configResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type configResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type configResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type configResponseSuccess = (configResponse200) & {
+  headers: Headers;
+};
+export type configResponseError = (configResponse401 | configResponse403 | configResponse429) & {
+  headers: Headers;
+};
+
+export type configResponse = (configResponseSuccess | configResponseError)
+
+export const getConfigUrl = () => {
+
+
+
+
+  return `/config`
+}
+
+/**
+ * Deployment settings the web app needs, such as how deleting works.
+ * @summary Config
+ */
+export const config = async ( options?: Parameters<typeof apiFetch>[1]): Promise<configResponse> => {
+
+  return apiFetch<configResponse>(getConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export type evaluateExpressionResponse200 = {
   data: EvaluateResponse
   status: 200
@@ -296,7 +351,7 @@ export const getDeleteFlowUrl = (flowId: string,) => {
 }
 
 /**
- * Removes the flow and its runs for good.
+ * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
  * @summary Delete Flow
  */
 export const deleteFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteFlowResponse> => {

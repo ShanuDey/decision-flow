@@ -25,6 +25,9 @@ class RunResponse(FrozenBaseModel):
 class RunSummary(FrozenBaseModel):
     run_id: uuid.UUID
     flow_id: uuid.UUID
+    flow_name: str
+    # The flow was deleted but kept (DELETE_MODE=soft); its runs stay listed.
+    flow_deleted: bool
     status: Literal["succeeded", "failed"]
     test: bool
     error: RunError | None
