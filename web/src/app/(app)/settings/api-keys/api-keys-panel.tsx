@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -39,9 +37,9 @@ export function ApiKeysPanel({ rows }: { rows: KeyRow[] }) {
           <p className="text-sm text-muted-foreground">
             Keys let scripts and tools use your flows without signing in. A key acts as you, limited to
             the scopes you pick.{" "}
-            <Link href="/docs/api" className="underline underline-offset-2 hover:text-foreground">
+            <a href="/docs/api" className="underline underline-offset-2 hover:text-foreground">
               API reference
-            </Link>
+            </a>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

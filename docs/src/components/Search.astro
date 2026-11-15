@@ -1,0 +1,8 @@
+---
+import Default from "@astrojs/starlight/components/Search.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const hideSearch = Astro.url.pathname.replace(/\/$/, "") === `${base}/api`;
+---
+
+{!hideSearch && <Default {...Astro.props}><slot /></Default>}

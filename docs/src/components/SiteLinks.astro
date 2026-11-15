@@ -1,0 +1,27 @@
+---
+import EntryButton from "./EntryButton.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<nav class="site-links" aria-label="Main">
+  <a href={base}>Docs</a>
+  <a href={`${base}/api`}>API</a>
+  <EntryButton />
+</nav>
+
+<style>
+  .site-links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .site-links a:not(.entry-button) {
+    color: var(--sl-color-gray-2, var(--site-muted));
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+  .site-links a:not(.entry-button):hover {
+    color: var(--sl-color-white, var(--site-fg));
+  }
+</style>

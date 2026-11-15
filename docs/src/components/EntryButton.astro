@@ -1,0 +1,25 @@
+---
+import { APP_URL } from "../lib/app-url";
+---
+
+<a class="entry-button" href={`${APP_URL}/login`}>Sign in</a>
+
+<style>
+  .entry-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    min-width: 6rem;
+    padding: 0 1rem;
+    border-radius: 0.5rem;
+    background: #fb7185;
+    color: #0b1220;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .entry-button:hover {
+    filter: brightness(1.08);
+  }
+</style>

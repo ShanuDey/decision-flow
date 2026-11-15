@@ -17,6 +17,9 @@ export function SiteFooter() {
         <Link href="/status" className="hover:text-foreground">
           Status
         </Link>
+        <a href="/docs" className="hover:text-foreground">
+          Docs
+        </a>
       </div>
       <nav aria-label="Project links" className="flex items-center gap-4">
         <a
