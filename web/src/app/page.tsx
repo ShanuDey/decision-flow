@@ -55,11 +55,16 @@ export default function Home() {
         <Link href="/" aria-label="Decision Flow home">
           <Logo />
         </Link>
-        <EntryLink
-          signedOutLabel="Sign in"
-          signedInLabel="Dashboard"
-          className={cn(buttonVariants(), "h-9 min-w-24")}
-        />
+        <nav aria-label="Main" className="flex items-center gap-4">
+          <Link href="/docs/api" className="text-sm text-muted-foreground hover:text-foreground">
+            API docs
+          </Link>
+          <EntryLink
+            signedOutLabel="Sign in"
+            signedInLabel="Dashboard"
+            className={cn(buttonVariants(), "h-9 min-w-24")}
+          />
+        </nav>
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-14 px-5 py-12 md:px-8 md:py-16">

@@ -17,33 +17,35 @@ export function hasAction(permissions: Permissions | null | undefined, action: A
   return permissions?.[RESOURCE]?.includes(action) === true;
 }
 
-const ID = "[^/]+";
-const route = (method: string, pattern: string, action: Action) => ({
+const route = (method: string, template: string, action: Action) => ({
   method,
-  pattern: new RegExp(`^${pattern}$`),
+  template,
+  pattern: new RegExp(
+    `^${template.replace("{version}", "\\d+").replace(/\{[^}]+\}/g, "[^/]+")}$`,
+  ),
   action,
 });
 
-// Default deny: a route not listed here is unreachable with a key.
-const ROUTES = [
+// Default deny: a route not listed here is unreachable with a key. Param names match the API spec.
+export const GATEWAY_ROUTES = [
   route("GET", "/flows", "read"),
-  route("GET", `/flows/${ID}`, "read"),
-  route("GET", `/flows/${ID}/versions`, "read"),
-  route("GET", `/flows/${ID}/versions/\\d+`, "read"),
-  route("POST", `/flows/${ID}/validate`, "read"),
+  route("GET", "/flows/{flow_id}", "read"),
+  route("GET", "/flows/{flow_id}/versions", "read"),
+  route("GET", "/flows/{flow_id}/versions/{version}", "read"),
+  route("POST", "/flows/{flow_id}/validate", "read"),
   route("GET", "/runs", "read"),
-  route("GET", `/runs/${ID}`, "read"),
-  route("GET", `/runs/${ID}/steps`, "read"),
+  route("GET", "/runs/{run_id}", "read"),
+  route("GET", "/runs/{run_id}/steps", "read"),
   route("POST", "/flows", "write"),
-  route("PATCH", `/flows/${ID}`, "write"),
-  route("DELETE", `/flows/${ID}`, "write"),
-  route("PUT", `/flows/${ID}/draft`, "write"),
-  route("POST", `/flows/${ID}/publish`, "write"),
-  route("POST", `/flows/${ID}/runs`, "run"),
-  route("POST", `/flows/${ID}/trigger`, "run"),
+  route("PATCH", "/flows/{flow_id}", "write"),
+  route("DELETE", "/flows/{flow_id}", "write"),
+  route("PUT", "/flows/{flow_id}/draft", "write"),
+  route("POST", "/flows/{flow_id}/publish", "write"),
+  route("POST", "/flows/{flow_id}/runs", "run"),
+  route("POST", "/flows/{flow_id}/trigger", "run"),
 ];
 
 export function requiredAction(method: string, path: string): Action | null {
   const verb = method.toUpperCase();
-  return ROUTES.find((r) => r.method === verb && r.pattern.test(path))?.action ?? null;
+  return GATEWAY_ROUTES.find((r) => r.method === verb && r.pattern.test(path))?.action ?? null;
 }
