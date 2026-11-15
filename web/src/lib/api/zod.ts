@@ -308,3 +308,21 @@ export const GetRunStepsResponse = zod.object({
 })),
   "pending": zod.boolean()
 })
+
+
+/**
+ * @summary List Templates
+ */
+export const ListTemplatesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "category": zod.string(),
+  "description": zod.string(),
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "id": zod.string(),
+  "inputs": zod.array(zod.string()),
+  "node_types": zod.array(zod.string()),
+  "outputs": zod.array(zod.string()),
+  "summary": zod.string(),
+  "title": zod.string()
+}))
+})

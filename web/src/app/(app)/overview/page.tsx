@@ -9,7 +9,7 @@ import { requireSession, serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { formatDateTime } from "@/lib/format";
 
-import { NewFlowButton } from "../flows/new-flow-button";
+import { NewFlowButton, StartFromTemplateButton } from "../flows/new-flow-button";
 import { RunStatus } from "../runs/run-status";
 
 export const metadata: Metadata = { title: "Overview · Decision Flow" };
@@ -172,7 +172,7 @@ function RunsPanel({
 }
 
 const STEPS = [
-  { title: "Create your first flow", hint: "It starts with a Start and an End node." },
+  { title: "Create your first flow", hint: "Start from a template or a blank flow." },
   { title: "Build the logic", hint: "Add nodes, connect branches, and edit expressions." },
   { title: "Run it", hint: "Run it with real input." },
 ];
@@ -209,6 +209,9 @@ function GettingStarted({ email, runsFailed }: { email: string; runsFailed: bool
             </li>
           ))}
         </ol>
+        <div className="border-t p-4">
+          <StartFromTemplateButton />
+        </div>
       </section>
       <RunsPanel runs={[]} flowNames={new Map()} failed={runsFailed} />
     </div>

@@ -1,0 +1,77 @@
+{
+  "id": "discount-tier",
+  "title": "Discount tier",
+  "summary": "Pick a discount for an order",
+  "description": "Gives members 15%, other customers 5% on orders of 100 or more, and no discount below that. Shows a decision that depends on two inputs.",
+  "category": "Decisioning",
+  "draft": {
+    "schema_version": 1,
+    "variables": [{ "name": "discount", "type": "string", "initial": "" }],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": { "x": 0, "y": 150 },
+        "data": {
+          "inputs": [
+            { "name": "order_total", "type": "number", "required": true },
+            { "name": "is_member", "type": "boolean", "required": true }
+          ]
+        }
+      },
+      {
+        "id": "member",
+        "type": "condition",
+        "name": "Member?",
+        "position": { "x": 300, "y": 150 },
+        "data": { "expression": "input.is_member" }
+      },
+      {
+        "id": "member_discount",
+        "type": "assign",
+        "name": "Member 15%",
+        "position": { "x": 600, "y": 0 },
+        "data": { "assignments": [{ "variable": "discount", "value": "15%" }] }
+      },
+      {
+        "id": "big_order",
+        "type": "condition",
+        "name": "Order of 100+?",
+        "position": { "x": 600, "y": 250 },
+        "data": { "expression": "input.order_total >= 100" }
+      },
+      {
+        "id": "standard_discount",
+        "type": "assign",
+        "name": "Standard 5%",
+        "position": { "x": 900, "y": 150 },
+        "data": { "assignments": [{ "variable": "discount", "value": "5%" }] }
+      },
+      {
+        "id": "no_discount",
+        "type": "assign",
+        "name": "No discount",
+        "position": { "x": 900, "y": 350 },
+        "data": { "assignments": [{ "variable": "discount", "value": "0%" }] }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": { "x": 1200, "y": 150 },
+        "data": { "outputs": [{ "name": "discount", "type": "string", "value": "{{ vars.discount }}" }] }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "target": "member", "sourceHandle": null },
+      { "id": "e2", "source": "member", "target": "member_discount", "sourceHandle": "true" },
+      { "id": "e3", "source": "member", "target": "big_order", "sourceHandle": "false" },
+      { "id": "e4", "source": "big_order", "target": "standard_discount", "sourceHandle": "true" },
+      { "id": "e5", "source": "big_order", "target": "no_discount", "sourceHandle": "false" },
+      { "id": "e6", "source": "member_discount", "target": "end", "sourceHandle": null },
+      { "id": "e7", "source": "standard_discount", "target": "end", "sourceHandle": null },
+      { "id": "e8", "source": "no_discount", "target": "end", "sourceHandle": null }
+    ]
+  }
+}

@@ -26,6 +26,7 @@ import type {
   RunResponse,
   RunSteps,
   SaveDraftBody,
+  TemplateList,
   ValidateResponse
 } from './models';
 
@@ -1014,6 +1015,59 @@ export const getGetRunStepsUrl = (runId: string,) => {
 export const getRunSteps = async (runId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getRunStepsResponse> => {
 
   return apiFetch<getRunStepsResponse>(getGetRunStepsUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listTemplatesResponse200 = {
+  data: TemplateList
+  status: 200
+}
+
+export type listTemplatesResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listTemplatesResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listTemplatesResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listTemplatesResponseSuccess = (listTemplatesResponse200) & {
+  headers: Headers;
+};
+export type listTemplatesResponseError = (listTemplatesResponse401 | listTemplatesResponse403 | listTemplatesResponse429) & {
+  headers: Headers;
+};
+
+export type listTemplatesResponse = (listTemplatesResponseSuccess | listTemplatesResponseError)
+
+export const getListTemplatesUrl = () => {
+
+
+
+
+  return `/templates`
+}
+
+/**
+ * @summary List Templates
+ */
+export const listTemplates = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listTemplatesResponse> => {
+
+  return apiFetch<listTemplatesResponse>(getListTemplatesUrl(),
   {
     ...options,
     method: 'GET'

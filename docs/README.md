@@ -4,6 +4,7 @@
   - [Variables](concepts/variables.md)
   - [Templates](concepts/templates.md)
   - [Expressions](concepts/expressions.md)
+  - [Flow templates](flow-templates.md)
 - Nodes
   - [Start](nodes/start.md)
   - [Assign](nodes/assign.md)

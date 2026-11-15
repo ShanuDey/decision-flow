@@ -1,9 +1,10 @@
 "use client";
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
-import { CircleAlert, Flag, GitBranch, type LucideIcon, Play, Plus, Variable } from "lucide-react";
+import { CircleAlert, Plus } from "lucide-react";
 
 import type { FlowNode } from "@/lib/graph/convert";
+import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { NODE_SPECS } from "@/lib/graph/nodes";
 import type { NodeType } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
@@ -11,13 +12,6 @@ import { cn } from "@/lib/utils";
 import { AddNodePicker } from "./add-node-picker";
 import { issuesForNode } from "./issues";
 import { useEditor } from "./store";
-
-export const NODE_ICONS: Record<NodeType, LucideIcon> = {
-  start: Play,
-  assign: Variable,
-  condition: GitBranch,
-  end: Flag,
-};
 
 function summary(node: FlowNode): string {
   const config = node.data.config;

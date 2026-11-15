@@ -21,6 +21,7 @@ from app.retention import runner as retention
 from app.runs import router as runs
 from app.runs.slots import RunSlots
 from app.settings import get_settings
+from app.templates import router as templates
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -97,6 +98,11 @@ def create_app() -> FastAPI:
         responses=protected["responses"],
     )
     app.include_router(runs.router, **protected)
+    app.include_router(
+        templates.router,
+        dependencies=[Depends(current_principal), Depends(limit_visitor)],
+        responses=protected["responses"],
+    )
     return app
 
 
