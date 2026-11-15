@@ -23,8 +23,8 @@ export const apiKeyOptions = {
 interface Runtime {
   config: AuthConfig;
   pool: Pool;
-  options: BetterAuthOptions;
-  auth?: ReturnType<typeof betterAuth>;
+  options: Options;
+  auth?: ReturnType<typeof createAuth>;
 }
 
 let runtime: Runtime | undefined;
@@ -38,7 +38,7 @@ export function asSeed<T>(work: () => Promise<T>): Promise<T> {
 
 const refuse = (message: string) => new APIError("FORBIDDEN", { message });
 
-function authOptions(config: AuthConfig, pool: Pool): BetterAuthOptions {
+function authOptions(config: AuthConfig, pool: Pool) {
   return {
     appName: "Decision Flow",
     baseURL: config.baseURL,
@@ -98,8 +98,11 @@ function authOptions(config: AuthConfig, pool: Pool): BetterAuthOptions {
       },
     },
     plugins: [nextCookies(), apiKey(apiKeyOptions)],
-  };
+  } satisfies BetterAuthOptions;
 }
+
+type Options = ReturnType<typeof authOptions>;
+const createAuth = (options: Options) => betterAuth(options);
 
 export function getRuntime(): Runtime {
   if (!runtime) {
@@ -124,7 +127,7 @@ export function getRuntime(): Runtime {
 // Created on first use, after bootstrap has migrated the schema.
 export function getAuth() {
   const rt = getRuntime();
-  return (rt.auth ??= betterAuth(rt.options));
+  return (rt.auth ??= createAuth(rt.options));
 }
 export const getConfig = () => getRuntime().config;
 

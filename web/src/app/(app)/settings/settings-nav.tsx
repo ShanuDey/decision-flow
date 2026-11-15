@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/settings/appearance", label: "Appearance" },
   { href: "/settings/account", label: "Account" },
+  { href: "/settings/api-keys", label: "API keys" },
   { href: "/settings/system", label: "System" },
 ];
 
