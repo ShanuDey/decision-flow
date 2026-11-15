@@ -6,7 +6,7 @@ Finishes the run and returns the output. A flow needs at least one; all End node
 
 | Setting | Meaning |
 |---|---|
-| `outputs` | List of `name`, `type` and `value` ([template](/docs/concepts/templates)) |
+| `outputs` | List of `name`, `type` and `value` ([template](../concepts/templates)) |
 
 ```json
 { "name": "total", "type": "number", "value": "{{ vars.total }}" }

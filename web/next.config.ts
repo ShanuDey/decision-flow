@@ -9,7 +9,7 @@ const dev = process.env.NODE_ENV !== "production";
 loadEnvConfig(path.resolve(process.cwd(), ".."), dev, console, true);
 
 const DOCS_ORIGIN =
-  process.env.DOCS_ORIGIN ?? (dev ? "http://localhost:4321" : "https://shanudey.github.io/decision-flow");
+  process.env.DOCS_ORIGIN ?? (dev ? "http://localhost:4321" : "https://shanudey.github.io/decision-flow/embed");
 
 // The docs site's search index is WebAssembly, so only /docs may compile it.
 const csp = (wasm: boolean) => [

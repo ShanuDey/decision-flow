@@ -129,9 +129,10 @@ build-web:
 docs:
 	$(DOCS) dev
 
-# builds the public docs site; fails on a broken page or API spec import
+# builds both published variants (/docs and the Pages root)
 build-docs:
 	$(DOCS) build
+	DOCS_BASE=decision-flow DOCS_OUT=dist-direct $(DOCS) build
 
 checks: lint format-check-api test-api typecheck-web client-check build-docs
 

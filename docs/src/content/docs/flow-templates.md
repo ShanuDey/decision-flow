@@ -6,7 +6,7 @@ A flow template is a ready-made flow you can start from. Pick one in **New flow*
 
 The list shows each template's inputs and outputs and a preview of its graph. Search matches the title, summary and description, and you can narrow the list by category.
 
-Creating a flow from a template counts toward your flow limit like any other flow (see [Limits](/docs/limits)).
+Creating a flow from a template counts toward your flow limit like any other flow (see [Limits](limits)).
 
 ## Built-in templates
 
