@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
+import { WarmUp } from "@/components/warm-up";
 import { PASSWORD } from "@/lib/auth/config";
 import { authErrorMessage } from "@/lib/auth/format";
 import { safeNext } from "@/lib/auth/redirect";
@@ -10,7 +11,6 @@ import { currentSession } from "@/lib/auth/session";
 
 import { AuthShell } from "../auth-shell";
 import { LoginForm } from "./login-form";
-import { WarmUp } from "./warm-up";
 
 export const metadata: Metadata = { title: "Sign in · Decision Flow" };
 

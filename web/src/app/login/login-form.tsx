@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WakingNotice } from "@/components/waking-notice";
 import { authClient } from "@/lib/auth/client";
 import { type Method, PASSWORD } from "@/lib/auth/config";
 import { methodLabel } from "@/lib/auth/format";
@@ -82,6 +83,7 @@ export function LoginForm({ methods, next }: { methods: Method[]; next: string }
           <Button type="submit" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}
           </Button>
+          {busy && !pending && <WakingNotice />}
         </form>
       )}
 
