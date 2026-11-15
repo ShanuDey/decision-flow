@@ -58,11 +58,80 @@ async def test_running_an_invalid_flow_is_422(
     assert run_store.runs == {}
 
 
+async def replace_draft(client: httpx.AsyncClient, flow_id: str, draft: dict) -> None:
+    version = (await client.get(f"/flows/{flow_id}")).json()["draft_version"]
+    saved = await client.put(
+        f"/flows/{flow_id}/draft", json=draft, headers={"If-Match": str(version)}
+    )
+    assert saved.status_code == 200
+
+
 @pytest.mark.anyio
-async def test_a_non_test_run_is_refused_until_publish_exists(client: httpx.AsyncClient) -> None:
+async def test_a_non_test_run_of_an_unpublished_flow_is_refused(
+    client: httpx.AsyncClient, run_store: FakeRunStore
+) -> None:
     flow = await create_flow(client)
     response = await client.post(f"/flows/{flow['id']}/runs", json={"input": {}})
     assert response.status_code == 422 and response.json()["code"] == "not_published"
+    assert "publish" in response.json()["message"]
+    assert run_store.runs == {}
+
+
+@pytest.mark.anyio
+async def test_a_published_run_uses_the_published_version_not_the_draft(
+    client: httpx.AsyncClient, run_store: FakeRunStore
+) -> None:
+    flow = await create_flow(client, example("assign-variable.json"))
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    await replace_draft(client, flow["id"], example("start-end.json"))
+
+    response = await client.post(f"/flows/{flow['id']}/runs", json={"input": {"amount": 5}})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "succeeded"
+    assert body["output"] == {"total": 5, "label": "Order total 5"}
+    assert body["flow_version"] == 1
+    saved = run_store.runs[uuid.UUID(body["run_id"])]
+    assert saved.test is False and saved.flow_version == 1
+
+
+@pytest.mark.anyio
+async def test_publishing_again_changes_which_version_runs(
+    client: httpx.AsyncClient, run_store: FakeRunStore
+) -> None:
+    flow = await create_flow(client, example("assign-variable.json"))
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    await replace_draft(client, flow["id"], example("start-end.json"))
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+
+    response = await client.post(f"/flows/{flow['id']}/runs", json={"input": {"amount": 5}})
+
+    assert response.status_code == 200
+    assert response.json()["flow_version"] == 2
+    assert response.json()["output"] == {"amount": 5, "tier": "silver"}
+
+
+@pytest.mark.anyio
+async def test_a_published_run_shows_its_version_in_the_run_and_the_list(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client, example("assign-variable.json"))
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    published = (
+        await client.post(f"/flows/{flow['id']}/runs", json={"input": {"amount": 1}})
+    ).json()
+    tested = (
+        await client.post(f"/flows/{flow['id']}/runs", json={"test": True, "input": {"amount": 1}})
+    ).json()
+    assert tested["flow_version"] is None
+
+    detail = (await client.get(f"/runs/{published['run_id']}")).json()
+    assert (detail["test"], detail["flow_version"]) == (False, 1)
+
+    real = (await client.get("/runs", params={"test": "false"})).json()["items"]
+    assert [r["run_id"] for r in real] == [published["run_id"]]
+    assert real[0]["flow_version"] == 1
 
 
 @pytest.mark.anyio

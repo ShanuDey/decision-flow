@@ -56,6 +56,7 @@ def _summary_fields(run: Run, infos: dict[uuid.UUID, FlowInfo]) -> dict[str, Any
         "flow_deleted": info.deleted,
         "status": run.status,
         "test": run.test,
+        "flow_version": run.flow_version,
         "error": run.error,
         "duration_ms": run.duration_ms,
         "started_at": run.started_at,
@@ -71,6 +72,7 @@ def _run_response(run: Run) -> RunResponse:
         {
             "run_id": run.id,
             "status": run.status,
+            "flow_version": run.flow_version,
             "output": run.output,
             "error": run.error,
             "duration_ms": run.duration_ms,
@@ -95,19 +97,27 @@ async def create_run(
 ) -> RunResponse:
     """Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429."""
     flow = await flows_service.require_flow(flows, member, flow_id)
+    version = None
     if not body.test:
-        raise ApiError(422, "not_published", "Flow has no published version; run with test=true")
+        if flow.published_version is None:
+            raise ApiError(
+                422,
+                "not_published",
+                "Flow has no published version; publish it or run with test=true",
+            )
+        version = await flows_service.get_version(flows, member, flow_id, flow.published_version)
     async with slots.hold(member.workspace_id):
-        run = await service.run_draft(
-            runs,
-            member,
-            flow,
-            body.input,
-            new_observer,
-            timeout_seconds=limits.run_timeout_seconds,
-            max_nodes=limits.max_nodes,
-            max_edges=limits.max_edges,
-        )
+        common = {
+            "timeout_seconds": limits.run_timeout_seconds,
+            "max_nodes": limits.max_nodes,
+            "max_edges": limits.max_edges,
+        }
+        if version is None:
+            run = await service.run_draft(runs, member, flow, body.input, new_observer, **common)
+        else:
+            run = await service.run_published(
+                runs, member, flow, version, body.input, new_observer, **common
+            )
     return _run_response(run)
 
 

@@ -212,6 +212,7 @@ export const CreateRunResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_version": zod.union([zod.int(),zod.null()]),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),
   "status": zod.enum(['succeeded', 'failed'])
@@ -323,6 +324,7 @@ export const ListRunsResponse = zod.object({
   "flow_deleted": zod.boolean(),
   "flow_id": zod.uuid(),
   "flow_name": zod.string(),
+  "flow_version": zod.union([zod.int(),zod.null()]),
   "run_id": zod.uuid(),
   "started_at": zod.iso.datetime({"offset":true}),
   "status": zod.enum(['succeeded', 'failed']),
@@ -348,6 +350,7 @@ export const GetRunResponse = zod.object({
   "flow_deleted": zod.boolean(),
   "flow_id": zod.uuid(),
   "flow_name": zod.string(),
+  "flow_version": zod.union([zod.int(),zod.null()]),
   "input": zod.record(zod.string(), zod.unknown()),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),

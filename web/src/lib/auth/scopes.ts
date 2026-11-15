@@ -40,6 +40,7 @@ const ROUTES = [
   route("PUT", `/flows/${ID}/draft`, "write"),
   route("POST", `/flows/${ID}/publish`, "write"),
   route("POST", `/flows/${ID}/runs`, "run"),
+  route("POST", `/flows/${ID}/trigger`, "run"),
 ];
 
 export function requiredAction(method: string, path: string): Action | null {

@@ -12,7 +12,7 @@ from app.engine.observer import Observer
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.errors import ApiError
-from app.flows.models import Flow
+from app.flows.models import Flow, FlowVersion
 from app.flows.service import invalid_flow, not_found
 from app.runs.models import Run
 from app.runs.schemas import RunSteps
@@ -42,7 +42,58 @@ async def run_draft(
     max_nodes: int = 0,
     max_edges: int = 0,
 ) -> Run:
-    graph, issues = parse_graph(flow.draft, max_nodes, max_edges)
+    return await _run(
+        store,
+        member,
+        flow,
+        flow.draft,
+        None,
+        payload,
+        new_observer,
+        timeout_seconds,
+        max_nodes,
+        max_edges,
+    )
+
+
+async def run_published(
+    store: RunStore,
+    member: Member,
+    flow: Flow,
+    version: FlowVersion,
+    payload: dict[str, Any],
+    new_observer: ObserverFactory,
+    timeout_seconds: float = 0,
+    max_nodes: int = 0,
+    max_edges: int = 0,
+) -> Run:
+    return await _run(
+        store,
+        member,
+        flow,
+        version.graph,
+        version.version,
+        payload,
+        new_observer,
+        timeout_seconds,
+        max_nodes,
+        max_edges,
+    )
+
+
+async def _run(
+    store: RunStore,
+    member: Member,
+    flow: Flow,
+    raw_graph: dict[str, Any],
+    flow_version: int | None,
+    payload: dict[str, Any],
+    new_observer: ObserverFactory,
+    timeout_seconds: float,
+    max_nodes: int,
+    max_edges: int,
+) -> Run:
+    graph, issues = parse_graph(raw_graph, max_nodes, max_edges)
     if graph is None:
         raise invalid_flow(issues)
     observer = new_observer(flow.name)
@@ -61,7 +112,8 @@ async def run_draft(
         workspace_id=member.workspace_id,
         created_by=member.user_id,
         status=result.status,
-        test=True,
+        test=flow_version is None,
+        flow_version=flow_version,
         input=payload,
         output=result.output,
         error=result.error.model_dump() if result.error else None,

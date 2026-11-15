@@ -39,6 +39,7 @@ describe("requiredAction", () => {
     ["PUT", "/flows/abc/draft", "write"],
     ["POST", "/flows/abc/publish", "write"],
     ["POST", "/flows/abc/runs", "run"],
+    ["POST", "/flows/abc/trigger", "run"],
   ])("%s %s needs %s", (method, path, action) => {
     expect(requiredAction(method, path)).toBe(action);
   });
@@ -53,6 +54,7 @@ describe("requiredAction", () => {
     ["GET", "/flows/abc/versions/x"],
     ["DELETE", "/runs/abc"],
     ["POST", "/flows/abc/runs/extra"],
+    ["GET", "/flows/abc/trigger"],
     ["GET", "/flows/"],
     ["GET", "/templates"],
   ])("refuses %s %s", (method, path) => {

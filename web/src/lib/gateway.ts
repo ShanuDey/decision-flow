@@ -14,7 +14,7 @@ export interface ApiCall {
   path: string;
   search?: string;
   headers: Headers;
-  body?: ReadableStream | null;
+  body?: BodyInit | null;
   signal?: AbortSignal;
 }
 

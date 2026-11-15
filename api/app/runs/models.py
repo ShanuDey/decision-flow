@@ -24,6 +24,8 @@ class Run(Base):
     )
     status: Mapped[str] = mapped_column(String(20))
     test: Mapped[bool]
+    # The published version that ran; null for test runs, which run the draft.
+    flow_version: Mapped[int | None]
     input: Mapped[dict[str, Any]] = mapped_column(JSONB)
     output: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     error: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

@@ -490,6 +490,17 @@
             "title": "Flow Name",
             "type": "string"
           },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
+          },
           "input": {
             "additionalProperties": true,
             "title": "Input",
@@ -537,6 +548,7 @@
           "flow_deleted",
           "status",
           "test",
+          "flow_version",
           "error",
           "duration_ms",
           "started_at",
@@ -628,6 +640,17 @@
               }
             ]
           },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
+          },
           "output": {
             "anyOf": [
               {
@@ -657,6 +680,7 @@
         "required": [
           "run_id",
           "status",
+          "flow_version",
           "output",
           "error",
           "duration_ms"
@@ -822,6 +846,17 @@
             "title": "Flow Name",
             "type": "string"
           },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
+          },
           "run_id": {
             "format": "uuid",
             "title": "Run Id",
@@ -852,6 +887,7 @@
           "flow_deleted",
           "status",
           "test",
+          "flow_version",
           "error",
           "duration_ms",
           "started_at"

@@ -15,6 +15,7 @@ export interface RunDetail {
   flow_deleted: boolean;
   flow_id: string;
   flow_name: string;
+  flow_version: number | null;
   input: RunDetailInput;
   output: RunDetailOutput;
   run_id: string;
