@@ -1,5 +1,8 @@
 ---
 title: "Documentation"
+head:
+  - tag: title
+    content: Decision Flow Docs
 ---
 
 - Concepts
