@@ -17,6 +17,9 @@ from app.flows.schemas import (
     FlowRename,
     FlowSummary,
     ValidateResponse,
+    VersionDetail,
+    VersionList,
+    VersionSummary,
 )
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
@@ -113,6 +116,35 @@ async def validate_flow(
 ) -> ValidateResponse:
     service.validate_draft(await service.require_flow(store, member, flow_id), limits)
     return ValidateResponse(valid=True)
+
+
+@router.post(
+    "/flows/{flow_id}/publish",
+    status_code=status.HTTP_201_CREATED,
+    responses={**NOT_FOUND, **CONFLICT, **INVALID},
+)
+async def publish_flow(
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim
+) -> VersionDetail:
+    """Validates the draft, then freezes it as the next numbered version."""
+    version = await service.publish_flow(store, member, flow_id, limits)
+    return VersionDetail.model_validate(version, from_attributes=True)
+
+
+@router.get("/flows/{flow_id}/versions", responses=NOT_FOUND)
+async def list_versions(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> VersionList:
+    versions = await service.list_versions(store, member, flow_id)
+    return VersionList(
+        items=[VersionSummary.model_validate(v, from_attributes=True) for v in versions]
+    )
+
+
+@router.get("/flows/{flow_id}/versions/{version}", responses=NOT_FOUND)
+async def get_version(
+    flow_id: uuid.UUID, version: int, store: Store, member: CurrentMember
+) -> VersionDetail:
+    found = await service.get_version(store, member, flow_id, version)
+    return VersionDetail.model_validate(found, from_attributes=True)
 
 
 @expressions_router.post("/expressions/evaluate")

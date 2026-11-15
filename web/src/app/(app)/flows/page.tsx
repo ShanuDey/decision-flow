@@ -124,6 +124,7 @@ export default async function FlowsPage({
                 <TableRow>
                   <TableHead>{header("Name", "name")}</TableHead>
                   <TableHead>Draft</TableHead>
+                  <TableHead>Published</TableHead>
                   <TableHead>{header("Updated", "updated_at")}</TableHead>
                   <TableHead className="w-12">
                     <span className="sr-only">Actions</span>
@@ -139,6 +140,12 @@ export default async function FlowsPage({
                       </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">v{flow.draft_version}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {flow.published_version === null ? "Not published" : `v${flow.published_version}`}
+                      {flow.published_version !== null &&
+                        flow.published_draft_version !== flow.draft_version &&
+                        " · unpublished changes"}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDateTime(flow.updated_at)}
                     </TableCell>

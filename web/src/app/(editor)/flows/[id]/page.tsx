@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { getFlow } from "@/lib/api/client";
+import { publishedInfo } from "@/components/editor/published";
 import { parseDraft } from "@/lib/graph/convert";
 
 import { EditorLoader } from "./editor-loader";
@@ -38,6 +39,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
       name={result.data.name}
       draftVersion={result.data.draft_version}
       graph={graph}
+      published={publishedInfo(result.data)}
     />
   );
 }

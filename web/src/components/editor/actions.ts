@@ -2,11 +2,12 @@ import { toast } from "sonner";
 
 import { errorToast } from "@/lib/api-error";
 import { type ApiFailure, call, issuesOf } from "@/lib/call";
-import { createRun, getFlow, saveDraft, validateFlow } from "@/lib/api/client";
+import { createRun, getFlow, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
 
 import { useLayout } from "./layout";
+import { publishedInfo } from "./published";
 import { useEditor } from "./store";
 
 export type RunOutcome =
@@ -28,6 +29,7 @@ export async function reloadLatest(): Promise<void> {
     name: result.data.name,
     draftVersion: result.data.draft_version,
     graph,
+    published: publishedInfo(result.data),
   });
   toast.success("Loaded the latest draft");
 }
@@ -73,6 +75,37 @@ export async function validate({ quiet = false }: { quiet?: boolean } = {}): Pro
     return "invalid";
   }
   errorToast("Could not validate", result.error);
+  return "error";
+}
+
+export type PublishResult = "published" | "invalid" | "unchanged" | "error";
+
+export async function publish(): Promise<PublishResult> {
+  if (useEditor.getState().dirty && !(await save())) return "error";
+  const result = await call(publishFlow(useEditor.getState().flowId));
+  if (result.ok) {
+    useEditor.getState().setIssues([]);
+    useEditor.getState().markPublished(result.data.version, result.data.source_draft_version);
+    toast.success(`Published version ${result.data.version}`);
+    return "published";
+  }
+  const { code } = result.error;
+  if (code === "invalid_flow") {
+    useEditor.getState().setIssues(issuesOf(result.error));
+    return "invalid";
+  }
+  if (code === "nothing_to_publish") {
+    toast.info("Nothing to publish: the draft matches the published version.");
+    return "unchanged";
+  }
+  if (code === "draft_conflict") {
+    toast.error("The draft changed elsewhere while publishing.", {
+      action: { label: "Load latest", onClick: () => void reloadLatest() },
+      duration: 10000,
+    });
+    return "error";
+  }
+  errorToast("Could not publish", result.error);
   return "error";
 }
 

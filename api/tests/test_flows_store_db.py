@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from app.flows.store import FlowStore
+from app.flows.store import AlreadyPublished, DraftMoved, FlowStore, VersionLimitReached
 from app.workspaces.schemas import Member
 from tests.db_fixtures import SessionFactory, anyio_backend, make_member  # noqa: F401
 
@@ -175,3 +175,78 @@ async def test_delete_flow_is_scoped_to_the_workspace(sessions: SessionFactory) 
         assert await store.get_flow(mine, flow.id) is not None
         assert await store.delete_flow(mine, flow.id) is True
         assert await store.delete_flow(mine, flow.id) is False
+
+
+async def test_publish_numbers_versions_and_rejects_an_unchanged_or_moved_draft(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+
+    async with sessions() as session:
+        first = await FlowStore(session).publish(member, flow.id, 1)
+    assert first is not None and (first.version, first.graph) == (1, {"name": "Demo"})
+
+    async with sessions() as session:
+        with pytest.raises(AlreadyPublished):
+            await FlowStore(session).publish(member, flow.id, 1)
+    async with sessions() as session:
+        with pytest.raises(DraftMoved):
+            await FlowStore(session).publish(member, flow.id, 9)
+
+    async with sessions() as session:
+        await FlowStore(session).save_draft(member, flow.id, {"name": "Next"}, 1)
+    async with sessions() as session:
+        second = await FlowStore(session).publish(member, flow.id, 2)
+    assert second is not None and second.version == 2
+
+    async with sessions() as session:
+        loaded = await FlowStore(session).get_flow(member, flow.id)
+        versions = await FlowStore(session).list_versions(member, flow.id)
+    assert loaded is not None and (loaded.published_version, loaded.published_draft_version) == (
+        2,
+        2,
+    )
+    assert [v.version for v in versions] == [2, 1]
+
+
+async def test_deleting_a_flow_removes_its_versions(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(member, flow.id, 1)
+    async with sessions() as session:
+        await FlowStore(session).delete_flow(member, flow.id)
+    async with sessions() as session:
+        assert await FlowStore(session).list_versions(member, flow.id) == []
+
+
+async def test_two_simultaneous_publishes_make_exactly_one_version(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+
+    async def attempt() -> object:
+        async with sessions() as session:
+            try:
+                return await FlowStore(session).publish(member, flow.id, 1)
+            except AlreadyPublished as exc:
+                return exc
+
+    results = await asyncio.gather(attempt(), attempt())
+    assert sum(isinstance(r, AlreadyPublished) for r in results) == 1
+    async with sessions() as session:
+        assert len(await FlowStore(session).list_versions(member, flow.id)) == 1
+
+
+async def test_publish_refuses_past_the_version_cap(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(member, flow.id, 1, max_versions=1)
+    async with sessions() as session:
+        await FlowStore(session).save_draft(member, flow.id, {"name": "Next"}, 1)
+    async with sessions() as session:
+        with pytest.raises(VersionLimitReached):
+            await FlowStore(session).publish(member, flow.id, 2, max_versions=1)

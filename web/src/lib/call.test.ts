@@ -101,6 +101,12 @@ describe("errorText", () => {
     );
   });
 
+  it("explains the version limit", () => {
+    expect(errorText(fail("version_limit_reached", { limit: 50 }, { status: 409 }))).toBe(
+      "This flow has reached the limit of 50 versions.",
+    );
+  });
+
   it("leaves sign-in limits and all other errors as the API sent them", () => {
     expect(errorText(fail("rate_limited", { scope: "failed_auth" }))).toBe("raw api message");
     expect(errorText(fail("not_found", {}, { status: 404 }))).toBe("raw api message");

@@ -34,6 +34,7 @@ def override() -> Iterator[None]:
 def test_defaults() -> None:
     fresh = limits()
     assert (fresh.max_nodes, fresh.max_edges, fresh.max_flows_per_user) == (50, 100, 20)
+    assert fresh.max_versions_per_flow == 50
 
 
 def test_at_the_cap_passes_and_one_over_is_refused() -> None:
@@ -99,3 +100,40 @@ async def test_flow_cap_zero_is_unlimited(client: httpx.AsyncClient) -> None:
     app.dependency_overrides[get_limits] = lambda: limits(max_flows_per_user=0)
     for _ in range(3):
         await create_flow(client)
+
+
+@pytest.mark.usefixtures("override")
+async def test_version_cap_refuses_the_next_publish_with_the_notice(
+    client: httpx.AsyncClient,
+) -> None:
+    app.dependency_overrides[get_limits] = lambda: limits(
+        max_versions_per_flow=1, limit_notice="Free demo."
+    )
+    flow = await create_flow(client)
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    draft = {**flow["draft"], "nodes": [dict(n) for n in flow["draft"]["nodes"]]}
+    draft["nodes"][0]["name"] = "Begin"
+    await client.put(f"/flows/{flow['id']}/draft", json=draft, headers={"If-Match": "1"})
+
+    refused = await client.post(f"/flows/{flow['id']}/publish")
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "version_limit_reached"
+    assert refused.json()["details"] == {"limit": 1, "notice": "Free demo."}
+
+
+@pytest.mark.usefixtures("override")
+async def test_version_cap_zero_is_unlimited(client: httpx.AsyncClient) -> None:
+    app.dependency_overrides[get_limits] = lambda: limits(max_versions_per_flow=0)
+    flow = await create_flow(client)
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+
+
+@pytest.mark.usefixtures("override")
+async def test_an_unchanged_draft_is_a_conflict_even_when_it_is_now_too_big(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client)
+    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    app.dependency_overrides[get_limits] = lambda: limits(max_nodes=1)
+    again = await client.post(f"/flows/{flow['id']}/publish")
+    assert again.status_code == 409 and again.json()["code"] == "nothing_to_publish"

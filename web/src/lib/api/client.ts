@@ -27,7 +27,9 @@ import type {
   RunSteps,
   SaveDraftBody,
   TemplateList,
-  ValidateResponse
+  ValidateResponse,
+  VersionDetail,
+  VersionList
 } from './models';
 
 import { apiFetch } from '../fetcher';
@@ -545,6 +547,75 @@ return apiFetch<saveDraftResponse>(getSaveDraftUrl(flowId),
 
 
 
+export type publishFlowResponse201 = {
+  data: VersionDetail
+  status: 201
+}
+
+export type publishFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type publishFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type publishFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type publishFlowResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type publishFlowResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type publishFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type publishFlowResponseSuccess = (publishFlowResponse201) & {
+  headers: Headers;
+};
+export type publishFlowResponseError = (publishFlowResponse401 | publishFlowResponse403 | publishFlowResponse404 | publishFlowResponse409 | publishFlowResponse422 | publishFlowResponse429) & {
+  headers: Headers;
+};
+
+export type publishFlowResponse = (publishFlowResponseSuccess | publishFlowResponseError)
+
+export const getPublishFlowUrl = (flowId: string,) => {
+
+
+
+
+  return `/flows/${flowId}/publish`
+}
+
+/**
+ * Validates the draft, then freezes it as the next numbered version.
+ * @summary Publish Flow
+ */
+export const publishFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<publishFlowResponse> => {
+
+  return apiFetch<publishFlowResponse>(getPublishFlowUrl(flowId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export type createRunResponse200 = {
   data: RunResponse
   status: 200
@@ -680,6 +751,134 @@ export const validateFlow = async (flowId: string, options?: Parameters<typeof a
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export type listVersionsResponse200 = {
+  data: VersionList
+  status: 200
+}
+
+export type listVersionsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listVersionsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listVersionsResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type listVersionsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listVersionsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listVersionsResponseSuccess = (listVersionsResponse200) & {
+  headers: Headers;
+};
+export type listVersionsResponseError = (listVersionsResponse401 | listVersionsResponse403 | listVersionsResponse404 | listVersionsResponse422 | listVersionsResponse429) & {
+  headers: Headers;
+};
+
+export type listVersionsResponse = (listVersionsResponseSuccess | listVersionsResponseError)
+
+export const getListVersionsUrl = (flowId: string,) => {
+
+
+
+
+  return `/flows/${flowId}/versions`
+}
+
+/**
+ * @summary List Versions
+ */
+export const listVersions = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<listVersionsResponse> => {
+
+  return apiFetch<listVersionsResponse>(getListVersionsUrl(flowId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type getVersionResponse200 = {
+  data: VersionDetail
+  status: 200
+}
+
+export type getVersionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getVersionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getVersionResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getVersionResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getVersionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getVersionResponseSuccess = (getVersionResponse200) & {
+  headers: Headers;
+};
+export type getVersionResponseError = (getVersionResponse401 | getVersionResponse403 | getVersionResponse404 | getVersionResponse422 | getVersionResponse429) & {
+  headers: Headers;
+};
+
+export type getVersionResponse = (getVersionResponseSuccess | getVersionResponseError)
+
+export const getGetVersionUrl = (flowId: string,
+    version: number,) => {
+
+
+
+
+  return `/flows/${flowId}/versions/${version}`
+}
+
+/**
+ * @summary Get Version
+ */
+export const getVersion = async (flowId: string,
+    version: number, options?: Parameters<typeof apiFetch>[1]): Promise<getVersionResponse> => {
+
+  return apiFetch<getVersionResponse>(getGetVersionUrl(flowId,version),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

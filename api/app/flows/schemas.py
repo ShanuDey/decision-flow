@@ -23,12 +23,29 @@ class FlowSummary(FrozenBaseModel):
     id: uuid.UUID
     name: str
     draft_version: int
+    published_version: int | None
+    published_draft_version: int | None
+    published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
 
 class FlowDetail(FlowSummary):
     draft: dict[str, Any]
+
+
+class VersionSummary(FrozenBaseModel):
+    version: int
+    source_draft_version: int
+    created_at: datetime
+
+
+class VersionDetail(VersionSummary):
+    graph: dict[str, Any]
+
+
+class VersionList(FrozenBaseModel):
+    items: list[VersionSummary]
 
 
 class FlowList(FrozenBaseModel):

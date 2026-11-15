@@ -62,7 +62,8 @@ async def sessions(postgres_url: str) -> AsyncIterator[SessionFactory]:
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE runs, flows, workspace_members, users, workspaces"))
+        tables = "runs, flow_versions, flows, workspace_members, users, workspaces"
+        await conn.execute(text(f"TRUNCATE {tables}"))
     await engine.dispose()
 
 

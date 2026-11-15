@@ -8,10 +8,30 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.flows.models import Flow
+from app.flows.models import Flow, FlowVersion
 from app.workspaces.schemas import Member
 
 SORTABLE = {"name": Flow.name, "created_at": Flow.created_at, "updated_at": Flow.updated_at}
+
+
+class PublishRefused(Exception):
+    pass
+
+
+class FlowMissing(PublishRefused):
+    pass
+
+
+class DraftMoved(PublishRefused):
+    pass
+
+
+class AlreadyPublished(PublishRefused):
+    pass
+
+
+class VersionLimitReached(PublishRefused):
+    pass
 
 
 class FlowStore:
@@ -105,6 +125,70 @@ class FlowStore:
         flow = result.scalar_one_or_none()
         await self.session.commit()
         return flow
+
+    async def publish(
+        self,
+        member: Member,
+        flow_id: uuid.UUID,
+        expected_draft_version: int,
+        max_versions: int = 0,
+    ) -> FlowVersion:
+        """Raises a PublishRefused subclass instead of returning when it cannot publish."""
+        flow = await self.session.scalar(
+            select(Flow)
+            .where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        refusal: PublishRefused | None = None
+        if flow is None:
+            refusal = FlowMissing()
+        elif flow.draft_version != expected_draft_version:
+            refusal = DraftMoved()
+        elif flow.published_draft_version == flow.draft_version:
+            refusal = AlreadyPublished()
+        elif max_versions and (flow.published_version or 0) >= max_versions:
+            refusal = VersionLimitReached()
+        if refusal is not None or flow is None:
+            await self.session.rollback()
+            raise refusal or FlowMissing()
+        version = FlowVersion(
+            flow_id=flow.id,
+            version=(flow.published_version or 0) + 1,
+            graph=flow.draft,
+            source_draft_version=flow.draft_version,
+            created_by=member.user_id,
+        )
+        self.session.add(version)
+        flow.published_version = version.version
+        flow.published_draft_version = flow.draft_version
+        flow.published_at = func.now()
+        await self.session.commit()
+        await self.session.refresh(version)
+        await self.session.refresh(flow)
+        return version
+
+    async def list_versions(self, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
+        rows = await self.session.scalars(
+            select(FlowVersion)
+            .join(Flow, Flow.id == FlowVersion.flow_id)
+            .where(FlowVersion.flow_id == flow_id, Flow.workspace_id == member.workspace_id)
+            .order_by(FlowVersion.version.desc())
+        )
+        return list(rows)
+
+    async def get_version(
+        self, member: Member, flow_id: uuid.UUID, version: int
+    ) -> FlowVersion | None:
+        return await self.session.scalar(
+            select(FlowVersion)
+            .join(Flow, Flow.id == FlowVersion.flow_id)
+            .where(
+                FlowVersion.flow_id == flow_id,
+                FlowVersion.version == version,
+                Flow.workspace_id == member.workspace_id,
+            )
+        )
 
 
 def get_store(session: Annotated[AsyncSession, Depends(get_session)]) -> FlowStore:

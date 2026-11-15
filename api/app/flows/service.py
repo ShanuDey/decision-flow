@@ -9,9 +9,15 @@ from app.engine import expressions, templates
 from app.engine.issues import Issue
 from app.engine.validate import parse_graph
 from app.errors import ApiError
-from app.flows.models import Flow
+from app.flows.models import Flow, FlowVersion
 from app.flows.schemas import EvaluateRequest, EvaluateResponse
-from app.flows.store import FlowStore
+from app.flows.store import (
+    AlreadyPublished,
+    DraftMoved,
+    FlowMissing,
+    FlowStore,
+    VersionLimitReached,
+)
 from app.limits import Limits
 from app.workspaces.schemas import Member
 
@@ -114,6 +120,59 @@ async def save_draft(
         "The draft changed since you loaded it",
         {"draft_version": current.draft_version},
     )
+
+
+def _nothing_to_publish() -> ApiError:
+    return ApiError(
+        409, "nothing_to_publish", "The draft has not changed since the last published version"
+    )
+
+
+async def publish_flow(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, limits: Limits
+) -> FlowVersion:
+    flow = await require_flow(store, member, flow_id)
+    if flow.published_draft_version == flow.draft_version:
+        raise _nothing_to_publish()
+    validate_draft(flow, limits)
+    try:
+        return await store.publish(
+            member, flow_id, flow.draft_version, limits.max_versions_per_flow
+        )
+    except AlreadyPublished:
+        raise _nothing_to_publish() from None
+    except FlowMissing:
+        raise not_found("Flow") from None
+    except VersionLimitReached:
+        cap = limits.max_versions_per_flow
+        raise ApiError(
+            409,
+            "version_limit_reached",
+            f"This flow has {cap} published versions; the limit is {cap}.",
+            {"limit": cap, **limits.notice_details()},
+        ) from None
+    except DraftMoved:
+        current = await require_flow(store, member, flow_id)
+        raise ApiError(
+            409,
+            "draft_conflict",
+            "The draft changed while publishing; review it and publish again",
+            {"draft_version": current.draft_version},
+        ) from None
+
+
+async def list_versions(store: FlowStore, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
+    await require_flow(store, member, flow_id)
+    return await store.list_versions(member, flow_id)
+
+
+async def get_version(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, version: int
+) -> FlowVersion:
+    found = await store.get_version(member, flow_id, version)
+    if found is None:
+        raise not_found("Version")
+    return found
 
 
 def _json_safe(value: Any) -> Any:

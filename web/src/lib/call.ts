@@ -111,6 +111,11 @@ export function errorText(error: ApiFailure): string {
     const cap = Number.isFinite(limit) && limit > 0 ? `${limit} flows` : "flows";
     return `You have reached the limit of ${cap}. Delete a flow to create a new one.`;
   }
+  if (error.code === "version_limit_reached") {
+    const limit = Number(error.details.limit);
+    const cap = Number.isFinite(limit) && limit > 0 ? `${limit} versions` : "versions";
+    return `This flow has reached the limit of ${cap}.`;
+  }
   return error.message;
 }
 

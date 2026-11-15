@@ -1,3 +1,4 @@
+import copy
 import json
 import uuid
 from datetime import UTC, datetime
@@ -8,8 +9,14 @@ import httpx
 import pytest
 
 from app.auth.models import Principal
-from app.flows.models import Flow
-from app.flows.store import get_store
+from app.flows.models import Flow, FlowVersion
+from app.flows.store import (
+    AlreadyPublished,
+    DraftMoved,
+    FlowMissing,
+    VersionLimitReached,
+    get_store,
+)
 from app.limits import Limits
 from app.main import app
 from app.ratelimit import RateLimiters
@@ -49,6 +56,7 @@ class FakeWorkspaceStore:
 class FakeFlowStore:
     def __init__(self) -> None:
         self.flows: dict[uuid.UUID, Flow] = {}
+        self.versions: list[FlowVersion] = []
 
     def _visible(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         flow = self.flows.get(flow_id)
@@ -111,6 +119,51 @@ class FakeFlowStore:
         flow.draft_version += 1
         flow.updated_by = member.user_id
         return flow
+
+    async def publish(
+        self,
+        member: Member,
+        flow_id: uuid.UUID,
+        expected_draft_version: int,
+        max_versions: int = 0,
+    ) -> FlowVersion:
+        flow = self._visible(member, flow_id)
+        if flow is None:
+            raise FlowMissing
+        if flow.draft_version != expected_draft_version:
+            raise DraftMoved
+        if flow.published_draft_version == flow.draft_version:
+            raise AlreadyPublished
+        if max_versions and (flow.published_version or 0) >= max_versions:
+            raise VersionLimitReached
+        now = datetime.now(UTC).replace(tzinfo=None)
+        version = FlowVersion(
+            id=uuid.uuid4(),
+            flow_id=flow.id,
+            version=(flow.published_version or 0) + 1,
+            graph=copy.deepcopy(flow.draft),
+            source_draft_version=flow.draft_version,
+            created_by=member.user_id,
+            created_at=now,
+        )
+        self.versions.append(version)
+        flow.published_version = version.version
+        flow.published_draft_version = flow.draft_version
+        flow.published_at = now
+        return version
+
+    async def list_versions(self, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
+        if self._visible(member, flow_id) is None:
+            return []
+        found = [v for v in self.versions if v.flow_id == flow_id]
+        return sorted(found, key=lambda v: v.version, reverse=True)
+
+    async def get_version(
+        self, member: Member, flow_id: uuid.UUID, version: int
+    ) -> FlowVersion | None:
+        return next(
+            (v for v in await self.list_versions(member, flow_id) if v.version == version), None
+        )
 
 
 class FakeRunStore:

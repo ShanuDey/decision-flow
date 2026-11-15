@@ -53,6 +53,9 @@ export const ListFlowsResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })),
   "page": zod.int(),
@@ -79,6 +82,9 @@ export const CreateFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -107,6 +113,9 @@ export const GetFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -131,6 +140,9 @@ export const RenameFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
@@ -151,6 +163,22 @@ export const SaveDraftBody = zod.record(zod.string(), zod.unknown())
 
 export const SaveDraftResponse = zod.object({
   "draft_version": zod.int()
+})
+
+
+/**
+ * Validates the draft, then freezes it as the next numbered version.
+ * @summary Publish Flow
+ */
+export const PublishFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const PublishFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "graph": zod.record(zod.string(), zod.unknown()),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
 })
 
 
@@ -190,6 +218,38 @@ export const ValidateFlowParams = zod.object({
 
 export const ValidateFlowResponse = zod.object({
   "valid": zod.literal(true).meta({ title: 'Valid' })
+})
+
+
+/**
+ * @summary List Versions
+ */
+export const ListVersionsParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const ListVersionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
+}))
+})
+
+
+/**
+ * @summary Get Version
+ */
+export const GetVersionParams = zod.object({
+  "flow_id": zod.uuid(),
+  "version": zod.int()
+})
+
+export const GetVersionResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "graph": zod.record(zod.string(), zod.unknown()),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
 })
 
 
