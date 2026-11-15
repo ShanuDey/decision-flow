@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createKeyBody } from "./key-request";
-import { agentKey, claudeCodeCommand, DEFAULT_AGENT_NAME, jsonConfig, mcpUrl } from "./mcp-config";
+import { agentKey, agentPrompt, claudeCodeCommand, DEFAULT_AGENT_NAME, jsonConfig, mcpUrl } from "./mcp-config";
 import { ACTIONS } from "./scopes";
 
 const KEY = `df_live_${"c".repeat(64)}`;
@@ -45,6 +45,15 @@ describe("claudeCodeCommand", () => {
     expect(claudeCodeCommand("https://flows.example.com/mcp", KEY)).toBe(
       `claude mcp add --transport http decision-flow https://flows.example.com/mcp --header "Authorization: Bearer ${KEY}"`,
     );
+  });
+});
+
+describe("agentPrompt", () => {
+  it("carries the URL and the key", () => {
+    const prompt = agentPrompt("https://flows.example.com/mcp", KEY);
+    expect(prompt).toContain("https://flows.example.com/mcp");
+    expect(prompt).toContain(`Bearer ${KEY}`);
+    expect(prompt).toContain("list_flows");
   });
 });
 
