@@ -3,15 +3,24 @@ import { defineConfig } from "astro/config";
 
 import { PROD_APP_URL } from "./src/lib/prod-app-url.mjs";
 
+// Two builds ship: /docs (behind the app's rewrite) and /decision-flow (the Pages root).
+const base = `/${(process.env.DOCS_BASE ?? "docs").replace(/^\/+/, "")}`;
+// The copy behind the app's rewrite duplicates the Pages root, so keep it out of search.
+const head = process.env.DOCS_NOINDEX ? [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }] : [];
+
 export default defineConfig({
-  site: PROD_APP_URL,
-  base: "/docs",
+  site: process.env.DOCS_SITE ?? PROD_APP_URL,
+  base,
+  outDir: process.env.DOCS_OUT ?? "dist",
   trailingSlash: "never",
   build: { format: "file" },
   devToolbar: { enabled: false },
+  server: { port: 4321 },
+  vite: { server: { strictPort: true } },
   integrations: [
     starlight({
       title: "Decision Flow",
+      head,
       logo: { src: "./src/assets/logo.svg" },
       components: {
         SocialIcons: "./src/components/SocialIcons.astro",

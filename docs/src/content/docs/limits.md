@@ -49,7 +49,7 @@ RATE_LIMIT_NEW_WORKSPACES_PER_IP_PER_HOUR=5
 - **Run too long:** the run stops and is recorded as `failed` with the message `Run timed out after N seconds`. The response is `200`, like any other failure inside a flow.
 - **Flow too big:** a draft over `MAX_NODES` or `MAX_EDGES` still saves, but validating or running it answers `422` with code `invalid_flow`. `details.errors` names `too_many_nodes` or `too_many_edges` and says how many there are. The editor shows the same error.
 - **Too many flows:** `POST /flows` answers `409` with code `flow_limit_reached` and `details.limit` and `details.count`. Two requests sent at the same moment can both pass the check, so the count can go slightly over.
-- **Old versions:** with `MAX_VERSIONS_PER_FLOW` set, publishing deletes the oldest versions beyond N. Version numbers keep counting up, and reading a deleted version answers `404`. With `DELETE_MODE=soft` they are marked deleted instead of removed ([data deletion](/docs/data-deletion)).
+- **Old versions:** with `MAX_VERSIONS_PER_FLOW` set, publishing deletes the oldest versions beyond N. Version numbers keep counting up, and reading a deleted version answers `404`. With `DELETE_MODE=soft` they are marked deleted instead of removed ([data deletion](data-deletion)).
 - **Too many requests:** any route can answer `429` with code `rate_limited`, a `Retry-After` header (seconds) and `details.scope`: `ip`, `ready`, `failed_auth`, `user`, `runs` or `new_workspaces`. Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` for the last limit that applied. Failed sign-ins count too: after `RATE_LIMIT_FAILED_AUTH_PER_MINUTE` of them, every request from that IP is refused until the minute passes.
 
 When `LIMIT_NOTICE` is set, every limit error (`429`, `413` and `409`) also carries `details.notice`, plus `details.notice_url` if a link is set. The `message` stays the same, so clients keep matching on it. Show the notice as plain text, never as HTML. On a shared demo it can explain why the limit exists, for example: `This is a free demo on shared resources. To get more capacity, self-host it or sponsor the server.`
@@ -68,7 +68,7 @@ The container starts uvicorn with `--no-proxy-headers`, so the connection addres
 
 ## Notes
 
-- With `DELETE_MODE=hard`, deleting a flow removes its runs; with `soft` they stay ([data deletion](/docs/data-deletion)). Run traces in MLflow are removed later by the retention job (see [retention](/docs/retention)), and only if run retention is on.
+- With `DELETE_MODE=hard`, deleting a flow removes its runs; with `soft` they stay ([data deletion](data-deletion)). Run traces in MLflow are removed later by the retention job (see [retention](retention)), and only if run retention is on.
 - Each limiter tracks at most 10,000 keys; a flood of distinct IPs can push out the oldest counters.
 - Counts and rate limits are held in memory, so they are per server process and reset when it restarts. Run one instance, or accept that each instance counts on its own.
 - The timeout is checked while a run waits, so it cannot interrupt a node that is busy computing.

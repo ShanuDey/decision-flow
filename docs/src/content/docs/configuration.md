@@ -6,10 +6,10 @@ Settings are environment variables, read once at start. Copy `.env.example` to `
 
 | Area | Page |
 |---|---|
-| Caps, timeouts, rate limits, the notice on limit errors | [limits](/docs/limits) |
-| Deleting flows and old versions: `DELETE_MODE` | [data deletion](/docs/data-deletion) |
-| Deleting old runs and inactive users | [retention](/docs/retention) |
-| Sign-in methods, token issuers, allowed email domains | [auth](/docs/auth) |
+| Caps, timeouts, rate limits, the notice on limit errors | [limits](limits) |
+| Deleting flows and old versions: `DELETE_MODE` | [data deletion](data-deletion) |
+| Deleting old runs and inactive users | [retention](retention) |
+| Sign-in methods, token issuers, allowed email domains | [auth](auth) |
 
 Other settings:
 

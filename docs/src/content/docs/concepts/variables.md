@@ -2,7 +2,7 @@
 title: "Variables"
 ---
 
-Variables hold values while a flow runs. Declare them on the flow, then set them with an [Assign](/docs/nodes/assign) node.
+Variables hold values while a flow runs. Declare them on the flow, then set them with an [Assign](../nodes/assign) node.
 
 | Field | Meaning |
 |---|---|

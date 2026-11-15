@@ -6,7 +6,7 @@ Sends the run down one of two branches.
 
 | Setting | Meaning |
 |---|---|
-| `expression` | An [expression](/docs/concepts/expressions) that gives `true` or `false` |
+| `expression` | An [expression](../concepts/expressions) that gives `true` or `false` |
 
 A Condition has two outgoing edges: one from its `true` handle and one from its `false` handle. Each handle takes exactly one edge. Both branches may lead to the same node, such as End.
 
