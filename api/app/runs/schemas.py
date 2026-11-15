@@ -35,3 +35,29 @@ class RunSummary(FrozenBaseModel):
 class RunList(FrozenBaseModel):
     items: list[RunSummary]
     next_cursor: str | None
+
+
+class RunDetail(RunSummary):
+    input: dict[str, Any]
+    output: dict[str, Any] | None
+
+
+class RunStep(FrozenBaseModel):
+    id: str
+    parent_id: str | None
+    kind: Literal["node", "llm", "tool", "parser", "other"]
+    node_id: str | None
+    node_type: str | None
+    name: str
+    status: Literal["ok", "failed"]
+    error: str | None
+    start_offset_ms: float
+    duration_ms: float
+    input: Any
+    output: Any
+
+
+class RunSteps(FrozenBaseModel):
+    items: list[RunStep]
+    # The trace is exported a moment after the run ends.
+    pending: bool

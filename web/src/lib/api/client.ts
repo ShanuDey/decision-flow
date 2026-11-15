@@ -20,9 +20,11 @@ import type {
   ListRunsParams,
   Principal,
   ReadyResponse,
+  RunDetail,
   RunList,
   RunRequest,
   RunResponse,
+  RunSteps,
   SaveDraftBody,
   ValidateResponse
 } from './models';
@@ -891,7 +893,7 @@ export const listRuns = async (params?: ListRunsParams, options?: Parameters<typ
 
 
 export type getRunResponse200 = {
-  data: RunResponse
+  data: RunDetail
   status: 200
 }
 
@@ -943,6 +945,75 @@ export const getGetRunUrl = (runId: string,) => {
 export const getRun = async (runId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getRunResponse> => {
 
   return apiFetch<getRunResponse>(getGetRunUrl(runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type getRunStepsResponse200 = {
+  data: RunSteps
+  status: 200
+}
+
+export type getRunStepsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getRunStepsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getRunStepsResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getRunStepsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getRunStepsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getRunStepsResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type getRunStepsResponseSuccess = (getRunStepsResponse200) & {
+  headers: Headers;
+};
+export type getRunStepsResponseError = (getRunStepsResponse401 | getRunStepsResponse403 | getRunStepsResponse404 | getRunStepsResponse422 | getRunStepsResponse429 | getRunStepsResponse503) & {
+  headers: Headers;
+};
+
+export type getRunStepsResponse = (getRunStepsResponseSuccess | getRunStepsResponseError)
+
+export const getGetRunStepsUrl = (runId: string,) => {
+
+
+
+
+  return `/runs/${runId}/steps`
+}
+
+/**
+ * Step history from the trace store; `pending` while the trace is still being written.
+ * @summary Get Run Steps
+ */
+export const getRunSteps = async (runId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getRunStepsResponse> => {
+
+  return apiFetch<getRunStepsResponse>(getGetRunStepsUrl(runId),
   {
     ...options,
     method: 'GET'

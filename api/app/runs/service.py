@@ -2,8 +2,8 @@
 
 import base64
 import uuid
-from collections.abc import Callable
-from datetime import datetime
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from app.engine.compiler import compile_graph
@@ -15,7 +15,10 @@ from app.errors import ApiError
 from app.flows.models import Flow
 from app.flows.service import invalid_flow, not_found
 from app.runs.models import Run
+from app.runs.schemas import RunSteps
+from app.runs.steps import build_steps
 from app.runs.store import FlowGone, RunStore
+from app.tracing import TraceSpan, TraceUnavailable
 from app.workspaces.schemas import Member
 
 
@@ -24,6 +27,9 @@ class TracingObserver(Observer, Protocol):
 
 
 ObserverFactory = Callable[[str], TracingObserver]
+TraceReader = Callable[[str], Awaitable[list[TraceSpan] | None]]
+
+TRACE_GRACE = timedelta(seconds=60)
 
 
 async def run_draft(
@@ -101,3 +107,23 @@ async def list_runs(
     )
     page = rows[:limit]
     return page, encode_cursor(page[-1]) if len(rows) > limit else None
+
+
+async def run_steps(
+    store: RunStore, member: Member, run_id: uuid.UUID, read: TraceReader
+) -> RunSteps:
+    run = await store.get_run(member, run_id)
+    if run is None:
+        raise not_found("Run")
+    if run.mlflow_trace_id is None:
+        return RunSteps(items=[], pending=False)
+    try:
+        spans = await read(run.mlflow_trace_id)
+    except TraceUnavailable:
+        raise ApiError(
+            503, "trace_unavailable", "Step history is unavailable right now. Try again shortly."
+        ) from None
+    if spans is None:
+        age = datetime.now(UTC).replace(tzinfo=None) - run.started_at
+        return RunSteps(items=[], pending=age < TRACE_GRACE)
+    return RunSteps(items=build_steps(spans), pending=False)

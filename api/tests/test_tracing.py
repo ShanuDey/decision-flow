@@ -394,3 +394,78 @@ def test_configure_refuses_to_trace_into_the_app_schema(
     s = Settings(_env_file=None, database_url=APP_URL, mlflow_tracking_uri=APP_URL)
     assert tracing.configure(s) is False
     assert fake.tracking_uri is None
+
+
+class FakeStoredSpan:
+    def __init__(self, span_id, parent_id, name, span_type, status_code, description=None, **kw):
+        self.span_id, self.parent_id, self.name, self.span_type = (
+            span_id,
+            parent_id,
+            name,
+            span_type,
+        )
+        self.status = SimpleNamespace(status_code=status_code, description=description)
+        self.attributes = kw.get("attributes", {})
+        self.inputs, self.outputs = kw.get("inputs"), kw.get("outputs")
+        self.start_time_ns, self.end_time_ns = kw.get("start", 0), kw.get("end", 0)
+
+
+def _client_returning(result):
+    def get_trace(trace_id: str):
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    return lambda tracking_uri=None: SimpleNamespace(get_trace=get_trace)
+
+
+@pytest.mark.anyio
+async def test_read_spans_converts_stored_spans(fake: FakeMlflow) -> None:
+    from mlflow.entities import SpanStatusCode
+
+    ok = FakeStoredSpan(
+        "n1",
+        "r",
+        "Start",
+        "TASK",
+        SpanStatusCode.OK,
+        attributes={"node_id": "start", "node_type": "start"},
+        inputs={"a": 1},
+        outputs={"b": 2},
+        start=5,
+        end=9,
+    )
+    bad = FakeStoredSpan("n2", "r", "End", "TASK", SpanStatusCode.ERROR, "boom", start=9, end=9)
+    trace = SimpleNamespace(data=SimpleNamespace(spans=[ok, bad]))
+    fake.MlflowClient = _client_returning(trace)
+    spans = await tracing.read_spans(settings(), "tr-1")
+    assert spans is not None
+    assert (spans[0].node_id, spans[0].input, spans[0].output, spans[0].ok) == (
+        "start",
+        {"a": 1},
+        {"b": 2},
+        True,
+    )
+    assert (spans[1].ok, spans[1].error) == (False, "boom")
+
+
+@pytest.mark.anyio
+async def test_read_spans_is_none_for_an_unknown_trace(fake: FakeMlflow) -> None:
+    from mlflow.exceptions import MlflowException
+    from mlflow.protos.databricks_pb2 import RESOURCE_DOES_NOT_EXIST
+
+    gone = MlflowException("gone", error_code=RESOURCE_DOES_NOT_EXIST)
+    fake.MlflowClient = _client_returning(gone)
+    assert await tracing.read_spans(settings(), "tr-missing") is None
+
+
+@pytest.mark.anyio
+async def test_read_spans_raises_when_the_store_cannot_be_read(
+    fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake.MlflowClient = _client_returning(RuntimeError("db down"))
+    with pytest.raises(tracing.TraceUnavailable):
+        await tracing.read_spans(settings(), "tr-1")
+    monkeypatch.setattr(tracing, "_configured", False)
+    with pytest.raises(tracing.TraceUnavailable):
+        await tracing.read_spans(settings(), "tr-1")

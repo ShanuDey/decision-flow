@@ -155,7 +155,9 @@ function RunsPanel({
           {runs.map((run) => (
             <li key={run.run_id} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{flowNames.get(run.flow_id) ?? run.flow_id.slice(0, 8)}</p>
+                <Link href={`/runs/${run.run_id}`} className="block truncate font-medium hover:underline">
+                  {flowNames.get(run.flow_id) ?? run.flow_id.slice(0, 8)}
+                </Link>
                 <RunStatus run={run} />
               </div>
               <time dateTime={run.started_at} className="text-sm whitespace-nowrap text-muted-foreground">

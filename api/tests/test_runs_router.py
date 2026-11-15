@@ -19,7 +19,15 @@ async def test_test_run_returns_the_output(
     body = response.json()
     assert body["status"] == "succeeded"
     assert body["output"] == {"total": 5, "label": "Order total 5"}
-    assert (await client.get(f"/runs/{body['run_id']}")).json() == body
+    detail = (await client.get(f"/runs/{body['run_id']}")).json()
+    assert detail["run_id"] == body["run_id"]
+    assert (detail["status"], detail["output"], detail["input"]) == (
+        "succeeded",
+        body["output"],
+        {"amount": 5},
+    )
+    assert detail["flow_id"] == flow["id"]
+    assert detail["test"] is True and detail["started_at"]
     assert "mlflow_trace_id" not in body
     assert next(iter(run_store.runs.values())).mlflow_trace_id == "tr-stub"
 

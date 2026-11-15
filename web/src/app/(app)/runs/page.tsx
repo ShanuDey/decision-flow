@@ -150,7 +150,11 @@ export default async function RunsPage({
                   const name = flowNames.get(run.flow_id);
                   return (
                     <TableRow key={run.run_id}>
-                      <TableCell className="font-mono text-xs">{run.run_id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <Link href={`/runs/${run.run_id}`} className="hover:underline">
+                          {run.run_id.slice(0, 8)}
+                        </Link>
+                      </TableCell>
                       <TableCell className="font-medium">
                         <Link href={`/flows/${run.flow_id}`} className="hover:underline">
                           {name ?? run.flow_id.slice(0, 8)}

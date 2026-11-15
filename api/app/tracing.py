@@ -14,9 +14,11 @@ from mlflow.environment_variables import (
     MLFLOW_HTTP_REQUEST_MAX_RETRIES,
     MLFLOW_HTTP_REQUEST_TIMEOUT,
 )
+from mlflow.exceptions import MlflowException
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 
+from app.engine.base import FrozenBaseModel
 from app.engine.observer import NodeInfo, NodeStatus, RunStatus
 from app.settings import Settings, query_options
 
@@ -144,6 +146,69 @@ async def delete_traces_older_than(settings: Settings, days: int) -> int | None:
     except Exception:
         log.warning("MLflow trace cleanup failed", exc_info=True)
         return None
+
+
+class TraceUnavailable(Exception):
+    pass
+
+
+class TraceSpan(FrozenBaseModel):
+    """One recorded span, free of MLflow types."""
+
+    id: str
+    parent_id: str | None
+    name: str
+    span_type: str
+    node_id: str | None
+    node_type: str | None
+    ok: bool
+    error: str | None
+    start_ns: int
+    end_ns: int
+    input: Any
+    output: Any
+
+
+def _span(span: Any) -> TraceSpan:
+    ok = span.status.status_code != SpanStatusCode.ERROR
+    attributes = span.attributes or {}
+    return TraceSpan(
+        id=span.span_id,
+        parent_id=span.parent_id,
+        name=span.name,
+        span_type=str(span.span_type),
+        node_id=attributes.get("node_id"),
+        node_type=attributes.get("node_type"),
+        ok=ok,
+        error=None if ok else (span.status.description or "failed"),
+        start_ns=span.start_time_ns,
+        end_ns=span.end_time_ns or span.start_time_ns,
+        input=span.inputs,
+        output=span.outputs,
+    )
+
+
+def _read_spans_sync(settings: Settings, trace_id: str) -> list[TraceSpan] | None:
+    if not _configured:
+        raise TraceUnavailable("MLflow is not available")
+    client = mlflow.MlflowClient(tracking_uri=settings.mlflow_tracking_uri)
+    try:
+        trace = client.get_trace(trace_id)
+    except MlflowException as exc:
+        if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
+            return None
+        raise TraceUnavailable(str(exc)) from exc
+    except Exception as exc:
+        raise TraceUnavailable(f"{type(exc).__name__}: {exc}") from exc
+    if trace is None:
+        return None
+    return [_span(span) for span in trace.data.spans]
+
+
+async def read_spans(settings: Settings, trace_id: str) -> list[TraceSpan] | None:
+    """None if the trace is not stored (yet). Raises TraceUnavailable if MLflow cannot be read."""
+    await ready()
+    return await asyncio.to_thread(_read_spans_sync, settings, trace_id)
 
 
 def flush() -> None:

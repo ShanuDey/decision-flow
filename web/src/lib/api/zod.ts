@@ -273,7 +273,38 @@ export const GetRunResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_id": zod.uuid(),
+  "input": zod.record(zod.string(), zod.unknown()),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),
-  "status": zod.enum(['succeeded', 'failed'])
+  "started_at": zod.iso.datetime({"offset":true}),
+  "status": zod.enum(['succeeded', 'failed']),
+  "test": zod.boolean()
+})
+
+
+/**
+ * Step history from the trace store; `pending` while the trace is still being written.
+ * @summary Get Run Steps
+ */
+export const GetRunStepsParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunStepsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "duration_ms": zod.number(),
+  "error": zod.union([zod.string(),zod.null()]),
+  "id": zod.string(),
+  "input": zod.unknown(),
+  "kind": zod.enum(['node', 'llm', 'tool', 'parser', 'other']),
+  "name": zod.string(),
+  "node_id": zod.union([zod.string(),zod.null()]),
+  "node_type": zod.union([zod.string(),zod.null()]),
+  "output": zod.unknown(),
+  "parent_id": zod.union([zod.string(),zod.null()]),
+  "start_offset_ms": zod.number(),
+  "status": zod.enum(['ok', 'failed'])
+})),
+  "pending": zod.boolean()
 })
