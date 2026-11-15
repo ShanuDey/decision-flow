@@ -14,7 +14,6 @@ from app.flows.store import (
     AlreadyPublished,
     DraftMoved,
     FlowMissing,
-    VersionLimitReached,
     get_store,
 )
 from app.limits import Limits
@@ -125,7 +124,7 @@ class FakeFlowStore:
         member: Member,
         flow_id: uuid.UUID,
         expected_draft_version: int,
-        max_versions: int = 0,
+        keep_versions: int = 0,
     ) -> FlowVersion:
         flow = self._visible(member, flow_id)
         if flow is None:
@@ -134,8 +133,6 @@ class FakeFlowStore:
             raise DraftMoved
         if flow.published_draft_version == flow.draft_version:
             raise AlreadyPublished
-        if max_versions and (flow.published_version or 0) >= max_versions:
-            raise VersionLimitReached
         now = datetime.now(UTC).replace(tzinfo=None)
         version = FlowVersion(
             id=uuid.uuid4(),
@@ -147,6 +144,12 @@ class FakeFlowStore:
             created_at=now,
         )
         self.versions.append(version)
+        if keep_versions:
+            self.versions = [
+                v
+                for v in self.versions
+                if v.flow_id != flow.id or v.version > version.version - keep_versions
+            ]
         flow.published_version = version.version
         flow.published_draft_version = flow.draft_version
         flow.published_at = now

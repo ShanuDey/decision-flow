@@ -34,7 +34,7 @@ def override() -> Iterator[None]:
 def test_defaults() -> None:
     fresh = limits()
     assert (fresh.max_nodes, fresh.max_edges, fresh.max_flows_per_user) == (50, 100, 20)
-    assert fresh.max_versions_per_flow == 50
+    assert fresh.max_versions_per_flow == 0
 
 
 def test_at_the_cap_passes_and_one_over_is_refused() -> None:
@@ -102,30 +102,51 @@ async def test_flow_cap_zero_is_unlimited(client: httpx.AsyncClient) -> None:
         await create_flow(client)
 
 
+async def edit_and_publish(client: httpx.AsyncClient, flow: dict, times: int) -> None:
+    for i in range(times):
+        current = (await client.get(f"/flows/{flow['id']}")).json()
+        draft = {**current["draft"], "nodes": [dict(n) for n in current["draft"]["nodes"]]}
+        draft["nodes"][0]["name"] = f"Begin {i}"
+        saved = await client.put(
+            f"/flows/{flow['id']}/draft",
+            json=draft,
+            headers={"If-Match": str(current["draft_version"])},
+        )
+        assert saved.status_code == 200
+        assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+
+
+async def version_numbers(client: httpx.AsyncClient, flow: dict) -> tuple[list[int], int]:
+    body = (await client.get(f"/flows/{flow['id']}/versions")).json()
+    return [v["version"] for v in body["items"]], body["keep_latest"]
+
+
 @pytest.mark.usefixtures("override")
-async def test_version_cap_refuses_the_next_publish_with_the_notice(
+async def test_the_version_window_drops_the_oldest_and_keeps_counting(
     client: httpx.AsyncClient,
 ) -> None:
-    app.dependency_overrides[get_limits] = lambda: limits(
-        max_versions_per_flow=1, limit_notice="Free demo."
-    )
+    app.dependency_overrides[get_limits] = lambda: limits(max_versions_per_flow=3)
     flow = await create_flow(client)
-    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
-    draft = {**flow["draft"], "nodes": [dict(n) for n in flow["draft"]["nodes"]]}
-    draft["nodes"][0]["name"] = "Begin"
-    await client.put(f"/flows/{flow['id']}/draft", json=draft, headers={"If-Match": "1"})
-
-    refused = await client.post(f"/flows/{flow['id']}/publish")
-    assert refused.status_code == 409
-    assert refused.json()["code"] == "version_limit_reached"
-    assert refused.json()["details"] == {"limit": 1, "notice": "Free demo."}
+    await edit_and_publish(client, flow, 5)
+    assert await version_numbers(client, flow) == ([5, 4, 3], 3)
+    assert (await client.get(f"/flows/{flow['id']}/versions/2")).status_code == 404
+    assert (await client.get(f"/flows/{flow['id']}")).json()["published_version"] == 5
 
 
 @pytest.mark.usefixtures("override")
-async def test_version_cap_zero_is_unlimited(client: httpx.AsyncClient) -> None:
+async def test_a_window_of_one_keeps_only_the_latest(client: httpx.AsyncClient) -> None:
+    app.dependency_overrides[get_limits] = lambda: limits(max_versions_per_flow=1)
+    flow = await create_flow(client)
+    await edit_and_publish(client, flow, 3)
+    assert await version_numbers(client, flow) == ([3], 1)
+
+
+@pytest.mark.usefixtures("override")
+async def test_a_zero_window_keeps_every_version(client: httpx.AsyncClient) -> None:
     app.dependency_overrides[get_limits] = lambda: limits(max_versions_per_flow=0)
     flow = await create_flow(client)
-    assert (await client.post(f"/flows/{flow['id']}/publish")).status_code == 201
+    await edit_and_publish(client, flow, 4)
+    assert await version_numbers(client, flow) == ([4, 3, 2, 1], 0)
 
 
 @pytest.mark.usefixtures("override")

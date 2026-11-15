@@ -30,10 +30,6 @@ class AlreadyPublished(PublishRefused):
     pass
 
 
-class VersionLimitReached(PublishRefused):
-    pass
-
-
 class FlowStore:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -131,7 +127,7 @@ class FlowStore:
         member: Member,
         flow_id: uuid.UUID,
         expected_draft_version: int,
-        max_versions: int = 0,
+        keep_versions: int = 0,
     ) -> FlowVersion:
         """Raises a PublishRefused subclass instead of returning when it cannot publish."""
         flow = await self.session.scalar(
@@ -147,8 +143,6 @@ class FlowStore:
             refusal = DraftMoved()
         elif flow.published_draft_version == flow.draft_version:
             refusal = AlreadyPublished()
-        elif max_versions and (flow.published_version or 0) >= max_versions:
-            refusal = VersionLimitReached()
         if refusal is not None or flow is None:
             await self.session.rollback()
             raise refusal or FlowMissing()
@@ -160,6 +154,13 @@ class FlowStore:
             created_by=member.user_id,
         )
         self.session.add(version)
+        if keep_versions:
+            await self.session.execute(
+                delete(FlowVersion).where(
+                    FlowVersion.flow_id == flow.id,
+                    FlowVersion.version <= version.version - keep_versions,
+                )
+            )
         flow.published_version = version.version
         flow.published_draft_version = flow.draft_version
         flow.published_at = func.now()

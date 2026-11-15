@@ -25,7 +25,8 @@ class Limits(BaseSettings):
     max_nodes: int = Field(50, ge=0)
     max_edges: int = Field(100, ge=0)
     max_flows_per_user: int = Field(20, ge=0)
-    max_versions_per_flow: int = Field(50, ge=0)
+    # Keep the newest N published versions of a flow; publishing deletes older ones.
+    max_versions_per_flow: int = Field(0, ge=0)
     rate_limit_ip_per_minute: int = Field(120, ge=0)
     rate_limit_ready_per_minute: int = Field(6, ge=0)
     rate_limit_failed_auth_per_minute: int = Field(10, ge=0)

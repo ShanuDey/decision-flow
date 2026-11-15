@@ -997,10 +997,15 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "keep_latest": {
+            "title": "Keep Latest",
+            "type": "integer"
           }
         },
         "required": [
-          "items"
+          "items",
+          "keep_latest"
         ],
         "title": "VersionList",
         "type": "object"

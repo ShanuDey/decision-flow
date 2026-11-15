@@ -60,7 +60,7 @@ export function FlowDeleteDialog({
         <DialogHeader>
           <DialogTitle>Delete flow</DialogTitle>
           <DialogDescription>
-            This deletes “{name}” and all of its runs. It cannot be undone.
+            This deletes “{name}”, its published versions and all of its runs. It cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

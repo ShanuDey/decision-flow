@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from app.flows.store import AlreadyPublished, DraftMoved, FlowStore, VersionLimitReached
+from app.flows.store import AlreadyPublished, DraftMoved, FlowStore
 from app.workspaces.schemas import Member
 from tests.db_fixtures import SessionFactory, anyio_backend, make_member  # noqa: F401
 
@@ -240,13 +240,18 @@ async def test_two_simultaneous_publishes_make_exactly_one_version(
         assert len(await FlowStore(session).list_versions(member, flow.id)) == 1
 
 
-async def test_publish_refuses_past_the_version_cap(sessions: SessionFactory) -> None:
+async def test_publish_deletes_the_oldest_versions_in_the_same_transaction(
+    sessions: SessionFactory,
+) -> None:
     member = await make_member(sessions)
     (flow,) = await make(sessions, member, "Demo")
+    for draft_version in range(1, 5):
+        async with sessions() as session:
+            await FlowStore(session).publish(member, flow.id, draft_version, keep_versions=2)
+        async with sessions() as session:
+            await FlowStore(session).save_draft(
+                member, flow.id, {"name": f"Next {draft_version}"}, draft_version
+            )
     async with sessions() as session:
-        await FlowStore(session).publish(member, flow.id, 1, max_versions=1)
-    async with sessions() as session:
-        await FlowStore(session).save_draft(member, flow.id, {"name": "Next"}, 1)
-    async with sessions() as session:
-        with pytest.raises(VersionLimitReached):
-            await FlowStore(session).publish(member, flow.id, 2, max_versions=1)
+        versions = await FlowStore(session).list_versions(member, flow.id)
+    assert [v.version for v in versions] == [4, 3]

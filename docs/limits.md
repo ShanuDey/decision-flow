@@ -11,7 +11,7 @@ Limits keep one user or workspace from using up a small server. They are environ
 | `MAX_NODES` | `50` | Most nodes in one flow |
 | `MAX_EDGES` | `100` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `20` | Most flows one user can create in a workspace. Deleting a flow frees a slot |
-| `MAX_VERSIONS_PER_FLOW` | `50` | Most published versions one flow can have |
+| `MAX_VERSIONS_PER_FLOW` | `0` | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
 | `RATE_LIMIT_IP_PER_MINUTE` | `120` | Requests per minute from one client IP, on every route. Signed-in requests count per visitor IP |
 | `RATE_LIMIT_READY_PER_MINUTE` | `6` | Requests per minute from one IP to `/ready` (it queries the database) |
 | `RATE_LIMIT_FAILED_AUTH_PER_MINUTE` | `10` | Rejected sign-ins (`401`, `403`) per minute from one IP before that IP is blocked |
@@ -30,7 +30,7 @@ A public deployment should set the per-workspace cap and a shorter timeout, for 
 - **Run too long:** the run stops and is recorded as `failed` with the message `Run timed out after N seconds`. The response is `200`, like any other failure inside a flow.
 - **Flow too big:** a draft over `MAX_NODES` or `MAX_EDGES` still saves, but validating or running it answers `422` with code `invalid_flow`. `details.errors` names `too_many_nodes` or `too_many_edges` and says how many there are. The editor shows the same error.
 - **Too many flows:** `POST /flows` answers `409` with code `flow_limit_reached` and `details.limit` and `details.count`. Two requests sent at the same moment can both pass the check, so the count can go slightly over.
-- **Too many versions:** `POST /flows/{id}/publish` answers `409` with code `version_limit_reached` and `details.limit`.
+- **Old versions:** with `MAX_VERSIONS_PER_FLOW` set, publishing deletes the oldest versions beyond N. Version numbers keep counting up, and reading a deleted version answers `404`.
 - **Too many requests:** any route can answer `429` with code `rate_limited`, a `Retry-After` header (seconds) and `details.scope`: `ip`, `ready`, `failed_auth`, `user`, `runs` or `new_workspaces`. Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` for the last limit that applied. Failed sign-ins count too: after `RATE_LIMIT_FAILED_AUTH_PER_MINUTE` of them, every request from that IP is refused until the minute passes.
 
 When `LIMIT_NOTICE` is set, every limit error (`429`, `413` and `409`) also carries `details.notice`, plus `details.notice_url` if a link is set. The `message` stays the same, so clients keep matching on it. Show the notice as plain text, never as HTML. On a shared demo it can explain why the limit exists, for example: `This is a free demo on shared resources. To get more capacity, self-host it or sponsor the server.`

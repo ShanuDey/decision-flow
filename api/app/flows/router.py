@@ -132,10 +132,13 @@ async def publish_flow(
 
 
 @router.get("/flows/{flow_id}/versions", responses=NOT_FOUND)
-async def list_versions(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> VersionList:
+async def list_versions(
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim
+) -> VersionList:
     versions = await service.list_versions(store, member, flow_id)
     return VersionList(
-        items=[VersionSummary.model_validate(v, from_attributes=True) for v in versions]
+        items=[VersionSummary.model_validate(v, from_attributes=True) for v in versions],
+        keep_latest=limits.max_versions_per_flow,
     )
 
 

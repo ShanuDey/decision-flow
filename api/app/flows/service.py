@@ -16,7 +16,6 @@ from app.flows.store import (
     DraftMoved,
     FlowMissing,
     FlowStore,
-    VersionLimitReached,
 )
 from app.limits import Limits
 from app.workspaces.schemas import Member
@@ -143,14 +142,6 @@ async def publish_flow(
         raise _nothing_to_publish() from None
     except FlowMissing:
         raise not_found("Flow") from None
-    except VersionLimitReached:
-        cap = limits.max_versions_per_flow
-        raise ApiError(
-            409,
-            "version_limit_reached",
-            f"This flow has {cap} published versions; the limit is {cap}.",
-            {"limit": cap, **limits.notice_details()},
-        ) from None
     except DraftMoved:
         current = await require_flow(store, member, flow_id)
         raise ApiError(

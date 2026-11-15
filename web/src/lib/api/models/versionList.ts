@@ -8,4 +8,5 @@ import type { VersionSummary } from './versionSummary';
 
 export interface VersionList {
   items: VersionSummary[];
+  keep_latest: number;
 }

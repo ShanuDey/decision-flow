@@ -46,6 +46,8 @@ class VersionDetail(VersionSummary):
 
 class VersionList(FrozenBaseModel):
     items: list[VersionSummary]
+    # How many newest versions are kept; 0 keeps all.
+    keep_latest: int
 
 
 class FlowList(FrozenBaseModel):

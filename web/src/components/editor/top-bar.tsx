@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleDot, ListChecks, Play, Rocket, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  CircleCheck,
+  CircleDot,
+  ListChecks,
+  Play,
+  Rocket,
+  Save,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -16,6 +25,7 @@ import { guardedLeave, useGuardedNavigate } from "./leave-store";
 import { useEditor } from "./store";
 import { TestDialog } from "./test-dialog";
 import { ValidateIssues } from "./validate-popover";
+import { VersionsList } from "./versions-popover";
 
 type Busy = "save" | "validate" | "publish" | "run" | null;
 
@@ -117,13 +127,33 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
           <h1 className="font-semibold">{name}</h1>
         )}
       </nav>
-      <Badge variant="secondary" className="hidden sm:inline-flex">
-        {publishedVersion === null
-          ? "Draft"
-          : unpublished
-            ? `Published v${publishedVersion} · unpublished changes`
-            : `Published v${publishedVersion}`}
-      </Badge>
+      {publishedVersion === null ? (
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          Draft
+        </Badge>
+      ) : (
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Show published versions"
+                className="hidden rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex"
+              />
+            }
+          >
+            <Badge variant="secondary">
+              {unpublished
+                ? `Published v${publishedVersion} · unpublished changes`
+                : `Published v${publishedVersion}`}
+              <ChevronDown aria-hidden className="size-3" />
+            </Badge>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[320px] max-w-[calc(100vw-1rem)]">
+            <VersionsList />
+          </PopoverContent>
+        </Popover>
+      )}
       <p
         className={
           dirty

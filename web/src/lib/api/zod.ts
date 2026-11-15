@@ -233,7 +233,8 @@ export const ListVersionsResponse = zod.object({
   "created_at": zod.iso.datetime({"offset":true}),
   "source_draft_version": zod.int(),
   "version": zod.int()
-}))
+})),
+  "keep_latest": zod.int()
 })
 
 
