@@ -103,7 +103,7 @@ export function getRuntime(): Runtime {
       max: 3,
       idleTimeoutMillis: 10_000,
     });
-    // An idle connection dropped by the database (Neon suspends) must not crash the process.
+    // An idle connection dropped by a suspending database must not crash the process.
     pool.on("error", (error) => console.error("auth: database connection error:", error.message));
     runtime = { config, pool, options: authOptions(config, pool) };
   }

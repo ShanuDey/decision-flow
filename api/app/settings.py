@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     retention_dry_run: bool = False
 
     # soft keeps deleted flows and old versions (marked deleted_at/by); hard removes them.
-    delete_mode: Literal["hard", "soft"] = "hard"
+    delete_mode: Literal["hard", "soft"] = "soft"
 
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False

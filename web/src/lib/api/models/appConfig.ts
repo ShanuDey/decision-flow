@@ -6,9 +6,6 @@
  */
 import type { AppConfigDeleteMode } from './appConfigDeleteMode';
 
-/**
- * Deployment settings the web app needs to word its screens.
- */
 export interface AppConfig {
   delete_mode: AppConfigDeleteMode;
 }

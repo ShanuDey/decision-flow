@@ -1,5 +1,3 @@
-from typing import Literal
-
 from app.engine.base import FrozenBaseModel
 
 
@@ -10,12 +8,6 @@ class Identity(FrozenBaseModel):
     email: str | None = None
     email_verified: bool = False
     name: str | None = None
-
-
-class AppConfig(FrozenBaseModel):
-    """Deployment settings the web app needs to word its screens."""
-
-    delete_mode: Literal["hard", "soft"]
 
 
 class Principal(FrozenBaseModel):

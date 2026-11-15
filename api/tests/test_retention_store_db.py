@@ -136,7 +136,7 @@ async def test_an_inactive_user_with_soft_deleted_rows_is_still_removed(
     flow = await flow_of(sessions, gone)
     async with sessions() as session:
         store = FlowStore(session)
-        await store.publish(gone, flow, 1)
+        await store.publish(gone, flow, 1, soft=False)
         await store.delete_flow(gone, flow, soft=True)
     await age_user(sessions, gone, OLD)
 

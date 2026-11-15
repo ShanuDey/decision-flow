@@ -175,10 +175,10 @@ async def test_delete_flow_is_scoped_to_the_workspace(sessions: SessionFactory) 
     (flow,) = await make(sessions, mine, "A")
     async with sessions() as session:
         store = FlowStore(session)
-        assert await store.delete_flow(other, flow.id) is False
+        assert await store.delete_flow(other, flow.id, soft=False) is False
         assert await store.get_flow(mine, flow.id) is not None
-        assert await store.delete_flow(mine, flow.id) is True
-        assert await store.delete_flow(mine, flow.id) is False
+        assert await store.delete_flow(mine, flow.id, soft=False) is True
+        assert await store.delete_flow(mine, flow.id, soft=False) is False
 
 
 async def test_publish_numbers_versions_and_rejects_an_unchanged_or_moved_draft(
@@ -188,20 +188,20 @@ async def test_publish_numbers_versions_and_rejects_an_unchanged_or_moved_draft(
     (flow,) = await make(sessions, member, "Demo")
 
     async with sessions() as session:
-        first = await FlowStore(session).publish(member, flow.id, 1)
+        first = await FlowStore(session).publish(member, flow.id, 1, soft=False)
     assert first is not None and (first.version, first.graph) == (1, {"name": "Demo"})
 
     async with sessions() as session:
         with pytest.raises(AlreadyPublished):
-            await FlowStore(session).publish(member, flow.id, 1)
+            await FlowStore(session).publish(member, flow.id, 1, soft=False)
     async with sessions() as session:
         with pytest.raises(DraftMoved):
-            await FlowStore(session).publish(member, flow.id, 9)
+            await FlowStore(session).publish(member, flow.id, 9, soft=False)
 
     async with sessions() as session:
         await FlowStore(session).save_draft(member, flow.id, {"name": "Next"}, 1)
     async with sessions() as session:
-        second = await FlowStore(session).publish(member, flow.id, 2)
+        second = await FlowStore(session).publish(member, flow.id, 2, soft=False)
     assert second is not None and second.version == 2
 
     async with sessions() as session:
@@ -218,9 +218,9 @@ async def test_deleting_a_flow_removes_its_versions(sessions: SessionFactory) ->
     member = await make_member(sessions)
     (flow,) = await make(sessions, member, "Demo")
     async with sessions() as session:
-        await FlowStore(session).publish(member, flow.id, 1)
+        await FlowStore(session).publish(member, flow.id, 1, soft=False)
     async with sessions() as session:
-        await FlowStore(session).delete_flow(member, flow.id)
+        await FlowStore(session).delete_flow(member, flow.id, soft=False)
     async with sessions() as session:
         assert await FlowStore(session).list_versions(member, flow.id) == []
 
@@ -234,7 +234,7 @@ async def test_two_simultaneous_publishes_make_exactly_one_version(
     async def attempt() -> object:
         async with sessions() as session:
             try:
-                return await FlowStore(session).publish(member, flow.id, 1)
+                return await FlowStore(session).publish(member, flow.id, 1, soft=False)
             except AlreadyPublished as exc:
                 return exc
 
@@ -251,7 +251,8 @@ async def test_publish_deletes_the_oldest_versions_in_the_same_transaction(
     (flow,) = await make(sessions, member, "Demo")
     for draft_version in range(1, 5):
         async with sessions() as session:
-            await FlowStore(session).publish(member, flow.id, draft_version, keep_versions=2)
+            store = FlowStore(session)
+            await store.publish(member, flow.id, draft_version, keep_versions=2, soft=False)
         async with sessions() as session:
             await FlowStore(session).save_draft(
                 member, flow.id, {"name": f"Next {draft_version}"}, draft_version
@@ -267,7 +268,7 @@ async def test_soft_delete_marks_the_flow_and_every_query_then_ignores_it(
     member = await make_member(sessions)
     (flow,) = await make(sessions, member, "Demo")
     async with sessions() as session:
-        await FlowStore(session).publish(member, flow.id, 1)
+        await FlowStore(session).publish(member, flow.id, 1, soft=False)
 
     async with sessions() as session:
         assert await FlowStore(session).delete_flow(member, flow.id, soft=True) is True
@@ -284,7 +285,7 @@ async def test_soft_delete_marks_the_flow_and_every_query_then_ignores_it(
         assert await store.list_versions(member, flow.id) == []
         assert await store.get_version(member, flow.id, 1) is None
         with pytest.raises(FlowMissing):
-            await store.publish(member, flow.id, 1)
+            await store.publish(member, flow.id, 1, soft=False)
 
     async with sessions() as session:
         row = await session.get(Flow, flow.id)

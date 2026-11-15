@@ -40,7 +40,7 @@ export async function seedAdmin(): Promise<void> {
   console.log(`auth: seeded the admin account ${config.adminEmail}`);
 }
 
-// Both steps are safe to repeat, and the database may still be waking up (Neon suspends when idle).
+// Both steps are safe to repeat, and the database may still be waking from idle.
 export async function bootstrapAuth(): Promise<void> {
   const { config } = getRuntime();
   await retry(

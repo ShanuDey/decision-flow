@@ -97,10 +97,8 @@ async def rename_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, name
     return flow
 
 
-async def delete_flow(
-    store: FlowStore, member: Member, flow_id: uuid.UUID, soft: bool = False
-) -> None:
-    if not await store.delete_flow(member, flow_id, soft):
+async def delete_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, *, soft: bool) -> None:
+    if not await store.delete_flow(member, flow_id, soft=soft):
         raise not_found("Flow")
 
 
@@ -130,7 +128,7 @@ def _nothing_to_publish() -> ApiError:
 
 
 async def publish_flow(
-    store: FlowStore, member: Member, flow_id: uuid.UUID, limits: Limits, soft: bool = False
+    store: FlowStore, member: Member, flow_id: uuid.UUID, limits: Limits, *, soft: bool
 ) -> FlowVersion:
     flow = await require_flow(store, member, flow_id)
     if flow.published_draft_version == flow.draft_version:
@@ -138,7 +136,7 @@ async def publish_flow(
     validate_draft(flow, limits)
     try:
         return await store.publish(
-            member, flow_id, flow.draft_version, limits.max_versions_per_flow, soft
+            member, flow_id, flow.draft_version, limits.max_versions_per_flow, soft=soft
         )
     except AlreadyPublished:
         raise _nothing_to_publish() from None

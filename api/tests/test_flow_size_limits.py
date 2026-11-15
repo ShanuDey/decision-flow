@@ -33,7 +33,7 @@ def override() -> Iterator[None]:
 
 def test_defaults() -> None:
     fresh = limits()
-    assert (fresh.max_nodes, fresh.max_edges, fresh.max_flows_per_user) == (50, 100, 20)
+    assert (fresh.max_nodes, fresh.max_edges, fresh.max_flows_per_user) == (500, 1000, 0)
     assert fresh.max_versions_per_flow == 0
 
 

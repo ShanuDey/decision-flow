@@ -20,15 +20,30 @@ def soft() -> Iterator[None]:
     app.dependency_overrides.pop(get_limits, None)
 
 
-async def test_config_reports_hard_by_default(client: httpx.AsyncClient) -> None:
-    assert (await client.get("/config")).json() == {"delete_mode": "hard"}
+def test_deleting_is_soft_by_default() -> None:
+    assert Settings(_env_file=None).delete_mode == "soft"
 
 
-@pytest.mark.usefixtures("soft")
+async def test_config_reports_the_mode(client: httpx.AsyncClient) -> None:
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, delete_mode="hard")
+    try:
+        assert (await client.get("/config")).json() == {"delete_mode": "hard"}
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
+
+
 async def test_config_reports_soft(client: httpx.AsyncClient) -> None:
     assert (await client.get("/config")).json() == {"delete_mode": "soft"}
 
 
+@pytest.fixture
+def hard() -> Iterator[None]:
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, delete_mode="hard")
+    yield
+    app.dependency_overrides.pop(get_settings, None)
+
+
+@pytest.mark.usefixtures("hard")
 async def test_hard_delete_removes_the_row(
     client: httpx.AsyncClient, flow_store: FakeFlowStore
 ) -> None:

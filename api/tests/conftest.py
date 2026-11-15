@@ -78,7 +78,7 @@ class FakeFlowStore:
         self.flows[flow.id] = flow
         return flow
 
-    async def delete_flow(self, member: Member, flow_id: uuid.UUID, soft: bool = False) -> bool:
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID, *, soft: bool) -> bool:
         flow = self._visible(member, flow_id)
         if flow is None:
             return False
@@ -138,7 +138,8 @@ class FakeFlowStore:
         flow_id: uuid.UUID,
         expected_draft_version: int,
         keep_versions: int = 0,
-        soft: bool = False,
+        *,
+        soft: bool,
     ) -> FlowVersion:
         flow = self._visible(member, flow_id)
         if flow is None:

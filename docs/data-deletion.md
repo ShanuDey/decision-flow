@@ -4,8 +4,8 @@
 
 | `DELETE_MODE` | Default | Effect |
 |---|---|---|
-| `hard` | yes | The flow and its runs are removed for good. Versions older than the window are removed. |
-| `soft` | | Nothing is removed. The row gets `deleted_at` and `deleted_by` and disappears from every list and endpoint. |
+| `hard` | | The flow and its runs are removed for good. Versions older than the window are removed. A shared public deployment usually picks this to keep storage bounded. |
+| `soft` | yes | Nothing is removed. The row gets `deleted_at` and `deleted_by` and disappears from every list and endpoint. |
 
 ## Soft mode
 

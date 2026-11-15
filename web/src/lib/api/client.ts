@@ -72,7 +72,7 @@ export const getConfigUrl = () => {
 }
 
 /**
- * Deployment settings the web app needs, such as how deleting works.
+ * Deployment settings the web app needs.
  * @summary Config
  */
 export const config = async ( options?: Parameters<typeof apiFetch>[1]): Promise<configResponse> => {

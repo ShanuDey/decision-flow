@@ -64,7 +64,7 @@ export default async function FlowsPage({
     call(listFlows({ q, sort: sort as ListFlowsSort, page, page_size: PAGE_SIZE }, init)),
     call(config(init)),
   ]);
-  const deleteMode = appConfig.ok ? appConfig.data.delete_mode : "hard";
+  const deleteMode = appConfig.ok ? appConfig.data.delete_mode : "soft";
 
   const header = (label: string, column: SortKey) => {
     const active = key === column;

@@ -22,7 +22,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
 def test_defaults() -> None:
     limits = Limits(_env_file=None)
     assert limits.max_request_bytes == 1_048_576
-    assert limits.max_concurrent_runs == 10
+    assert limits.max_concurrent_runs == 50
     assert limits.max_concurrent_runs_per_workspace == 0
     assert limits.run_timeout_seconds == 300
 

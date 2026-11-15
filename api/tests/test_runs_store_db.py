@@ -189,7 +189,7 @@ async def test_deleting_a_flow_removes_its_runs_and_only_its_own(sessions: Sessi
         survivor = await runs.add_run(run(kept, member))
 
     async with sessions() as session:
-        assert await FlowStore(session).delete_flow(member, gone) is True
+        assert await FlowStore(session).delete_flow(member, gone, soft=False) is True
 
     async with sessions() as session:
         runs = RunStore(session)
@@ -201,7 +201,7 @@ async def test_a_run_for_a_deleted_flow_raises_flow_gone(sessions: SessionFactor
     member = await make_member(sessions)
     flow = await flow_id(sessions, member)
     async with sessions() as session:
-        await FlowStore(session).delete_flow(member, flow)
+        await FlowStore(session).delete_flow(member, flow, soft=False)
     async with sessions() as session:
         with pytest.raises(FlowGone):
             await RunStore(session).add_run(run(flow, member))

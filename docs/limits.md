@@ -1,28 +1,45 @@
 # Limits
 
-Limits keep one user or workspace from using up a small server. They are environment variables, read once at start. `0` turns a limit off, except `MAX_REQUEST_BYTES`, which always applies.
+Limits keep one user or workspace from using up a server. They are environment variables, read once at start. `0` turns a limit off, except `MAX_REQUEST_BYTES`, which always applies.
+
+The defaults suit a normal self-hosted install: wide safety bounds and no product caps (flows, versions). A shared public deployment sets much tighter values; see the example at the end of this section.
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `MAX_REQUEST_BYTES` | `1048576` | Largest request body. A bigger one gets `413` |
-| `MAX_CONCURRENT_RUNS` | `10` | Runs in progress at once, across the whole app |
+| `MAX_CONCURRENT_RUNS` | `50` | Runs in progress at once, across the whole app |
 | `MAX_CONCURRENT_RUNS_PER_WORKSPACE` | `0` (off) | Runs in progress at once for one workspace |
 | `RUN_TIMEOUT_SECONDS` | `300` | Longest a run may take |
-| `MAX_NODES` | `50` | Most nodes in one flow |
-| `MAX_EDGES` | `100` | Most edges in one flow |
-| `MAX_FLOWS_PER_USER` | `20` | Most flows one user can create in a workspace. Deleting a flow frees a slot |
-| `MAX_VERSIONS_PER_FLOW` | `0` | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
-| `RATE_LIMIT_IP_PER_MINUTE` | `120` | Requests per minute from one client IP, on every route. Signed-in requests count per visitor IP |
-| `RATE_LIMIT_READY_PER_MINUTE` | `6` | Requests per minute from one IP to `/ready` (it queries the database) |
+| `MAX_NODES` | `500` | Most nodes in one flow |
+| `MAX_EDGES` | `1000` | Most edges in one flow |
+| `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |
+| `MAX_VERSIONS_PER_FLOW` | `0` (off) | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
+| `RATE_LIMIT_IP_PER_MINUTE` | `600` | Requests per minute from one client IP, on every route. Signed-in requests count per visitor IP |
+| `RATE_LIMIT_READY_PER_MINUTE` | `60` | Requests per minute from one IP to `/ready` (it queries the database) |
 | `RATE_LIMIT_FAILED_AUTH_PER_MINUTE` | `10` | Rejected sign-ins (`401`, `403`) per minute from one IP before that IP is blocked |
-| `RATE_LIMIT_USER_WRITES_PER_MINUTE` | `60` | Writes (anything but `GET`) per minute for one user |
-| `RATE_LIMIT_USER_RUNS_PER_MINUTE` | `20` | Runs per minute for one user (runs also count as writes) |
-| `RATE_LIMIT_NEW_WORKSPACES_PER_IP_PER_HOUR` | `5` | New accounts per hour from one visitor IP; each one gets its own workspace |
+| `RATE_LIMIT_USER_WRITES_PER_MINUTE` | `300` | Writes (anything but `GET`) per minute for one user |
+| `RATE_LIMIT_USER_RUNS_PER_MINUTE` | `120` | Runs per minute for one user (runs also count as writes) |
+| `RATE_LIMIT_NEW_WORKSPACES_PER_IP_PER_HOUR` | `0` (off) | New accounts per hour from one visitor IP; each one gets its own workspace |
 | `TRUSTED_PROXY` | `0` | Proxies in front of the API whose `X-Forwarded-For` entry is trusted. `0` ignores the header |
 | `LIMIT_NOTICE` | empty | Text added to every limit error, for example how to get more capacity. Up to 300 characters |
 | `LIMIT_NOTICE_URL` | empty | A link shown with the notice. Must start with `http://` or `https://` |
 
-A public deployment should set the per-workspace cap and a shorter timeout, for example `MAX_CONCURRENT_RUNS_PER_WORKSPACE=2` and `RUN_TIMEOUT_SECONDS=30`.
+A public deployment should tighten these. [`.env.limited.example`](../.env.limited.example) has the full set the public demo uses; the main ones are:
+
+```
+MAX_CONCURRENT_RUNS=10
+MAX_CONCURRENT_RUNS_PER_WORKSPACE=2
+RUN_TIMEOUT_SECONDS=30
+MAX_NODES=50
+MAX_EDGES=100
+MAX_FLOWS_PER_USER=20
+MAX_VERSIONS_PER_FLOW=10
+RATE_LIMIT_IP_PER_MINUTE=120
+RATE_LIMIT_READY_PER_MINUTE=6
+RATE_LIMIT_USER_WRITES_PER_MINUTE=60
+RATE_LIMIT_USER_RUNS_PER_MINUTE=20
+RATE_LIMIT_NEW_WORKSPACES_PER_IP_PER_HOUR=5
+```
 
 ## When a limit is reached
 
@@ -41,15 +58,15 @@ A request that is rejected for another reason (unknown flow, invalid input) neve
 
 ## Client IP and proxies
 
-Limits per IP need the real client address. Behind a platform proxy (Render, Fly, a load balancer) set `TRUSTED_PROXY` to the number of proxies in front of the API, for example `1` on Render. The API then reads the entry those proxies added to `X-Forwarded-For`, counting from the right, so a header the client made up is ignored. With `TRUSTED_PROXY=0` the header is ignored altogether and the connection address is used. IPv6 clients are grouped by their /64 network.
+Limits per IP need the real client address. Behind a platform proxy or load balancer set `TRUSTED_PROXY` to the number of proxies in front of the API, for example `1` when your API host puts one in front. The API then reads the entry those proxies added to `X-Forwarded-For`, counting from the right, so a header the client made up is ignored. With `TRUSTED_PROXY=0` the header is ignored altogether and the connection address is used. IPv6 clients are grouped by their /64 network.
 
-The web app calls the API from its own servers, so the API would only see those. The web app therefore sends the visitor's address in `X-Client-IP` (read from `AUTH_IP_HEADER`), and the API believes it only on requests signed with the web app's own token. The signed-in IP limit and the new-account limit use that address, so visitors do not share one limit just because they go through the same web server. `AUTH_IP_HEADER` must name a header your platform sets itself (the default `x-forwarded-for` is safe on Vercel, which overwrites it); a header the client can send lets anyone pick their own address.
+The web app calls the API from its own servers, so the API would only see those. The web app therefore sends the visitor's address in `X-Client-IP` (read from `AUTH_IP_HEADER`), and the API believes it only on requests signed with the web app's own token. The signed-in IP limit and the new-account limit use that address, so visitors do not share one limit just because they go through the same web server. `AUTH_IP_HEADER` must name a header your platform sets itself (the default `x-forwarded-for` is safe when your web host overwrites it); a header the client can send lets anyone pick their own address.
 
 The container starts uvicorn with `--no-proxy-headers`, so the connection address is always the real peer and `TRUSTED_PROXY` is the only thing that reads `X-Forwarded-For`.
 
 ## Notes
 
-- Deleting a flow removes its runs. Their MLflow traces are removed later by the retention job (see [retention](retention.md)), and only if run retention is on.
+- With `DELETE_MODE=hard`, deleting a flow removes its runs; with `soft` they stay ([data deletion](data-deletion.md)). Run traces in MLflow are removed later by the retention job (see [retention](retention.md)), and only if run retention is on.
 - Each limiter tracks at most 10,000 keys; a flood of distinct IPs can push out the oldest counters.
 - Counts and rate limits are held in memory, so they are per server process and reset when it restarts. Run one instance, or accept that each instance counts on its own.
 - The timeout is checked while a run waits, so it cannot interrupt a node that is busy computing.

@@ -3,7 +3,6 @@
     "schemas": {
       "AppConfig": {
         "additionalProperties": false,
-        "description": "Deployment settings the web app needs to word its screens.",
         "properties": {
           "delete_mode": {
             "enum": [
@@ -1090,7 +1089,7 @@
   "paths": {
     "/config": {
       "get": {
-        "description": "Deployment settings the web app needs, such as how deleting works.",
+        "description": "Deployment settings the web app needs.",
         "operationId": "config",
         "responses": {
           "200": {
@@ -1141,7 +1140,7 @@
         ],
         "summary": "Config",
         "tags": [
-          "auth"
+          "deployment"
         ]
       }
     },

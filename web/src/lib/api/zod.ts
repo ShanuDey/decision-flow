@@ -7,12 +7,12 @@
 import * as zod from 'zod';
 
 /**
- * Deployment settings the web app needs, such as how deleting works.
+ * Deployment settings the web app needs.
  * @summary Config
  */
 export const ConfigResponse = zod.object({
   "delete_mode": zod.enum(['hard', 'soft'])
-}).describe('Deployment settings the web app needs to word its screens.')
+})
 
 
 /**

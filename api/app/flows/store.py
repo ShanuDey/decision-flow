@@ -93,7 +93,7 @@ class FlowStore:
         await self.session.commit()
         return flow
 
-    async def delete_flow(self, member: Member, flow_id: uuid.UUID, soft: bool = False) -> bool:
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID, *, soft: bool) -> bool:
         """Soft marks the flow deleted and keeps its row, versions and runs."""
         live = (Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
         if soft:
@@ -141,7 +141,8 @@ class FlowStore:
         flow_id: uuid.UUID,
         expected_draft_version: int,
         keep_versions: int = 0,
-        soft: bool = False,
+        *,
+        soft: bool,
     ) -> FlowVersion:
         """Raises a PublishRefused subclass instead of returning when it cannot publish."""
         flow = await self.session.scalar(

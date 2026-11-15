@@ -84,7 +84,7 @@ async def delete_flow(
     flow_id: uuid.UUID, store: Store, member: CurrentMember, settings: AppSettings
 ) -> None:
     """Hard mode removes the flow and its runs for good; soft mode only hides the flow."""
-    await service.delete_flow(store, member, flow_id, settings.delete_mode == "soft")
+    await service.delete_flow(store, member, flow_id, soft=settings.delete_mode == "soft")
 
 
 @router.put(
@@ -132,7 +132,7 @@ async def publish_flow(
 ) -> VersionDetail:
     """Validates the draft, then freezes it as the next numbered version."""
     version = await service.publish_flow(
-        store, member, flow_id, limits, settings.delete_mode == "soft"
+        store, member, flow_id, limits, soft=settings.delete_mode == "soft"
     )
     return VersionDetail.model_validate(version, from_attributes=True)
 

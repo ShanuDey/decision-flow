@@ -182,10 +182,10 @@ describe("loadAuthConfig extras", () => {
   it("reads the client IP header and trusted proxies", () => {
     const config = loadAuthConfig({
       ...BASE,
-      AUTH_IP_HEADER: " X-Vercel-Forwarded-For ",
+      AUTH_IP_HEADER: " X-Real-Client-IP ",
       AUTH_TRUSTED_PROXIES: "10.0.0.0/8, 172.16.0.1",
     });
-    expect(config.ipHeader).toBe("x-vercel-forwarded-for");
+    expect(config.ipHeader).toBe("x-real-client-ip");
     expect(config.trustedProxies).toEqual(["10.0.0.0/8", "172.16.0.1"]);
   });
 
