@@ -21,6 +21,7 @@ import { SelectField } from "@/components/ui/select-field";
 import { expiryDays, NAME_MAX } from "@/lib/auth/key-request";
 import {
   agentKey,
+  agentPrompt,
   claudeCodeCommand,
   DEFAULT_AGENT_EXPIRY,
   DEFAULT_AGENT_NAME,
@@ -126,6 +127,11 @@ export function ConnectAgentDialog({ atLimit }: { atLimit: boolean }) {
                 The key below is not shown again. Anyone with it can read, change and run your flows.
               </DialogDescription>
             </DialogHeader>
+            <CopyBlock
+              label="Ask your agent to install it"
+              text={agentPrompt(url, secret)}
+              hint="Paste this into your agent. The URL and key are already filled in."
+            />
             <CopyBlock label="API key" text={secret} />
             <CopyBlock
               label="Claude Code"

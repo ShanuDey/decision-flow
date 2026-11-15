@@ -36,7 +36,7 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start here",
-          items: ["overview", "getting-started"],
+          items: ["overview", "getting-started", "agent-guide"],
         },
         {
           label: "Concepts",
