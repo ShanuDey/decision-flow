@@ -1,13 +1,24 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { apiKey } from "@better-auth/api-key";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
 
 import { accountAllowed, type AuthConfig, loadAuthConfig, PASSWORD } from "./config";
+import { KEY_PREFIX } from "./scopes";
 
 const SCHEMA = "auth";
+
+// The plugin's own default (10 requests a day) would break any real caller.
+export const apiKeyOptions = {
+  defaultPrefix: KEY_PREFIX,
+  requireName: true,
+  startingCharactersConfig: { charactersLength: KEY_PREFIX.length + 4 },
+  keyExpiration: { maxExpiresIn: 365 },
+  rateLimit: { enabled: true, timeWindow: 60_000, maxRequests: 120 },
+};
 
 interface Runtime {
   config: AuthConfig;
@@ -86,7 +97,7 @@ function authOptions(config: AuthConfig, pool: Pool): BetterAuthOptions {
         },
       },
     },
-    plugins: [nextCookies()],
+    plugins: [nextCookies(), apiKey(apiKeyOptions)],
   };
 }
 
