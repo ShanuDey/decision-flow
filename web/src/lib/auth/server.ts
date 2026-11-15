@@ -1,19 +1,30 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { apiKey } from "@better-auth/api-key";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
 
 import { accountAllowed, type AuthConfig, loadAuthConfig, PASSWORD } from "./config";
+import { KEY_PREFIX } from "./scopes";
 
 const SCHEMA = "auth";
+
+// The plugin's own default (10 requests a day) would break any real caller.
+export const apiKeyOptions = {
+  defaultPrefix: KEY_PREFIX,
+  requireName: true,
+  startingCharactersConfig: { charactersLength: KEY_PREFIX.length + 4 },
+  keyExpiration: { maxExpiresIn: 365 },
+  rateLimit: { enabled: true, timeWindow: 60_000, maxRequests: 120 },
+};
 
 interface Runtime {
   config: AuthConfig;
   pool: Pool;
-  options: BetterAuthOptions;
-  auth?: ReturnType<typeof betterAuth>;
+  options: Options;
+  auth?: ReturnType<typeof createAuth>;
 }
 
 let runtime: Runtime | undefined;
@@ -27,7 +38,7 @@ export function asSeed<T>(work: () => Promise<T>): Promise<T> {
 
 const refuse = (message: string) => new APIError("FORBIDDEN", { message });
 
-function authOptions(config: AuthConfig, pool: Pool): BetterAuthOptions {
+function authOptions(config: AuthConfig, pool: Pool) {
   return {
     appName: "Decision Flow",
     baseURL: config.baseURL,
@@ -86,9 +97,12 @@ function authOptions(config: AuthConfig, pool: Pool): BetterAuthOptions {
         },
       },
     },
-    plugins: [nextCookies()],
-  };
+    plugins: [nextCookies(), apiKey(apiKeyOptions)],
+  } satisfies BetterAuthOptions;
 }
+
+type Options = ReturnType<typeof authOptions>;
+const createAuth = (options: Options) => betterAuth(options);
 
 export function getRuntime(): Runtime {
   if (!runtime) {
@@ -103,7 +117,7 @@ export function getRuntime(): Runtime {
       max: 3,
       idleTimeoutMillis: 10_000,
     });
-    // An idle connection dropped by the database (Neon suspends) must not crash the process.
+    // An idle connection dropped by a suspending database must not crash the process.
     pool.on("error", (error) => console.error("auth: database connection error:", error.message));
     runtime = { config, pool, options: authOptions(config, pool) };
   }
@@ -113,7 +127,7 @@ export function getRuntime(): Runtime {
 // Created on first use, after bootstrap has migrated the schema.
 export function getAuth() {
   const rt = getRuntime();
-  return (rt.auth ??= betterAuth(rt.options));
+  return (rt.auth ??= createAuth(rt.options));
 }
 export const getConfig = () => getRuntime().config;
 

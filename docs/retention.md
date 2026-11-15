@@ -32,6 +32,6 @@ An account counts as seen when it makes a request, recorded at most once an hour
 ## Notes
 
 - State lives in the rows' timestamps, so a restart, or a free-tier service waking from sleep, just runs the next pass. A service that is asleep does not run the timer.
-- Two API instances never run a pass at the same time. This uses a Postgres advisory lock, which needs a direct database connection: with Neon, use the endpoint without `-pooler`.
+- Two API instances never run a pass at the same time. This uses a Postgres advisory lock, which needs a direct database connection: with a pooled connection string, use the direct (non-pooled) one.
 - Sign-in records are deleted only if they live in the same database as the API (the `auth` schema). If the web app uses its own `AUTH_DATABASE_URL`, the log warns that they are left alone.
 - Drafts and published flows are only deleted together with their account. Run retention never touches them.

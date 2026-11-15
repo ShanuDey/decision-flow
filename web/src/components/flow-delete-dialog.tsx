@@ -16,10 +16,12 @@ import {
 import { deleteFlow } from "@/lib/api/client";
 import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
+import { type DeleteMode, deleteCopy } from "@/lib/delete-copy";
 
 export function FlowDeleteDialog({
   flowId,
   name,
+  mode,
   onDeleted,
   trigger,
   open: controlledOpen,
@@ -27,6 +29,7 @@ export function FlowDeleteDialog({
 }: {
   flowId: string;
   name: string;
+  mode: DeleteMode;
   onDeleted: () => void;
   trigger?: ReactElement;
   open?: boolean;
@@ -60,7 +63,7 @@ export function FlowDeleteDialog({
         <DialogHeader>
           <DialogTitle>Delete flow</DialogTitle>
           <DialogDescription>
-            This deletes “{name}” and all of its runs. It cannot be undone.
+            {deleteCopy(mode, name)}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

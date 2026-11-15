@@ -1,3 +1,4 @@
+import copy
 import json
 import uuid
 from datetime import UTC, datetime
@@ -8,14 +9,19 @@ import httpx
 import pytest
 
 from app.auth.models import Principal
-from app.flows.models import Flow
-from app.flows.store import get_store
+from app.flows.models import Flow, FlowVersion
+from app.flows.store import (
+    AlreadyPublished,
+    DraftMoved,
+    FlowMissing,
+    get_store,
+)
 from app.limits import Limits
 from app.main import app
 from app.ratelimit import RateLimiters
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
-from app.runs.store import get_run_store
+from app.runs.store import FlowInfo, get_run_store
 from app.workspaces.deps import get_workspace_store
 from app.workspaces.schemas import Member
 from tests.auth_helpers import bearer
@@ -49,10 +55,12 @@ class FakeWorkspaceStore:
 class FakeFlowStore:
     def __init__(self) -> None:
         self.flows: dict[uuid.UUID, Flow] = {}
+        self.versions: list[FlowVersion] = []
 
     def _visible(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         flow = self.flows.get(flow_id)
-        return flow if flow is not None and flow.workspace_id == member.workspace_id else None
+        live = flow is not None and flow.deleted_at is None
+        return flow if live and flow.workspace_id == member.workspace_id else None
 
     async def create_flow(self, member: Member, name: str, draft: dict[str, Any]) -> Flow:
         now = datetime.now(UTC)
@@ -70,12 +78,22 @@ class FakeFlowStore:
         self.flows[flow.id] = flow
         return flow
 
-    async def delete_flow(self, member: Member, flow_id: uuid.UUID) -> bool:
-        return self._visible(member, flow_id) is not None and self.flows.pop(flow_id) is not None
+    async def delete_flow(self, member: Member, flow_id: uuid.UUID, *, soft: bool) -> bool:
+        flow = self._visible(member, flow_id)
+        if flow is None:
+            return False
+        if soft:
+            flow.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+            flow.deleted_by = member.user_id
+        else:
+            del self.flows[flow_id]
+        return True
 
     async def count_flows(self, member: Member) -> int:
         return sum(
-            f.workspace_id == member.workspace_id and f.created_by == member.user_id
+            f.workspace_id == member.workspace_id
+            and f.created_by == member.user_id
+            and f.deleted_at is None
             for f in self.flows.values()
         )
 
@@ -85,7 +103,9 @@ class FakeFlowStore:
         flows = [
             f
             for f in self.flows.values()
-            if f.workspace_id == member.workspace_id and (not q or q.lower() in f.name.lower())
+            if f.workspace_id == member.workspace_id
+            and f.deleted_at is None
+            and (not q or q.lower() in f.name.lower())
         ]
         start = (page - 1) * page_size
         return flows[start : start + page_size], len(flows)
@@ -112,10 +132,70 @@ class FakeFlowStore:
         flow.updated_by = member.user_id
         return flow
 
+    async def publish(
+        self,
+        member: Member,
+        flow_id: uuid.UUID,
+        expected_draft_version: int,
+        keep_versions: int = 0,
+        *,
+        soft: bool,
+    ) -> FlowVersion:
+        flow = self._visible(member, flow_id)
+        if flow is None:
+            raise FlowMissing
+        if flow.draft_version != expected_draft_version:
+            raise DraftMoved
+        if flow.published_draft_version == flow.draft_version:
+            raise AlreadyPublished
+        now = datetime.now(UTC).replace(tzinfo=None)
+        version = FlowVersion(
+            id=uuid.uuid4(),
+            flow_id=flow.id,
+            version=(flow.published_version or 0) + 1,
+            graph=copy.deepcopy(flow.draft),
+            source_draft_version=flow.draft_version,
+            created_by=member.user_id,
+            created_at=now,
+        )
+        self.versions.append(version)
+        if keep_versions:
+            old = [
+                v
+                for v in self.versions
+                if v.flow_id == flow.id
+                and v.deleted_at is None
+                and v.version <= version.version - keep_versions
+            ]
+            for v in old:
+                if soft:
+                    v.deleted_at = now
+                    v.deleted_by = member.user_id
+                else:
+                    self.versions.remove(v)
+        flow.published_version = version.version
+        flow.published_draft_version = flow.draft_version
+        flow.published_at = now
+        return version
+
+    async def list_versions(self, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
+        if self._visible(member, flow_id) is None:
+            return []
+        found = [v for v in self.versions if v.flow_id == flow_id and v.deleted_at is None]
+        return sorted(found, key=lambda v: v.version, reverse=True)
+
+    async def get_version(
+        self, member: Member, flow_id: uuid.UUID, version: int
+    ) -> FlowVersion | None:
+        return next(
+            (v for v in await self.list_versions(member, flow_id) if v.version == version), None
+        )
+
 
 class FakeRunStore:
-    def __init__(self) -> None:
+    def __init__(self, flows: "FakeFlowStore") -> None:
         self.runs: dict[uuid.UUID, Run] = {}
+        self.flows = flows
 
     async def add_run(self, run: Run) -> Run:
         run.id = uuid.uuid4()
@@ -152,6 +232,18 @@ class FakeRunStore:
         run = self.runs.get(run_id)
         return run if run is not None and run.workspace_id == member.workspace_id else None
 
+    async def flow_infos(
+        self, member: Member, flow_ids: set[uuid.UUID]
+    ) -> dict[uuid.UUID, FlowInfo]:
+        found = {
+            i: f
+            for i in flow_ids
+            if (f := self.flows.flows.get(i)) is not None and f.workspace_id == member.workspace_id
+        }
+        return {
+            i: FlowInfo(name=f.name, deleted=f.deleted_at is not None) for i, f in found.items()
+        }
+
 
 class StubObserver:
     """Records nothing; exposes a fixed trace id like MlflowObserver after a run starts."""
@@ -187,8 +279,8 @@ def flow_store() -> FakeFlowStore:
 
 
 @pytest.fixture
-def run_store() -> FakeRunStore:
-    return FakeRunStore()
+def run_store(flow_store: FakeFlowStore) -> FakeRunStore:
+    return FakeRunStore(flow_store)
 
 
 @pytest.fixture

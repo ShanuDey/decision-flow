@@ -277,3 +277,17 @@ describe("addNode from an output", () => {
     expect(state().nodes.length).toBe(before);
   });
 });
+
+describe("publishing", () => {
+  it("tracks the published version and draft version it came from", () => {
+    state().load({ id: "f1", name: "Demo", draftVersion: 3, graph, published: { version: 2, draftVersion: 3 } });
+    expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([2, 3]);
+    state().markPublished(3, 4);
+    expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([3, 4]);
+  });
+
+  it("starts unpublished when the flow was never published", () => {
+    state().load({ id: "f1", name: "Demo", draftVersion: 1, graph });
+    expect(state().publishedVersion).toBeNull();
+  });
+});

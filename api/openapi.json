@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "AppConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "delete_mode": {
+            "enum": [
+              "hard",
+              "soft"
+            ],
+            "title": "Delete Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delete_mode"
+        ],
+        "title": "AppConfig",
+        "type": "object"
+      },
       "DraftSaved": {
         "additionalProperties": false,
         "properties": {
@@ -169,6 +187,40 @@
             "title": "Name",
             "type": "string"
           },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_draft_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Draft Version"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -179,11 +231,80 @@
           "id",
           "name",
           "draft_version",
+          "published_version",
+          "published_draft_version",
+          "published_at",
           "created_at",
           "updated_at",
           "draft"
         ],
         "title": "FlowDetail",
+        "type": "object"
+      },
+      "FlowFormat": {
+        "additionalProperties": false,
+        "properties": {
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/FlowFormatExample"
+            },
+            "title": "Examples",
+            "type": "array"
+          },
+          "graph_schema": {
+            "additionalProperties": true,
+            "title": "Graph Schema",
+            "type": "object"
+          },
+          "guide": {
+            "title": "Guide",
+            "type": "string"
+          },
+          "node_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Types",
+            "type": "array"
+          }
+        },
+        "required": [
+          "guide",
+          "node_types",
+          "graph_schema",
+          "examples"
+        ],
+        "title": "FlowFormat",
+        "type": "object"
+      },
+      "FlowFormatExample": {
+        "additionalProperties": false,
+        "properties": {
+          "draft": {
+            "additionalProperties": true,
+            "title": "Draft",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "draft"
+        ],
+        "title": "FlowFormatExample",
         "type": "object"
       },
       "FlowList": {
@@ -255,6 +376,40 @@
             "title": "Name",
             "type": "string"
           },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_draft_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Draft Version"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -265,6 +420,9 @@
           "id",
           "name",
           "draft_version",
+          "published_version",
+          "published_draft_version",
+          "published_at",
           "created_at",
           "updated_at"
         ],
@@ -368,6 +526,104 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "RunDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flow_deleted": {
+            "title": "Flow Deleted",
+            "type": "boolean"
+          },
+          "flow_id": {
+            "format": "uuid",
+            "title": "Flow Id",
+            "type": "string"
+          },
+          "flow_name": {
+            "title": "Flow Name",
+            "type": "string"
+          },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "test": {
+            "title": "Test",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "run_id",
+          "flow_id",
+          "flow_name",
+          "flow_deleted",
+          "status",
+          "test",
+          "flow_version",
+          "error",
+          "duration_ms",
+          "started_at",
+          "input",
+          "output"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
       "RunError": {
         "additionalProperties": false,
         "properties": {
@@ -421,11 +677,13 @@
         "properties": {
           "input": {
             "additionalProperties": true,
+            "description": "Values for the flow's Start inputs, as an object.",
             "title": "Input",
             "type": "object"
           },
           "test": {
             "default": false,
+            "description": "true runs the current draft; false runs the latest published version.",
             "title": "Test",
             "type": "boolean"
           }
@@ -449,6 +707,17 @@
                 "type": "null"
               }
             ]
+          },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
           },
           "output": {
             "anyOf": [
@@ -479,11 +748,140 @@
         "required": [
           "run_id",
           "status",
+          "flow_version",
           "output",
           "error",
           "duration_ms"
         ],
         "title": "RunResponse",
+        "type": "object"
+      },
+      "RunStep": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "kind": {
+            "enum": [
+              "node",
+              "llm",
+              "tool",
+              "parser",
+              "other"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "node_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Type"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "start_offset_ms": {
+            "title": "Start Offset Ms",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "parent_id",
+          "kind",
+          "node_id",
+          "node_type",
+          "name",
+          "status",
+          "error",
+          "start_offset_ms",
+          "duration_ms",
+          "input",
+          "output"
+        ],
+        "title": "RunStep",
+        "type": "object"
+      },
+      "RunSteps": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunStep"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "pending"
+        ],
+        "title": "RunSteps",
         "type": "object"
       },
       "RunSummary": {
@@ -503,10 +901,29 @@
               }
             ]
           },
+          "flow_deleted": {
+            "title": "Flow Deleted",
+            "type": "boolean"
+          },
           "flow_id": {
             "format": "uuid",
             "title": "Flow Id",
             "type": "string"
+          },
+          "flow_name": {
+            "title": "Flow Name",
+            "type": "string"
+          },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
           },
           "run_id": {
             "format": "uuid",
@@ -534,13 +951,97 @@
         "required": [
           "run_id",
           "flow_id",
+          "flow_name",
+          "flow_deleted",
           "status",
           "test",
+          "flow_version",
           "error",
           "duration_ms",
           "started_at"
         ],
         "title": "RunSummary",
+        "type": "object"
+      },
+      "Template": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "title": "Draft",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "node_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Node Types",
+            "type": "array"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "description",
+          "category",
+          "inputs",
+          "outputs",
+          "node_types",
+          "draft"
+        ],
+        "title": "Template",
+        "type": "object"
+      },
+      "TemplateList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Template"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TemplateList",
         "type": "object"
       },
       "ValidateResponse": {
@@ -597,6 +1098,84 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VersionDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "graph": {
+            "additionalProperties": true,
+            "title": "Graph",
+            "type": "object"
+          },
+          "source_draft_version": {
+            "title": "Source Draft Version",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "source_draft_version",
+          "created_at",
+          "graph"
+        ],
+        "title": "VersionDetail",
+        "type": "object"
+      },
+      "VersionList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VersionSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "keep_latest": {
+            "title": "Keep Latest",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "keep_latest"
+        ],
+        "title": "VersionList",
+        "type": "object"
+      },
+      "VersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "source_draft_version": {
+            "title": "Source Draft Version",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "source_draft_version",
+          "created_at"
+        ],
+        "title": "VersionSummary",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -612,6 +1191,63 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/config": {
+      "get": {
+        "description": "Deployment settings the web app needs.",
+        "operationId": "config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Config",
+        "tags": [
+          "deployment"
+        ]
+      }
+    },
     "/expressions/evaluate": {
       "post": {
         "description": "Stateless helper for the editor's Test pane and validity strip.",
@@ -689,8 +1325,66 @@
         ]
       }
     },
+    "/flow-format": {
+      "get": {
+        "description": "Explains how a flow graph is written: a guide, the JSON Schema and worked examples.\n\nRead it before saving a draft.",
+        "operationId": "get_flow_format",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowFormat"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Flow Format",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
     "/flows": {
       "get": {
+        "description": "Lists your flows, most recently edited first.\n\n`q` filters by name; `published_version` is null until a flow is published.",
         "operationId": "list_flows",
         "parameters": [
           {
@@ -814,6 +1508,7 @@
         ]
       },
       "post": {
+        "description": "Creates a flow. Without `draft` it starts as a blank Start to End graph.\n\nIt has no published version yet.",
         "operationId": "create_flow",
         "requestBody": {
           "content": {
@@ -900,7 +1595,7 @@
     },
     "/flows/{flow_id}": {
       "delete": {
-        "description": "Removes the flow and its runs for good.",
+        "description": "Hard mode removes the flow and its runs for good; soft mode only hides the flow.",
         "operationId": "delete_flow",
         "parameters": [
           {
@@ -980,6 +1675,7 @@
         ]
       },
       "get": {
+        "description": "Returns a flow with its current draft graph and `draft_version`.\n\nSaving the draft needs that `draft_version` as `If-Match`.",
         "operationId": "get_flow",
         "parameters": [
           {
@@ -1066,6 +1762,7 @@
         ]
       },
       "patch": {
+        "description": "Renames a flow. Its draft and history are not affected.",
         "operationId": "rename_flow",
         "parameters": [
           {
@@ -1164,7 +1861,7 @@
     },
     "/flows/{flow_id}/draft": {
       "put": {
-        "description": "Saves even an invalid graph (autosave); problems are reported by `validate_flow`.",
+        "description": "Replaces the whole draft graph.\n\nSend the `draft_version` you last read as `If-Match`; a stale value is 409 `draft_conflict`.\nSaves even an invalid graph (autosave); problems are reported by `validate_flow`.",
         "operationId": "save_draft",
         "parameters": [
           {
@@ -1178,6 +1875,7 @@
             }
           },
           {
+            "description": "Required: the `draft_version` you last read (from the flow).",
             "in": "header",
             "name": "if-match",
             "required": false,
@@ -1190,6 +1888,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Required: the `draft_version` you last read (from the flow).",
               "title": "If-Match"
             }
           }
@@ -1309,9 +2008,108 @@
         ]
       }
     },
+    "/flows/{flow_id}/publish": {
+      "post": {
+        "description": "Validates the draft, then freezes it as the next numbered version.\n\n409 `nothing_to_publish` if the draft has not changed since the last version.",
+        "operationId": "publish_flow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Flow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Flow",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
     "/flows/{flow_id}/runs": {
       "post": {
-        "description": "Runs inline. A failure or timeout is a 200 \"failed\"; bad input is 422; too many runs, 429.",
+        "description": "Runs a flow inline: the latest published version, or the current draft with `test: true`.\n\n422 `not_published` if there is no published version. A failure or timeout is a 200 with status\n`failed`; bad input is 422; too many runs, 429.",
         "operationId": "create_run",
         "parameters": [
           {
@@ -1410,6 +2208,7 @@
     },
     "/flows/{flow_id}/validate": {
       "post": {
+        "description": "Checks the saved draft without publishing it.\n\nReturns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`\nand `field`.",
         "operationId": "validate_flow",
         "parameters": [
           {
@@ -1491,6 +2290,193 @@
           }
         ],
         "summary": "Validate Flow",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
+    "/flows/{flow_id}/versions": {
+      "get": {
+        "description": "Lists a flow's published versions, newest first.\n\n`keep_latest` is how many are retained.",
+        "operationId": "list_versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Flow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Versions",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
+    "/flows/{flow_id}/versions/{version}": {
+      "get": {
+        "description": "Returns one published version with its frozen graph.",
+        "operationId": "get_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Flow Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Version",
         "tags": [
           "flows"
         ]
@@ -1803,6 +2789,7 @@
     },
     "/runs/{run_id}": {
       "get": {
+        "description": "Returns one run with its input, output and error.\n\n`get_run_steps` has the step-by-step trace.",
         "operationId": "get_run",
         "parameters": [
           {
@@ -1821,7 +2808,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunResponse"
+                  "$ref": "#/components/schemas/RunDetail"
                 }
               }
             },
@@ -1886,6 +2873,161 @@
         "summary": "Get Run",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/runs/{run_id}/steps": {
+      "get": {
+        "description": "Step history from the trace store; `pending` while the trace is still being written.",
+        "operationId": "get_run_steps",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunSteps"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Run Steps",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/templates": {
+      "get": {
+        "operationId": "list_templates",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Templates",
+        "tags": [
+          "templates"
         ]
       }
     }

@@ -129,6 +129,23 @@ async def test_an_inactive_user_loses_everything_and_an_active_one_nothing(
         assert await count(sessions, table) == 1, table
 
 
+async def test_an_inactive_user_with_soft_deleted_rows_is_still_removed(
+    sessions: SessionFactory,
+) -> None:
+    gone = await make_member(sessions, "gone")
+    flow = await flow_of(sessions, gone)
+    async with sessions() as session:
+        store = FlowStore(session)
+        await store.publish(gone, flow, 1, soft=False)
+        await store.delete_flow(gone, flow, soft=True)
+    await age_user(sessions, gone, OLD)
+
+    async with sessions() as session:
+        assert await RetentionStore(session).delete_inactive_users(7, []) == 1
+    for table in ("users", "flows", "flow_versions"):
+        assert await count(sessions, table) == 0, table
+
+
 async def test_the_exempt_list_is_case_insensitive_and_other_users_still_go(
     sessions: SessionFactory,
 ) -> None:

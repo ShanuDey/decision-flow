@@ -26,6 +26,8 @@ import {
 } from "@/lib/graph/nodes";
 import type { Graph, NodeData, NodeType, Position, Variable } from "@/lib/graph/types";
 
+import type { PublishedInfo } from "./published";
+
 export interface Removed {
   nodes: FlowNode[];
   edges: FlowEdge[];
@@ -35,6 +37,9 @@ interface EditorState {
   flowId: string;
   name: string;
   draftVersion: number;
+  // Latest published version and the draft version it was published from.
+  publishedVersion: number | null;
+  publishedDraftVersion: number | null;
   nodes: FlowNode[];
   edges: FlowEdge[];
   variables: Variable[];
@@ -44,7 +49,13 @@ interface EditorState {
   savedAt: Date | null;
   issues: FieldIssue[];
 
-  load: (flow: { id: string; name: string; draftVersion: number; graph: Graph }) => void;
+  load: (flow: {
+    id: string;
+    name: string;
+    draftVersion: number;
+    graph: Graph;
+    published?: PublishedInfo | null;
+  }) => void;
   // Saved by its own endpoint, so it never dirties the draft.
   setName: (name: string) => void;
   toGraph: () => Graph;
@@ -66,6 +77,7 @@ interface EditorState {
   setVariables: (variables: Variable[]) => void;
   setIssues: (issues: FieldIssue[]) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
+  markPublished: (version: number, draftVersion: number) => void;
 }
 
 // A change only makes the draft dirty if it alters the graph, not the selection or measuring.
@@ -112,6 +124,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   flowId: "",
   name: "",
   draftVersion: 1,
+  publishedVersion: null,
+  publishedDraftVersion: null,
   nodes: [],
   edges: [],
   variables: [],
@@ -120,11 +134,13 @@ export const useEditor = create<EditorState>()((set, get) => ({
   savedAt: null,
   issues: [],
 
-  load: ({ id, name, draftVersion, graph }) =>
+  load: ({ id, name, draftVersion, graph, published }) =>
     set({
       flowId: id,
       name,
       draftVersion,
+      publishedVersion: published?.version ?? null,
+      publishedDraftVersion: published?.draftVersion ?? null,
       ...toReactFlow(graph),
       dirty: false,
       revision: 0,
@@ -301,6 +317,9 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),
+
+  markPublished: (publishedVersion, publishedDraftVersion) =>
+    set({ publishedVersion, publishedDraftVersion }),
 }));
 
 export const selectedNode = (s: EditorState): FlowNode | undefined =>

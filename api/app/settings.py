@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     retention_interval_minutes: int = Field(60, ge=1)
     retention_keep_emails: Annotated[list[str], NoDecode] = []
     retention_dry_run: bool = False
+
+    # soft keeps deleted flows and old versions (marked deleted_at/by); hard removes them.
+    delete_mode: Literal["hard", "soft"] = "soft"
 
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False

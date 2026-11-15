@@ -39,9 +39,11 @@ export function isAllowedOrigin(
   }
 }
 
+export const isSafeSegment = (s: string): boolean => !(s === "" || s === "." || s === ".." || /[/\\]/.test(s));
+
 export function upstreamPath(segments: string[]): string | null {
   if (segments.length === 0) return null;
-  if (segments.some((s) => s === "" || s === "." || s === ".." || /[/\\]/.test(s))) return null;
+  if (!segments.every(isSafeSegment)) return null;
   return "/" + segments.map(encodeURIComponent).join("/");
 }
 
@@ -104,4 +106,16 @@ export function responseHeaders(upstream: Headers, apiUrl: string): Headers {
 
 export function errorResponse(status: number, code: string, message: string): Response {
   return Response.json({ code, message, details: {} }, { status });
+}
+
+export const UPSTREAM_RETRY_SECONDS = 30;
+export const UPSTREAM_DOWN_MESSAGE =
+  "The service is starting up or unavailable. After a period of inactivity it can take a few minutes to wake. " +
+  `Try again in about ${UPSTREAM_RETRY_SECONDS} seconds.`;
+
+export function upstreamUnavailable(): Response {
+  return Response.json(
+    { code: "upstream_unavailable", message: UPSTREAM_DOWN_MESSAGE, details: {} },
+    { status: 502, headers: { "retry-after": String(UPSTREAM_RETRY_SECONDS) } },
+  );
 }

@@ -17,20 +17,25 @@ class Limits(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=ROOT_ENV_FILE, extra="ignore", frozen=True)
 
+    # Defaults suit self-hosting; a shared deployment tightens them (.env.limited.example).
+
     # Flow drafts are the biggest legitimate payload.
     max_request_bytes: int = Field(1_048_576, ge=1)
-    max_concurrent_runs: int = Field(10, ge=0)
+    max_concurrent_runs: int = Field(50, ge=0)
     max_concurrent_runs_per_workspace: int = Field(0, ge=0)
     run_timeout_seconds: int = Field(300, ge=0)
-    max_nodes: int = Field(50, ge=0)
-    max_edges: int = Field(100, ge=0)
-    max_flows_per_user: int = Field(20, ge=0)
-    rate_limit_ip_per_minute: int = Field(120, ge=0)
-    rate_limit_ready_per_minute: int = Field(6, ge=0)
+    max_nodes: int = Field(500, ge=0)
+    max_edges: int = Field(1000, ge=0)
+    max_flows_per_user: int = Field(0, ge=0)
+    # Keep the newest N published versions of a flow; publishing deletes older ones.
+    max_versions_per_flow: int = Field(0, ge=0)
+    rate_limit_ip_per_minute: int = Field(600, ge=0)
+    rate_limit_ready_per_minute: int = Field(60, ge=0)
     rate_limit_failed_auth_per_minute: int = Field(10, ge=0)
-    rate_limit_user_writes_per_minute: int = Field(60, ge=0)
-    rate_limit_user_runs_per_minute: int = Field(20, ge=0)
-    rate_limit_new_workspaces_per_ip_per_hour: int = Field(5, ge=0)
+    rate_limit_user_writes_per_minute: int = Field(300, ge=0)
+    rate_limit_user_runs_per_minute: int = Field(120, ge=0)
+    # Off: a whole office behind one address can sign in for the first time within an hour.
+    rate_limit_new_workspaces_per_ip_per_hour: int = Field(0, ge=0)
     limit_notice: str = Field("", max_length=300)
     limit_notice_url: str = Field("", max_length=300)
 

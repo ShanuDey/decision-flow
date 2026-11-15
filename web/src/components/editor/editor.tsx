@@ -10,6 +10,7 @@ import { Canvas } from "./canvas";
 import { LeaveDialog } from "./leave-guard";
 import { RunPanel } from "./run-panel";
 import { SettingsPanel } from "./settings-panel";
+import type { PublishedInfo } from "./published";
 import { useEditor } from "./store";
 import { TopBar } from "./top-bar";
 
@@ -18,11 +19,12 @@ export interface EditorProps {
   name: string;
   draftVersion: number;
   graph: Graph;
+  published: PublishedInfo | null;
 }
 
-export default function Editor({ id, name, draftVersion, graph }: EditorProps) {
+export default function Editor({ id, name, draftVersion, graph, published }: EditorProps) {
   // Runs once, before the first render of the children (this component is client-only).
-  useState(() => useEditor.getState().load({ id, name, draftVersion, graph }));
+  useState(() => useEditor.getState().load({ id, name, draftVersion, graph, published }));
   const [outcome, setOutcome] = useState<RunOutcome | null>(null);
   const dirty = useEditor((s) => s.dirty);
 

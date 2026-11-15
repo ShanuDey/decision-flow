@@ -28,6 +28,7 @@ import {
   testParam,
   type RunsQuery,
 } from "./params";
+import { FlowCell } from "./flow-cell";
 import { RunStatus } from "./run-status";
 
 export const metadata: Metadata = { title: "Runs · Decision Flow" };
@@ -61,9 +62,12 @@ export default async function RunsPage({
   ]);
 
   const flowOptions = flows.ok ? flows.data.items : [];
-  const flowNames = new Map(flowOptions.map((f) => [f.id, f.name]));
+  const knownIds = new Set(flowOptions.map((f) => f.id));
   const filtered = Boolean(query.flow || query.status || query.type);
-  const knownFlow = !query.flow || flowNames.has(query.flow);
+  const knownFlow = !query.flow || knownIds.has(query.flow);
+  const orphanName = query.flow
+    ? runs.ok && runs.data.items.find((r) => r.flow_id === query.flow)?.flow_name
+    : undefined;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -78,7 +82,7 @@ export default async function RunsPage({
         </label>
         <select id="flow" name="flow" defaultValue={query.flow ?? ""} className={cn(SELECT, "max-w-56")}>
           <option value="">Flow: All</option>
-          {!knownFlow && query.flow && <option value={query.flow}>{query.flow.slice(0, 8)}</option>}
+          {!knownFlow && query.flow && <option value={query.flow}>{orphanName || query.flow.slice(0, 8)}</option>}
           {flowOptions.map((f) => (
             <option key={f.id} value={f.id}>
               {f.name}
@@ -113,7 +117,7 @@ export default async function RunsPage({
 
       {!flows.ok && (
         <p role="status" className="text-sm text-muted-foreground">
-          Flow names could not be loaded; showing ids instead.
+          The flow filter could not be loaded.
         </p>
       )}
 
@@ -147,14 +151,15 @@ export default async function RunsPage({
               </TableHeader>
               <TableBody>
                 {runs.data.items.map((run) => {
-                  const name = flowNames.get(run.flow_id);
                   return (
                     <TableRow key={run.run_id}>
-                      <TableCell className="font-mono text-xs">{run.run_id.slice(0, 8)}</TableCell>
-                      <TableCell className="font-medium">
-                        <Link href={`/flows/${run.flow_id}`} className="hover:underline">
-                          {name ?? run.flow_id.slice(0, 8)}
+                      <TableCell className="font-mono text-xs">
+                        <Link href={`/runs/${run.run_id}`} className="hover:underline">
+                          {run.run_id.slice(0, 8)}
                         </Link>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <FlowCell run={run} />
                       </TableCell>
                       <TableCell>
                         <RunStatus run={run} />

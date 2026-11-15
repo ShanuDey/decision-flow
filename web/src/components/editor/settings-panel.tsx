@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FlowNode } from "@/lib/graph/convert";
+import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { NODE_SPECS } from "@/lib/graph/nodes";
 import { ioSummary } from "@/lib/graph/picker";
 import type {
@@ -30,7 +31,6 @@ import { ExpressionInput } from "./expression-input";
 import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
 import { clampWidth, useLayout } from "./layout";
-import { NODE_ICONS } from "./node-view";
 import { ResizeHandle } from "./resize-handle";
 import { selectedNode, useEditor } from "./store";
 import { TestPane } from "./test-pane";

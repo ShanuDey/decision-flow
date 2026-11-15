@@ -11,6 +11,7 @@ import type { RunResponseStatus } from './runResponseStatus';
 export interface RunResponse {
   duration_ms: number;
   error: RunError | null;
+  flow_version: number | null;
   output: RunResponseOutput;
   run_id: string;
   status: RunResponseStatus;

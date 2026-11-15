@@ -9,7 +9,7 @@ import { requireSession, serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { formatDateTime } from "@/lib/format";
 
-import { NewFlowButton } from "../flows/new-flow-button";
+import { NewFlowButton, StartFromTemplateButton } from "../flows/new-flow-button";
 import { RunStatus } from "../runs/run-status";
 
 export const metadata: Metadata = { title: "Overview · Decision Flow" };
@@ -155,7 +155,9 @@ function RunsPanel({
           {runs.map((run) => (
             <li key={run.run_id} className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{flowNames.get(run.flow_id) ?? run.flow_id.slice(0, 8)}</p>
+                <Link href={`/runs/${run.run_id}`} className="block truncate font-medium hover:underline">
+                  {flowNames.get(run.flow_id) ?? run.flow_id.slice(0, 8)}
+                </Link>
                 <RunStatus run={run} />
               </div>
               <time dateTime={run.started_at} className="text-sm whitespace-nowrap text-muted-foreground">
@@ -170,7 +172,7 @@ function RunsPanel({
 }
 
 const STEPS = [
-  { title: "Create your first flow", hint: "It starts with a Start and an End node." },
+  { title: "Create your first flow", hint: "Start from a template or a blank flow." },
   { title: "Build the logic", hint: "Add nodes, connect branches, and edit expressions." },
   { title: "Run it", hint: "Run it with real input." },
 ];
@@ -207,6 +209,9 @@ function GettingStarted({ email, runsFailed }: { email: string; runsFailed: bool
             </li>
           ))}
         </ol>
+        <div className="border-t p-4">
+          <StartFromTemplateButton />
+        </div>
       </section>
       <RunsPanel runs={[]} flowNames={new Map()} failed={runsFailed} />
     </div>

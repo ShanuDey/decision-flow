@@ -65,6 +65,23 @@ async def test_a_run_round_trips_through_postgres(sessions: SessionFactory) -> N
     assert (loaded.workspace_id, loaded.created_by) == (member.workspace_id, member.user_id)
 
 
+async def test_the_flow_version_of_a_published_run_is_stored_and_a_test_run_has_none(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    flow = await flow_id(sessions, member)
+    async with sessions() as session:
+        store = RunStore(session)
+        draft = await store.add_run(run(flow, member))
+        published = await store.add_run(run(flow, member, test=False, flow_version=3))
+    async with sessions() as other:
+        store = RunStore(other)
+        assert (await store.get_run(member, draft.id)).flow_version is None
+        assert (await store.get_run(member, published.id)).flow_version == 3
+        real, _ = await page(store, member, test=False)
+    assert [r.id for r in real] == [published.id]
+
+
 async def test_get_missing_run_is_none(sessions: SessionFactory) -> None:
     member = await make_member(sessions)
     async with sessions() as session:
@@ -189,7 +206,7 @@ async def test_deleting_a_flow_removes_its_runs_and_only_its_own(sessions: Sessi
         survivor = await runs.add_run(run(kept, member))
 
     async with sessions() as session:
-        assert await FlowStore(session).delete_flow(member, gone) is True
+        assert await FlowStore(session).delete_flow(member, gone, soft=False) is True
 
     async with sessions() as session:
         runs = RunStore(session)
@@ -201,7 +218,7 @@ async def test_a_run_for_a_deleted_flow_raises_flow_gone(sessions: SessionFactor
     member = await make_member(sessions)
     flow = await flow_id(sessions, member)
     async with sessions() as session:
-        await FlowStore(session).delete_flow(member, flow)
+        await FlowStore(session).delete_flow(member, flow, soft=False)
     async with sessions() as session:
         with pytest.raises(FlowGone):
             await RunStore(session).add_run(run(flow, member))

@@ -27,10 +27,13 @@ Set these in `.env` to change the defaults:
 | `MLFLOW_SET_EXPERIMENT` | `decision-flow` | MLflow experiment that holds run traces. |
 | `WEB_PORT`, `API_PORT` | `3000`, `8000` | Published ports. |
 
+Every other setting is optional and has a default for a normal self-hosted install; see [configuration](docs/configuration.md).
+
 Hosting notes:
 
 - **Managed Postgres:** if the provider offers pooled and direct connection strings, use the direct one for `DATABASE_URL`. Pooled (PgBouncer) hosts reject the `options` parameter MLflow needs, and the API then logs why tracing is off.
 - **Health checks:** point platform probes at `/health`. `/ready` also checks the database and tracing, so it can return 503 for a few seconds after start, and polling it keeps a sleeping database awake.
+- **Upgrading from an older version:** the defaults now suit a normal self-hosted install. Deleting a flow only hides it (`DELETE_MODE=soft`), and the flow, node and version caps are off or much wider. If you relied on the old numbers, set them in `.env` (see [limits](docs/limits.md) and [data deletion](docs/data-deletion.md)).
 - **Upgrading:** the MLflow server container is gone. Delete `MLFLOW_TRACKING_URI=http://...` and `MLFLOW_PORT` from `.env`, or traces stay off and `/ready` stays 503. Earlier traces remain in the old `mlflow` database.
 
 ## Development

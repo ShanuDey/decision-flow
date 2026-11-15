@@ -3,24 +3,23 @@
 import { CircleCheck, CircleMinus, CircleX, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { ready } from "@/lib/api/client";
 import type { ReadyResponse as Ready } from "@/lib/api/models";
 import { ReadyResponse as ReadySchema } from "@/lib/api/zod";
 
 type Status =
   | { kind: "loading" }
   | { kind: "unreachable"; checkedAt: Date }
-  | { kind: "signedOut"; checkedAt: Date }
   | { kind: "reachable"; ready: Ready; checkedAt: Date };
 
 const LABELS: Record<string, string> = { postgres: "Postgres", mlflow: "MLflow" };
 
-// /ready answers 503 with the same JSON body, so any HTTP response proves the API is reachable.
+// /ready answers 503 with the same JSON body, so a parseable body proves the API is reachable.
 async function fetchStatus(signal: AbortSignal): Promise<Status> {
   try {
-    const res = await ready({ signal, cache: "no-store" });
-    if ((res.status as number) === 401) return { kind: "signedOut", checkedAt: new Date() };
-    return { kind: "reachable", ready: ReadySchema.parse(res.data), checkedAt: new Date() };
+    const res = await fetch("/status/ready", { signal, cache: "no-store" });
+    const parsed = ReadySchema.safeParse(await res.json());
+    if (!parsed.success) return { kind: "unreachable", checkedAt: new Date() };
+    return { kind: "reachable", ready: parsed.data, checkedAt: new Date() };
   } catch {
     return { kind: "unreachable", checkedAt: new Date() };
   }
@@ -52,7 +51,7 @@ function Indicator({ state, text }: { state: RowState; text: string }) {
 
 function Row({ label, state, text }: { label: string; state: RowState; text: string }) {
   return (
-    <li className="flex items-center justify-between py-2">
+    <li className="flex items-center justify-between py-3">
       <span>{label}</span>
       <Indicator state={state} text={text} />
     </li>
@@ -67,13 +66,9 @@ function rowsFor(status: Status): { label: string; state: RowState; text: string
       text: "Checking…",
     }));
   }
-  if (status.kind === "unreachable" || status.kind === "signedOut") {
+  if (status.kind === "unreachable") {
     return [
-      {
-        label: "API",
-        state: "failed",
-        text: status.kind === "unreachable" ? "Unreachable" : "Sign in again",
-      },
+      { label: "API", state: "failed", text: "Unreachable" },
       { label: "Postgres", state: "unknown", text: "Unknown" },
       { label: "MLflow", state: "unknown", text: "Unknown" },
     ];
@@ -88,14 +83,19 @@ function rowsFor(status: Status): { label: string; state: RowState; text: string
   ];
 }
 
-function summary(status: Status): { state: RowState; text: string } {
-  if (status.kind === "loading") return { state: "checking", text: "Checking…" };
-  if (status.kind === "unreachable") return { state: "failed", text: "Unreachable" };
-  if (status.kind === "signedOut") return { state: "failed", text: "Session expired" };
+function summary(status: Status): { state: Exclude<RowState, "unknown">; text: string } {
+  if (status.kind === "loading") return { state: "checking", text: "Checking system status…" };
+  if (status.kind === "unreachable") return { state: "failed", text: "API unreachable" };
   return status.ready.status === "ok"
-    ? { state: "ok", text: "All OK" }
+    ? { state: "ok", text: "All systems operational" }
     : { state: "failed", text: "Degraded" };
 }
+
+const BANNER: Record<Exclude<RowState, "unknown">, string> = {
+  ok: "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40",
+  failed: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40",
+  checking: "border-zinc-200 dark:border-zinc-800",
+};
 
 export function StatusCard() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
@@ -117,24 +117,27 @@ export function StatusCard() {
   const loading = status.kind === "loading";
 
   return (
-    <section
-      aria-labelledby="status-heading"
-      className="w-full max-w-md rounded-lg border border-zinc-200 p-6 dark:border-zinc-800"
-    >
-      <div className="flex items-center justify-between">
-        <h2 id="status-heading" className="font-medium">
-          System status
-        </h2>
+    <section aria-labelledby="status-heading" className="flex w-full max-w-xl flex-col gap-6">
+      <h1 id="status-heading" className="text-2xl font-semibold tracking-tight">
+        System status
+      </h1>
+
+      <div
+        role="status"
+        className={`rounded-lg border px-5 py-4 text-lg font-medium ${BANNER[total.state]}`}
+      >
         <Indicator {...total} />
       </div>
 
-      <ul className="mt-4 divide-y divide-zinc-200 dark:divide-zinc-800" aria-live="polite">
-        {rowsFor(status).map((row) => (
-          <Row key={row.label} {...row} />
-        ))}
-      </ul>
+      <div className="rounded-lg border border-zinc-200 px-5 dark:border-zinc-800">
+        <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          {rowsFor(status).map((row) => (
+            <Row key={row.label} {...row} />
+          ))}
+        </ul>
+      </div>
 
-      <div className="mt-4 flex items-center justify-between text-sm text-zinc-500">
+      <div className="flex items-center justify-between text-sm text-zinc-500">
         <span>
           {"checkedAt" in status ? `Checked ${status.checkedAt.toLocaleTimeString()}` : ""}
         </span>

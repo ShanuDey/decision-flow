@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 from typing import Any
@@ -12,6 +13,7 @@ from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
 from app.db import get_engine
+from app.deployment import router as deployment
 from app.errors import ErrorResponse, install_error_handlers
 from app.flows import router as flows
 from app.limits import get_limits, install_body_limit
@@ -21,6 +23,9 @@ from app.retention import runner as retention
 from app.runs import router as runs
 from app.runs.slots import RunSlots
 from app.settings import get_settings
+from app.templates import router as templates
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -28,10 +33,18 @@ def _operation_id(route: APIRoute) -> str:
     return route.name
 
 
+def _log_effective_limits() -> None:
+    """Lets an operator confirm a public deployment really got its tight limits."""
+    limits = get_limits().model_dump(exclude={"limit_notice", "limit_notice_url"})
+    shown = " ".join(f"{name}={value}" for name, value in limits.items())
+    logger.info("effective limits: %s delete_mode=%s", shown, get_settings().delete_mode)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Background: an unreachable MLflow must not delay or fail startup.
     tracing.warm_up(get_settings())
+    _log_effective_limits()
     retention_task = retention.start(get_engine(), get_settings())
     yield
     if retention_task is not None:
@@ -89,6 +102,7 @@ def create_app() -> FastAPI:
     }
     app.include_router(ops.router)
     app.include_router(auth.router, **protected)
+    app.include_router(deployment.router, **protected)
     app.include_router(flows.router, **protected)
     # Evaluating text changes nothing, so typing in the editor must not use up the write quota.
     app.include_router(
@@ -97,6 +111,11 @@ def create_app() -> FastAPI:
         responses=protected["responses"],
     )
     app.include_router(runs.router, **protected)
+    app.include_router(
+        templates.router,
+        dependencies=[Depends(current_principal), Depends(limit_visitor)],
+        responses=protected["responses"],
+    )
     return app
 
 

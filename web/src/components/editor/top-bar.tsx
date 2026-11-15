@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, CircleCheck, CircleDot, ListChecks, Play, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  CircleCheck,
+  CircleDot,
+  ListChecks,
+  Play,
+  Rocket,
+  Save,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -11,13 +20,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import { type RunOutcome, save, validate } from "./actions";
+import { publish, type RunOutcome, save, validate } from "./actions";
 import { guardedLeave, useGuardedNavigate } from "./leave-store";
 import { useEditor } from "./store";
 import { TestDialog } from "./test-dialog";
 import { ValidateIssues } from "./validate-popover";
+import { VersionsList } from "./versions-popover";
 
-type Busy = "save" | "validate" | "run" | null;
+type Busy = "save" | "validate" | "publish" | "run" | null;
 
 export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void }) {
   const flowId = useEditor((s) => s.flowId);
@@ -26,6 +36,11 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
   const dirty = useEditor((s) => s.dirty);
   const savedAt = useEditor((s) => s.savedAt);
   const problems = useEditor((s) => s.issues.length);
+  const publishedVersion = useEditor((s) => s.publishedVersion);
+  // Unsaved edits count: Publish saves first.
+  const unpublished = useEditor(
+    (s) => s.dirty || s.publishedDraftVersion === null || s.publishedDraftVersion !== s.draftVersion,
+  );
   const user = useEditorUser();
   const navigate = useGuardedNavigate();
   const [busy, setBusy] = useState<Busy>(null);
@@ -43,6 +58,13 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
     const result = await validate({ quiet: true });
     setBusy(null);
     if (result !== "error") setIssuesOpen(true);
+  }
+
+  async function doPublish() {
+    setBusy("publish");
+    const result = await publish();
+    setBusy(null);
+    if (result === "invalid") setIssuesOpen(true);
   }
 
   async function doRun() {
@@ -105,9 +127,33 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
           <h1 className="font-semibold">{name}</h1>
         )}
       </nav>
-      <Badge variant="secondary" className="hidden sm:inline-flex">
-        Draft
-      </Badge>
+      {publishedVersion === null ? (
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          Draft
+        </Badge>
+      ) : (
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                aria-label="Show published versions"
+                className="hidden rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex"
+              />
+            }
+          >
+            <Badge variant="secondary">
+              {unpublished
+                ? `Published v${publishedVersion} · unpublished changes`
+                : `Published v${publishedVersion}`}
+              <ChevronDown aria-hidden className="size-3" />
+            </Badge>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[320px] max-w-[calc(100vw-1rem)]">
+            <VersionsList />
+          </PopoverContent>
+        </Popover>
+      )}
       <p
         className={
           dirty
@@ -155,6 +201,14 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
           onClick={() => void doSave()}
         >
           <Save aria-hidden /> {busy === "save" ? "Saving…" : "Save"}
+        </Button>
+        <Button
+          variant="outline"
+          className="h-9"
+          disabled={busy !== null || !unpublished}
+          onClick={() => void doPublish()}
+        >
+          <Rocket aria-hidden /> {busy === "publish" ? "Publishing…" : "Publish"}
         </Button>
         <Button className="h-9" disabled={busy !== null} onClick={() => void doRun()}>
           <Play aria-hidden /> {busy === "run" ? "Checking…" : "Run"}

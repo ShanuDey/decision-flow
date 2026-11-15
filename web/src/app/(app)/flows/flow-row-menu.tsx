@@ -15,8 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { DeleteMode } from "@/lib/delete-copy";
 
-export function FlowRowMenu({ id, name }: { id: string; name: string }) {
+export function FlowRowMenu({ id, name, deleteMode }: { id: string; name: string; deleteMode: DeleteMode }) {
   const router = useRouter();
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -67,6 +68,7 @@ export function FlowRowMenu({ id, name }: { id: string; name: string }) {
       <FlowDeleteDialog
         flowId={id}
         name={name}
+        mode={deleteMode}
         open={deleting}
         onOpenChange={setDeleting}
         onDeleted={() => router.refresh()}

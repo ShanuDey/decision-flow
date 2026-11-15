@@ -6,12 +6,12 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { canAdd, canConnect, freeSpot, NODE_SPECS } from "@/lib/graph/nodes";
 import { flatTypes, ioSummary, pickerGroups, type SourceFilter } from "@/lib/graph/picker";
 import type { NodeType } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
-import { NODE_ICONS } from "./node-view";
 import { useEditor } from "./store";
 
 const TABS: { value: SourceFilter; label: string }[] = [

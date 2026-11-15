@@ -7,6 +7,15 @@
 import * as zod from 'zod';
 
 /**
+ * Deployment settings the web app needs.
+ * @summary Config
+ */
+export const ConfigResponse = zod.object({
+  "delete_mode": zod.enum(['hard', 'soft'])
+})
+
+
+/**
  * Stateless helper for the editor's Test pane and validity strip.
  * @summary Evaluate Expression
  */
@@ -30,6 +39,28 @@ export const EvaluateExpressionResponse = zod.object({
 
 
 /**
+ * Explains how a flow graph is written: a guide, the JSON Schema and worked examples.
+ *
+ * Read it before saving a draft.
+ * @summary Get Flow Format
+ */
+export const GetFlowFormatResponse = zod.object({
+  "examples": zod.array(zod.object({
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "id": zod.string(),
+  "summary": zod.string(),
+  "title": zod.string()
+})),
+  "graph_schema": zod.record(zod.string(), zod.unknown()),
+  "guide": zod.string(),
+  "node_types": zod.array(zod.string())
+})
+
+
+/**
+ * Lists your flows, most recently edited first.
+ *
+ * `q` filters by name; `published_version` is null until a flow is published.
  * @summary List Flows
  */
 export const listFlowsQuerySortDefault = `-updated_at`;
@@ -53,6 +84,9 @@ export const ListFlowsResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })),
   "page": zod.int(),
@@ -62,6 +96,9 @@ export const ListFlowsResponse = zod.object({
 
 
 /**
+ * Creates a flow. Without `draft` it starts as a blank Start to End graph.
+ *
+ * It has no published version yet.
  * @summary Create Flow
  */
 export const createFlowBodyNameMax = 120;
@@ -79,12 +116,15 @@ export const CreateFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
 
 /**
- * Removes the flow and its runs for good.
+ * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
  * @summary Delete Flow
  */
 export const DeleteFlowParams = zod.object({
@@ -95,6 +135,9 @@ export const DeleteFlowResponse = zod.void()
 
 
 /**
+ * Returns a flow with its current draft graph and `draft_version`.
+ *
+ * Saving the draft needs that `draft_version` as `If-Match`.
  * @summary Get Flow
  */
 export const GetFlowParams = zod.object({
@@ -107,11 +150,15 @@ export const GetFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
 
 /**
+ * Renames a flow. Its draft and history are not affected.
  * @summary Rename Flow
  */
 export const RenameFlowParams = zod.object({
@@ -131,11 +178,17 @@ export const RenameFlowResponse = zod.object({
   "draft_version": zod.int(),
   "id": zod.uuid(),
   "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
 })
 
 
 /**
+ * Replaces the whole draft graph.
+ *
+ * Send the `draft_version` you last read as `If-Match`; a stale value is 409 `draft_conflict`.
  * Saves even an invalid graph (autosave); problems are reported by `validate_flow`.
  * @summary Save Draft
  */
@@ -144,7 +197,7 @@ export const SaveDraftParams = zod.object({
 })
 
 export const SaveDraftHeader = zod.object({
-  "if-match": zod.union([zod.string(),zod.null()]).optional()
+  "if-match": zod.union([zod.string(),zod.null()]).optional().describe('Required: the `draft_version` you last read (from the flow).')
 })
 
 export const SaveDraftBody = zod.record(zod.string(), zod.unknown())
@@ -155,7 +208,28 @@ export const SaveDraftResponse = zod.object({
 
 
 /**
- * Runs inline. A failure or timeout is a 200 "failed"; bad input is 422; too many runs, 429.
+ * Validates the draft, then freezes it as the next numbered version.
+ *
+ * 409 `nothing_to_publish` if the draft has not changed since the last version.
+ * @summary Publish Flow
+ */
+export const PublishFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const PublishFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "graph": zod.record(zod.string(), zod.unknown()),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
+})
+
+
+/**
+ * Runs a flow inline: the latest published version, or the current draft with `test: true`.
+ *
+ * 422 `not_published` if there is no published version. A failure or timeout is a 200 with status
+ * `failed`; bad input is 422; too many runs, 429.
  * @summary Create Run
  */
 export const CreateRunParams = zod.object({
@@ -165,8 +239,8 @@ export const CreateRunParams = zod.object({
 export const createRunBodyTestDefault = false;
 
 export const CreateRunBody = zod.object({
-  "input": zod.record(zod.string(), zod.unknown()).optional(),
-  "test": zod.boolean().default(createRunBodyTestDefault)
+  "input": zod.record(zod.string(), zod.unknown()).optional().describe('Values for the flow\'s Start inputs, as an object.'),
+  "test": zod.boolean().default(createRunBodyTestDefault).describe('true runs the current draft; false runs the latest published version.')
 })
 
 export const CreateRunResponse = zod.object({
@@ -175,6 +249,7 @@ export const CreateRunResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_version": zod.union([zod.int(),zod.null()]),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),
   "status": zod.enum(['succeeded', 'failed'])
@@ -182,6 +257,10 @@ export const CreateRunResponse = zod.object({
 
 
 /**
+ * Checks the saved draft without publishing it.
+ *
+ * Returns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`
+ * and `field`.
  * @summary Validate Flow
  */
 export const ValidateFlowParams = zod.object({
@@ -190,6 +269,43 @@ export const ValidateFlowParams = zod.object({
 
 export const ValidateFlowResponse = zod.object({
   "valid": zod.literal(true).meta({ title: 'Valid' })
+})
+
+
+/**
+ * Lists a flow's published versions, newest first.
+ *
+ * `keep_latest` is how many are retained.
+ * @summary List Versions
+ */
+export const ListVersionsParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const ListVersionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
+})),
+  "keep_latest": zod.int()
+})
+
+
+/**
+ * Returns one published version with its frozen graph.
+ * @summary Get Version
+ */
+export const GetVersionParams = zod.object({
+  "flow_id": zod.uuid(),
+  "version": zod.int()
+})
+
+export const GetVersionResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "graph": zod.record(zod.string(), zod.unknown()),
+  "source_draft_version": zod.int(),
+  "version": zod.int()
 })
 
 
@@ -250,7 +366,10 @@ export const ListRunsResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_deleted": zod.boolean(),
   "flow_id": zod.uuid(),
+  "flow_name": zod.string(),
+  "flow_version": zod.union([zod.int(),zod.null()]),
   "run_id": zod.uuid(),
   "started_at": zod.iso.datetime({"offset":true}),
   "status": zod.enum(['succeeded', 'failed']),
@@ -261,6 +380,9 @@ export const ListRunsResponse = zod.object({
 
 
 /**
+ * Returns one run with its input, output and error.
+ *
+ * `get_run_steps` has the step-by-step trace.
  * @summary Get Run
  */
 export const GetRunParams = zod.object({
@@ -273,7 +395,59 @@ export const GetRunResponse = zod.object({
   "message": zod.string(),
   "node_id": zod.string()
 }),zod.null()]),
+  "flow_deleted": zod.boolean(),
+  "flow_id": zod.uuid(),
+  "flow_name": zod.string(),
+  "flow_version": zod.union([zod.int(),zod.null()]),
+  "input": zod.record(zod.string(), zod.unknown()),
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),
-  "status": zod.enum(['succeeded', 'failed'])
+  "started_at": zod.iso.datetime({"offset":true}),
+  "status": zod.enum(['succeeded', 'failed']),
+  "test": zod.boolean()
+})
+
+
+/**
+ * Step history from the trace store; `pending` while the trace is still being written.
+ * @summary Get Run Steps
+ */
+export const GetRunStepsParams = zod.object({
+  "run_id": zod.uuid()
+})
+
+export const GetRunStepsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "duration_ms": zod.number(),
+  "error": zod.union([zod.string(),zod.null()]),
+  "id": zod.string(),
+  "input": zod.unknown(),
+  "kind": zod.enum(['node', 'llm', 'tool', 'parser', 'other']),
+  "name": zod.string(),
+  "node_id": zod.union([zod.string(),zod.null()]),
+  "node_type": zod.union([zod.string(),zod.null()]),
+  "output": zod.unknown(),
+  "parent_id": zod.union([zod.string(),zod.null()]),
+  "start_offset_ms": zod.number(),
+  "status": zod.enum(['ok', 'failed'])
+})),
+  "pending": zod.boolean()
+})
+
+
+/**
+ * @summary List Templates
+ */
+export const ListTemplatesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "category": zod.string(),
+  "description": zod.string(),
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "id": zod.string(),
+  "inputs": zod.array(zod.string()),
+  "node_types": zod.array(zod.string()),
+  "outputs": zod.array(zod.string()),
+  "summary": zod.string(),
+  "title": zod.string()
+}))
 })

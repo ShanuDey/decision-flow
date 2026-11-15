@@ -23,6 +23,9 @@ class FlowSummary(FrozenBaseModel):
     id: uuid.UUID
     name: str
     draft_version: int
+    published_version: int | None
+    published_draft_version: int | None
+    published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -31,11 +34,41 @@ class FlowDetail(FlowSummary):
     draft: dict[str, Any]
 
 
+class VersionSummary(FrozenBaseModel):
+    version: int
+    source_draft_version: int
+    created_at: datetime
+
+
+class VersionDetail(VersionSummary):
+    graph: dict[str, Any]
+
+
+class VersionList(FrozenBaseModel):
+    items: list[VersionSummary]
+    # How many newest versions are kept; 0 keeps all.
+    keep_latest: int
+
+
 class FlowList(FrozenBaseModel):
     items: list[FlowSummary]
     total: int
     page: int
     page_size: int
+
+
+class FlowFormatExample(FrozenBaseModel):
+    id: str
+    title: str
+    summary: str
+    draft: dict[str, Any]
+
+
+class FlowFormat(FrozenBaseModel):
+    guide: str
+    node_types: list[str]
+    graph_schema: dict[str, Any]
+    examples: list[FlowFormatExample]
 
 
 class DraftSaved(FrozenBaseModel):

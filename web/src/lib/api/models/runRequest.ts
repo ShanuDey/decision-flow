@@ -7,6 +7,8 @@
 import type { RunRequestInput } from './runRequestInput';
 
 export interface RunRequest {
+  /** Values for the flow's Start inputs, as an object. */
   input?: RunRequestInput;
+  /** true runs the current draft; false runs the latest published version. */
   test?: boolean;
 }

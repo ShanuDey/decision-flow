@@ -80,7 +80,7 @@ client: openapi
 
 # fails if the committed client does not match the current API schema
 client-check:
-	@sig() { cat api/openapi.json $$(find web/src/lib/api -type f | sort) | cksum; }; \
+	@sig() { cat api/openapi.json web/src/lib/docs/public-openapi.json $$(find web/src/lib/api -type f | sort) | cksum; }; \
 	before=$$(sig); \
 	$(MAKE) --no-print-directory client >/dev/null; \
 	[ "$$before" = "$$(sig)" ] || { echo "API client out of date: files regenerated, review and commit"; exit 1; }

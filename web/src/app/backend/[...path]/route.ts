@@ -1,22 +1,14 @@
-import {
-  API_TIMEOUT_MS,
-  errorResponse,
-  hasBody,
-  isAllowedOrigin,
-  isSafeMethod,
-  responseHeaders,
-  upstreamHeaders,
-  upstreamPath,
-} from "@/lib/backend-proxy";
+import { errorResponse, isAllowedOrigin, isSafeMethod, upstreamPath } from "@/lib/backend-proxy";
 import { getConfig } from "@/lib/auth/server";
-import { apiToken, currentSession } from "@/lib/auth/session";
+import { currentSession } from "@/lib/auth/session";
+import { forwardToApi } from "@/lib/gateway";
 
 export const maxDuration = 60;
 
 type Context = { params: Promise<{ path: string[] }> };
 
 async function handle(request: Request, { params }: Context): Promise<Response> {
-  const { apiUrl, baseURL, trustedOrigins, ipHeader } = getConfig();
+  const { baseURL, trustedOrigins } = getConfig();
 
   if (!isSafeMethod(request.method) && !isAllowedOrigin(request.headers.get("origin"), baseURL, trustedOrigins)) {
     return errorResponse(403, "forbidden_origin", "Cross-origin request refused");
@@ -27,29 +19,17 @@ async function handle(request: Request, { params }: Context): Promise<Response> 
   const session = await currentSession();
   if (!session) return errorResponse(401, "session_expired", "Sign in required");
 
-  const search = new URL(request.url).search;
-  const init: RequestInit & { duplex?: "half" } = {
-    method: request.method,
-    headers: upstreamHeaders(request.headers, await apiToken(session.user), ipHeader),
-    redirect: "manual",
-    signal: AbortSignal.any([request.signal, AbortSignal.timeout(API_TIMEOUT_MS)]),
-  };
-  if (hasBody(request.method) && request.body) {
-    init.body = request.body;
-    init.duplex = "half";
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${apiUrl}${path}${search}`, init);
-  } catch {
-    return errorResponse(502, "upstream_unavailable", "The service is unavailable");
-  }
-  const empty = upstream.status === 204 || upstream.status === 304;
-  return new Response(empty ? null : upstream.body, {
-    status: upstream.status,
-    headers: responseHeaders(upstream.headers, apiUrl),
-  });
+  return forwardToApi(
+    {
+      method: request.method,
+      path,
+      search: new URL(request.url).search,
+      headers: request.headers,
+      body: request.body,
+      signal: request.signal,
+    },
+    session.user,
+  );
 }
 
 export { handle as DELETE, handle as GET, handle as PATCH, handle as POST, handle as PUT };

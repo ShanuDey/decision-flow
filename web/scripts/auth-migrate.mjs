@@ -1,6 +1,7 @@
 // The web server migrates at start unless AUTH_AUTO_MIGRATE=false; this is the manual way.
 import path from "node:path";
 
+import { apiKey } from "@better-auth/api-key";
 import nextEnv from "@next/env";
 import { getMigrations } from "better-auth/db/migration";
 import pg from "pg";
@@ -28,6 +29,7 @@ try {
   const { runMigrations } = await getMigrations({
     database: pool,
     emailAndPassword: { enabled: true },
+    plugins: [apiKey()],
   });
   await runMigrations();
   console.log("auth schema is up to date");

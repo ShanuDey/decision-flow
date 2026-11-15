@@ -10,7 +10,10 @@ import type { RunSummaryStatus } from './runSummaryStatus';
 export interface RunSummary {
   duration_ms: number;
   error: RunError | null;
+  flow_deleted: boolean;
   flow_id: string;
+  flow_name: string;
+  flow_version: number | null;
   run_id: string;
   started_at: string;
   status: RunSummaryStatus;

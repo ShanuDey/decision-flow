@@ -5,9 +5,11 @@ import { CircleCheck, CircleX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { TraceView } from "@/components/trace/trace-view";
 import { errorText } from "@/lib/call";
 
 import type { RunOutcome } from "./actions";
+import { useEditor } from "./store";
 
 function Json({ value }: { value: unknown }) {
   return (
@@ -51,7 +53,7 @@ export function RunPanel({ outcome, onClose }: { outcome: RunOutcome; onClose: (
   return (
     <section
       aria-label="Test run result"
-      className="flex max-h-[260px] shrink-0 flex-col gap-3 overflow-y-auto border-t bg-background p-4"
+      className="flex max-h-[45vh] shrink-0 flex-col gap-3 overflow-y-auto border-t bg-background p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <Status outcome={outcome} />
@@ -63,9 +65,7 @@ export function RunPanel({ outcome, onClose }: { outcome: RunOutcome; onClose: (
         <TabsList>
           <TabsTrigger value="output">Output</TabsTrigger>
           <TabsTrigger value="input">Input</TabsTrigger>
-          <TabsTrigger value="trace" disabled>
-            Trace (soon)
-          </TabsTrigger>
+          {outcome.kind === "finished" && <TabsTrigger value="trace">Trace</TabsTrigger>}
         </TabsList>
         <TabsContent value="output">
           {output ? (
@@ -77,6 +77,15 @@ export function RunPanel({ outcome, onClose }: { outcome: RunOutcome; onClose: (
         <TabsContent value="input">
           <Json value={outcome.input} />
         </TabsContent>
+        {outcome.kind === "finished" && (
+          <TabsContent value="trace" keepMounted>
+            <TraceView
+              key={outcome.run.run_id}
+              runId={outcome.run.run_id}
+              onSelectNode={(id) => useEditor.getState().selectOnly(id)}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </section>
   );

@@ -1,0 +1,72 @@
+{
+  "id": "lead-scoring",
+  "title": "Lead scoring",
+  "summary": "Route a lead by its score",
+  "description": "Sends a lead to the hot, warm or cold queue from its score. Shows how two conditions in a row make three outcomes.",
+  "category": "Routing",
+  "draft": {
+    "schema_version": 1,
+    "variables": [{ "name": "tier", "type": "string", "initial": "" }],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": { "x": 0, "y": 150 },
+        "data": { "inputs": [{ "name": "score", "type": "number", "required": true }] }
+      },
+      {
+        "id": "is_hot",
+        "type": "condition",
+        "name": "Hot?",
+        "position": { "x": 300, "y": 150 },
+        "data": { "expression": "input.score >= 80" }
+      },
+      {
+        "id": "hot",
+        "type": "assign",
+        "name": "Hot",
+        "position": { "x": 600, "y": 0 },
+        "data": { "assignments": [{ "variable": "tier", "value": "hot" }] }
+      },
+      {
+        "id": "is_warm",
+        "type": "condition",
+        "name": "Warm?",
+        "position": { "x": 600, "y": 250 },
+        "data": { "expression": "input.score >= 50" }
+      },
+      {
+        "id": "warm",
+        "type": "assign",
+        "name": "Warm",
+        "position": { "x": 900, "y": 150 },
+        "data": { "assignments": [{ "variable": "tier", "value": "warm" }] }
+      },
+      {
+        "id": "cold",
+        "type": "assign",
+        "name": "Cold",
+        "position": { "x": 900, "y": 350 },
+        "data": { "assignments": [{ "variable": "tier", "value": "cold" }] }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": { "x": 1200, "y": 150 },
+        "data": { "outputs": [{ "name": "tier", "type": "string", "value": "{{ vars.tier }}" }] }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "target": "is_hot", "sourceHandle": null },
+      { "id": "e2", "source": "is_hot", "target": "hot", "sourceHandle": "true" },
+      { "id": "e3", "source": "is_hot", "target": "is_warm", "sourceHandle": "false" },
+      { "id": "e4", "source": "is_warm", "target": "warm", "sourceHandle": "true" },
+      { "id": "e5", "source": "is_warm", "target": "cold", "sourceHandle": "false" },
+      { "id": "e6", "source": "hot", "target": "end", "sourceHandle": null },
+      { "id": "e7", "source": "warm", "target": "end", "sourceHandle": null },
+      { "id": "e8", "source": "cold", "target": "end", "sourceHandle": null }
+    ]
+  }
+}

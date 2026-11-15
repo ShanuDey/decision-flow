@@ -12,5 +12,8 @@ export interface FlowDetail {
   draft_version: number;
   id: string;
   name: string;
+  published_at: string | null;
+  published_draft_version: number | null;
+  published_version: number | null;
   updated_at: string;
 }

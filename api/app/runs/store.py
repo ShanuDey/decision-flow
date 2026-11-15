@@ -8,12 +8,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.engine.base import FrozenBaseModel
+from app.flows.models import Flow
 from app.runs.models import Run
 from app.workspaces.schemas import Member
 
 
 class FlowGone(Exception):
     """The run's flow was deleted while the run was in flight."""
+
+
+class FlowInfo(FrozenBaseModel):
+    name: str
+    deleted: bool
 
 
 class RunStore:
@@ -61,6 +68,19 @@ class RunStore:
         return await self.session.scalar(
             select(Run).where(Run.id == run_id, Run.workspace_id == member.workspace_id)
         )
+
+    async def flow_infos(
+        self, member: Member, flow_ids: set[uuid.UUID]
+    ) -> dict[uuid.UUID, FlowInfo]:
+        """Name and deleted flag of the runs' flows, soft-deleted ones included."""
+        if not flow_ids:
+            return {}
+        rows = await self.session.execute(
+            select(Flow.id, Flow.name, Flow.deleted_at).where(
+                Flow.id.in_(flow_ids), Flow.workspace_id == member.workspace_id
+            )
+        )
+        return {r.id: FlowInfo(name=r.name, deleted=r.deleted_at is not None) for r in rows}
 
 
 def get_run_store(session: Annotated[AsyncSession, Depends(get_session)]) -> RunStore:

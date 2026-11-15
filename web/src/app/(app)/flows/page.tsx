@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listFlows } from "@/lib/api/client";
+import { config, listFlows } from "@/lib/api/client";
 import { serverApiInit } from "@/lib/auth/session";
 import { call, errorText, isUnreachable, UNREACHABLE_MESSAGE } from "@/lib/call";
 import { ListFlowsSort } from "@/lib/api/models";
@@ -59,12 +59,12 @@ export default async function FlowsPage({
   const sort = `${desc ? "-" : ""}${key}`;
   const page = Math.max(1, Number.parseInt(first(sp.page) ?? "1", 10) || 1);
 
-  const result = await call(
-    listFlows(
-      { q, sort: sort as ListFlowsSort, page, page_size: PAGE_SIZE },
-      await serverApiInit(),
-    ),
-  );
+  const init = await serverApiInit();
+  const [result, appConfig] = await Promise.all([
+    call(listFlows({ q, sort: sort as ListFlowsSort, page, page_size: PAGE_SIZE }, init)),
+    call(config(init)),
+  ]);
+  const deleteMode = appConfig.ok ? appConfig.data.delete_mode : "soft";
 
   const header = (label: string, column: SortKey) => {
     const active = key === column;
@@ -124,6 +124,7 @@ export default async function FlowsPage({
                 <TableRow>
                   <TableHead>{header("Name", "name")}</TableHead>
                   <TableHead>Draft</TableHead>
+                  <TableHead>Published</TableHead>
                   <TableHead>{header("Updated", "updated_at")}</TableHead>
                   <TableHead className="w-12">
                     <span className="sr-only">Actions</span>
@@ -140,10 +141,16 @@ export default async function FlowsPage({
                     </TableCell>
                     <TableCell className="text-muted-foreground">v{flow.draft_version}</TableCell>
                     <TableCell className="text-muted-foreground">
+                      {flow.published_version === null ? "Not published" : `v${flow.published_version}`}
+                      {flow.published_version !== null &&
+                        flow.published_draft_version !== flow.draft_version &&
+                        " · unpublished changes"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {formatDateTime(flow.updated_at)}
                     </TableCell>
                     <TableCell className="w-12 text-right">
-                      <FlowRowMenu id={flow.id} name={flow.name} />
+                      <FlowRowMenu id={flow.id} name={flow.name} deleteMode={deleteMode} />
                     </TableCell>
                   </TableRow>
                 ))}
