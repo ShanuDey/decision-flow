@@ -1,4 +1,6 @@
-# Authentication
+---
+title: "Authentication"
+---
 
 Every API route except `/health` and `/ready` requires a bearer token. There is no switch to turn this off. If no provider is configured, the API refuses to start.
 

@@ -1,4 +1,6 @@
-# Traces
+---
+title: "Traces"
+---
 
 Every run records what each node did. Open it from the **Trace** tab under the editor after a test run, or from a run's page (**Runs**, then click a run).
 
@@ -17,5 +19,5 @@ Every run records what each node did. Open it from the **Trace** tab under the e
 - If the trace store cannot be reached, the view says so and offers **Retry**. The run itself is not affected.
 - A run has no steps if it could not be traced (the trace store was down when it ran) or if its trace was already removed by retention. The view then says no step history is available.
 - Inputs and outputs are shown as recorded. Do not put secrets in flow inputs: redaction of recorded values is not in place yet.
-- Traces are deleted together with their runs by the [retention](retention.md) timer.
+- Traces are deleted together with their runs by the [retention](/docs/retention) timer.
 - Nodes added later appear in the trace with their input and output automatically.

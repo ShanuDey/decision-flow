@@ -11,3 +11,4 @@ CLAUDE.md
 **/.ruff_cache
 **/.env*
 !**/.env.example
+docs/

@@ -1,6 +1,8 @@
-# Data deletion
+---
+title: "Data deletion"
+---
 
-`DELETE_MODE` decides what happens when someone deletes a flow, and when a flow's oldest versions fall out of the `MAX_VERSIONS_PER_FLOW` window (see [limits](limits.md)).
+`DELETE_MODE` decides what happens when someone deletes a flow, and when a flow's oldest versions fall out of the `MAX_VERSIONS_PER_FLOW` window (see [limits](/docs/limits)).
 
 | `DELETE_MODE` | Default | Effect |
 |---|---|---|
@@ -20,6 +22,6 @@ Switching from `soft` to `hard` does not purge rows that were already soft-delet
 
 ## What soft mode does not keep
 
-[Retention](retention.md) is separate. `RUN_RETENTION_DAYS` still deletes old runs, and `USER_RETENTION_DAYS` still deletes an inactive person's workspace with everything in it, including rows that were soft-deleted.
+[Retention](/docs/retention) is separate. `RUN_RETENTION_DAYS` still deletes old runs, and `USER_RETENTION_DAYS` still deletes an inactive person's workspace with everything in it, including rows that were soft-deleted.
 
 `GET /config` returns the current `delete_mode`, which the web app uses to word the delete dialog. If it cannot be reached, the dialog uses the `hard` wording.

@@ -12,9 +12,9 @@ export function SiteHeader() {
         <Logo />
       </Link>
       <nav aria-label="Main" className="flex items-center gap-4">
-        <Link href="/docs/api" className="text-sm text-muted-foreground hover:text-foreground">
-          API docs
-        </Link>
+        <a href="/docs" className="text-sm text-muted-foreground hover:text-foreground">
+          Docs
+        </a>
         <EntryLink
           signedOutLabel="Sign in"
           signedInLabel="Dashboard"

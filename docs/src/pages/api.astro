@@ -1,0 +1,78 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
+import { APP_URL } from "../lib/app-url";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<StarlightPage
+  hasSidebar={false}
+  frontmatter={{
+    title: "API reference",
+    description: "Run and manage Decision Flow flows over HTTP with an API key.",
+    template: "splash",
+    tableOfContents: false,
+    pagefind: false,
+    editUrl: false,
+    lastUpdated: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <div id="api" data-spec={`${base}/openapi.json`} data-server={`${APP_URL}/api/v1`}></div>
+</StarlightPage>
+
+<style is:global>
+  :root {
+    --scalar-custom-header-height: var(--sl-nav-height);
+  }
+  .content-panel {
+    padding: 0 !important;
+    border-top: 0 !important;
+  }
+  .sl-container {
+    max-width: none !important;
+  }
+  #api {
+    min-height: calc(100vh - var(--sl-nav-height));
+  }
+  #api .scalar-app {
+    margin-top: 0 !important;
+  }
+  h1#_top {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+</style>
+
+<script>
+  import "@scalar/api-reference/style.css";
+  import { createApiReference } from "@scalar/api-reference";
+
+  const el = document.getElementById("api")!;
+  const isDark = () => document.documentElement.dataset.theme === "dark";
+  const config = () =>
+    ({
+      url: el.dataset.spec,
+      servers: [{ url: el.dataset.server! }],
+      darkMode: isDark(),
+      forceDarkModeState: isDark() ? "dark" : "light",
+      hideDarkModeToggle: true,
+      hideClientButton: true,
+      showDeveloperTools: "never",
+      agent: { disabled: true },
+      mcp: { disabled: true },
+      telemetry: false,
+      layout: "modern",
+    }) as const;
+  const app = createApiReference(el, config());
+  new MutationObserver(() => {
+    app.updateConfiguration(config());
+    document.body.classList.toggle("dark-mode", isDark());
+    document.body.classList.toggle("light-mode", !isDark());
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>

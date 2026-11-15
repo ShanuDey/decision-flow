@@ -1,4 +1,6 @@
-# Connect an AI agent (MCP)
+---
+title: "Connect an AI agent (MCP)"
+---
 
 The web server exposes your flows to AI agents over the Model Context Protocol (MCP). An agent can list and read flows, write and publish them, and run them, using an API key.
 
@@ -63,4 +65,4 @@ A tool is refused when the key lacks the scope it needs.
 - Anyone holding the key can read, change and run your flows. Treat it like a password and keep it out of repositories.
 - Keys are listed under **Settings → API keys** with their name, scopes and expiry. Revoke one there and its agent loses access at once.
 - Give an agent only the scopes it needs, for example read only for an agent that just inspects flows and runs.
-- The same keys also work against the HTTP API; see [Authentication](auth.md).
+- The same keys also work against the HTTP API; see [Authentication](/docs/auth).

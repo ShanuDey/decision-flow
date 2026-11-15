@@ -1,4 +1,6 @@
-# Expressions
+---
+title: "Expressions"
+---
 
 Conditions use [CEL](https://cel.dev), a small expression language with no loops or side effects, so an expression always finishes.
 
@@ -11,10 +13,10 @@ input.items.exists(i, i.price > vars.limit)
 
 ## What an expression can read
 
-- `input.<name>`: a [Start](../nodes/start.md) input
-- `vars.<name>`: a [variable](variables.md)
+- `input.<name>`: a [Start](/docs/nodes/start) input
+- `vars.<name>`: a [variable](/docs/concepts/variables)
 - `nodes.<id>.output.<key>`: the output of a node that runs earlier on the same path
 
 Undeclared names, and nodes that do not run before the expression, fail validation. Reading a key that is not set fails the run, naming the node.
 
-Expressions are limited to 2000 characters. Assign and End still use [templates](templates.md).
+Expressions are limited to 2000 characters. Assign and End still use [templates](/docs/concepts/templates).

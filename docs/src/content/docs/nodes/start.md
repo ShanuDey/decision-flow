@@ -1,4 +1,6 @@
-# Start
+---
+title: "Start"
+---
 
 Entry point. Every flow has exactly one. It declares the flow's inputs.
 
