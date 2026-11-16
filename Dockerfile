@@ -8,13 +8,13 @@ RUN pnpm install --frozen-lockfile
 COPY web/ .
 RUN pnpm build
 
-FROM python:3.12-slim AS api-build
+FROM python:3.15-slim AS api-build
 COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /usr/local/bin/uv
 WORKDIR /srv/api
 COPY api/pyproject.toml api/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 COPY --from=node:26-slim /usr/local/bin/node /usr/local/bin/node
 # Pull Debian security fixes that the base image has not picked up yet.
 RUN apt-get update && apt-get upgrade -y --no-install-recommends \
