@@ -464,3 +464,61 @@ def test_the_api_lookup_template_calls_a_public_https_address() -> None:
 
     assert call["data"]["url"].startswith("https://")
     assert template.node_types == ["end", "http_request", "start"]
+
+
+@pytest.mark.parametrize(
+    "name", ["Host", "Content-Length", "transfer-encoding", "Connection", "Upgrade", "TE"]
+)
+def test_headers_the_server_sets_are_refused_at_validation(name: str) -> None:
+    raw = flow({"url": "https://x.test", "headers": {name: "x"}})
+
+    assert codes(raw) == ["reserved_header"]
+
+
+@pytest.mark.anyio
+async def test_a_template_cannot_multiply_a_big_input_into_a_huge_request() -> None:
+    big = "x" * 40_000
+    leaves = {f"k{i}": "{{ input.name }}" for i in range(500)}
+    async with serve() as (port, received):
+        body = flow(
+            {
+                "method": "POST",
+                "url": f"http://127.0.0.1:{port}/echo",
+                "body_type": "json",
+                "body": leaves,
+            }
+        )
+        form = flow(
+            {
+                "method": "POST",
+                "url": f"http://127.0.0.1:{port}/echo",
+                "body_type": "form",
+                "body": leaves,
+            }
+        )
+        query = flow({"url": f"http://127.0.0.1:{port}/echo", "query": leaves})
+        results = [
+            await run(raw, {"name": big}, outbound=policy(max_bytes=100_000))
+            for raw in (body, form, query)
+        ]
+
+    for result in results:
+        assert result.status == "failed" and result.error.node_id == "call"
+        assert "larger than the allowed size" in result.error.message
+    assert received == []
+
+
+@pytest.mark.anyio
+async def test_a_request_within_the_size_limit_still_goes_out() -> None:
+    async with serve() as (port, received):
+        raw = flow(
+            {
+                "method": "POST",
+                "url": f"http://127.0.0.1:{port}/echo",
+                "body_type": "json",
+                "body": {"a": "{{ input.name }}", "b": "{{ input.name }}"},
+            }
+        )
+        result = await run(raw, {"name": "x" * 1000}, outbound=policy(max_bytes=100_000))
+
+    assert result.status == "succeeded" and len(received) == 1

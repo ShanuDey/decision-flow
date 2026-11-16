@@ -172,3 +172,44 @@ def test_a_host_off_the_list_is_refused_before_anything_resolves() -> None:
     with pytest.raises(OutboundError) as error:
         _parse("https://other.example.com/", policy(allowed_hosts=("api.example.com",)))
     assert error.value.code == "host_not_allowed"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com:0/",
+        "https://example.com:65536/",
+        "https://example.com:-1/",
+        "https://example.com:abc/",
+        "https://example.com:443:80/",
+        "https://exa\mple.com/",
+        "https://127.0.0.1\@example.com/",
+        "https://example.com%2f@127.0.0.1/",
+        "https://exa%6dple.com/",
+        "https://[fe80::1%25eth0]/",
+        "https://①②⑦.0.0.1/",
+    ],
+)
+def test_odd_ports_escapes_and_unicode_hosts_are_refused(url: str) -> None:
+    with pytest.raises(OutboundError) as error:
+        _parse(url, policy())
+    assert error.value.code == "invalid_url"
+
+
+@pytest.mark.parametrize(
+    ("url", "host", "port"),
+    [
+        ("https://example.com#@127.0.0.1/", "example.com", 443),
+        ("https://example.com?@127.0.0.1/", "example.com", 443),
+        ("https://example.com:00443/", "example.com", 443),
+        ("https://Bücher.example/", "xn--bcher-kva.example", 443),
+        ("https://LOCALHOST:8080/", "localhost", 8080),
+        ("http://[::1]:9000/", "::1", 9000),
+    ],
+)
+def test_the_host_and_port_come_from_one_parse_so_tricks_cannot_split_them(
+    url: str, host: str, port: int
+) -> None:
+    _, parsed_host, parsed_port = _parse(url, policy(allow_private=True))
+
+    assert (parsed_host, parsed_port) == (host, port)

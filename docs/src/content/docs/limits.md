@@ -16,7 +16,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_EDGES` | `1000` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |
 | `MAX_SECRETS_PER_WORKSPACE` | `0` (off) | Most [secrets](secrets) one workspace can hold. Replacing one does not count |
-| `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response an [HTTP Request](nodes/http-request) accepts. Always applies |
+| `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response an [HTTP Request](nodes/http-request) accepts, and the largest request it builds. Always applies |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Longest an HTTP Request call may take. Always applies |
 | `MAX_VERSIONS_PER_FLOW` | `0` (off) | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
 | `RATE_LIMIT_IP_PER_MINUTE` | `600` | Requests per minute from one client IP, on every route. Signed-in requests count per visitor IP |

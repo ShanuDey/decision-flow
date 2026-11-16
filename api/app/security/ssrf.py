@@ -18,6 +18,22 @@ Resolver = Callable[[str, int], Awaitable[list[str]]]
 HOST = re.compile(r"[A-Za-z0-9._:-]+")
 # Decimal, hex, octal and short IPv4 spellings: the resolver would decode them, so refuse them.
 NUMERIC_HOST = re.compile(r"(?:0[xX][0-9A-Fa-f]+|[0-9]+)(?:\.(?:0[xX][0-9A-Fa-f]+|[0-9]+))*")
+# Headers that frame the message or the connection: the client sets them, a caller cannot.
+FRAMING_HEADERS = frozenset(
+    {
+        "host",
+        "content-length",
+        "transfer-encoding",
+        "connection",
+        "keep-alive",
+        "proxy-connection",
+        "te",
+        "trailer",
+        "upgrade",
+    }
+)
+# Says who is calling, so a site that sees abuse can find and report the server.
+USER_AGENT = "decision-flow (+https://github.com/ShanuDey/decision-flow)"
 NAT64 = ipaddress.ip_network("64:ff9b::/96")
 SIX_TO_FOUR = ipaddress.ip_network("2002::/16")
 
@@ -93,7 +109,10 @@ def _parse(raw: str, policy: OutboundPolicy) -> tuple[httpx.URL, str, int]:
         raise OutboundError("invalid_url", "The URL is not valid")
     if not host_allowed(host, policy.allowed_hosts):
         raise OutboundError("host_not_allowed", "This host is not on the allowed list")
-    return url, host, url.port or (443 if url.scheme == "https" else 80)
+    port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)
+    if not 1 <= port <= 65535:
+        raise OutboundError("invalid_url", "The URL is not valid")
+    return url, host, port
 
 
 async def system_resolver(host: str, port: int) -> list[str]:
@@ -119,9 +138,11 @@ async def _pick_address(host: str, port: int, policy: OutboundPolicy, resolve: R
 def _request_headers(
     headers: Mapping[str, str] | None, host: str, url: httpx.URL
 ) -> dict[str, str]:
-    sent = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
+    sent = {k: v for k, v in (headers or {}).items() if k.lower() not in FRAMING_HEADERS}
     default = 443 if url.scheme == "https" else 80
     shown = f"[{host}]" if ":" in host else host
+    if not any(k.lower() == "user-agent" for k in sent):
+        sent["User-Agent"] = USER_AGENT
     sent["Host"] = shown if url.port in (None, default) else f"{shown}:{url.port}"
     return sent
 
@@ -147,6 +168,10 @@ async def _read_capped(response: httpx.Response, max_bytes: int) -> bytes:
 def _transport_error(exc: httpx.TransportError) -> OutboundError:
     if isinstance(exc, httpx.TimeoutException):
         return OutboundError("timeout", "The request timed out")
+    if isinstance(exc, httpx.ProtocolError):
+        return OutboundError(
+            "invalid_request", "A header or the URL has characters that are not allowed"
+        )
     if "CERTIFICATE_VERIFY_FAILED" in str(exc):
         return OutboundError("tls_failed", "The server's certificate could not be verified")
     return OutboundError("connect_failed", "Could not connect to the host")
@@ -191,8 +216,13 @@ async def fetch(
                     await response.aclose()
     except TimeoutError:
         raise OutboundError("timeout", "The request timed out") from None
+    except OutboundError:
+        raise
     except httpx.TransportError as exc:
         raise _transport_error(exc) from None
+    except Exception:
+        # The HTTP library can raise its own protocol errors on a bad header or body.
+        raise OutboundError("invalid_request", "The request could not be sent") from None
     return FetchResponse(
         status_code=response.status_code,
         headers=tuple((k, v) for k, v in response.headers.multi_items()),

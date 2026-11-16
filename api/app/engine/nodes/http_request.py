@@ -14,9 +14,10 @@ from app.engine.base import StrictBaseModel
 from app.engine.issues import Issue
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.templates import TemplateError, render
-from app.security.ssrf import FetchResponse, OutboundError, fetch
+from app.security.ssrf import FRAMING_HEADERS, FetchResponse, OutboundError, fetch
 
 HEADER_NAME = re.compile(r"[A-Za-z0-9!#$%&'*+.^_`|~-]+")
+RESERVED_HEADERS = FRAMING_HEADERS
 URL_START = re.compile(r"https?://", re.IGNORECASE)
 CONTENT_TYPES = {
     "json": "application/json",
@@ -52,21 +53,31 @@ def _as_text(value: Any) -> str:
     return value if isinstance(value, str) else json.dumps(value)
 
 
-def _render(template: str, scopes: dict[str, Any], field: str) -> Any:
-    try:
-        return render(template, scopes)
-    except TemplateError as exc:
-        raise ValueError(f"{field}: {exc}") from None
+class _Renderer:
+    """Fills in templates and stops once the request outgrows the allowed size."""
 
+    def __init__(self, scopes: dict[str, Any], limit: int) -> None:
+        self.scopes = scopes
+        self.left = limit
 
-def _render_tree(value: Any, scopes: dict[str, Any], path: str) -> Any:
-    if isinstance(value, str):
-        return _render(value, scopes, path)
-    if isinstance(value, dict):
-        return {k: _render_tree(v, scopes, f"{path}.{k}") for k, v in value.items()}
-    if isinstance(value, list):
-        return [_render_tree(v, scopes, f"{path}.{i}") for i, v in enumerate(value)]
-    return value
+    def one(self, template: str, field: str) -> Any:
+        try:
+            value = render(template, self.scopes)
+        except TemplateError as exc:
+            raise ValueError(f"{field}: {exc}") from None
+        self.left -= len(value) if isinstance(value, str) else len(json.dumps(value))
+        if self.left < 0:
+            raise ValueError("the request is larger than the allowed size")
+        return value
+
+    def tree(self, value: Any, path: str) -> Any:
+        if isinstance(value, str):
+            return self.one(value, path)
+        if isinstance(value, dict):
+            return {k: self.tree(v, f"{path}.{k}") for k, v in value.items()}
+        if isinstance(value, list):
+            return [self.tree(v, f"{path}.{i}") for i, v in enumerate(value)]
+        return value
 
 
 def _response_headers(response: FetchResponse) -> dict[str, str]:
@@ -120,6 +131,15 @@ class HttpRequestNode(NodeModel):
             if not HEADER_NAME.fullmatch(name)
         ]
         found += [
+            (
+                "reserved_header",
+                f"'{name}' is set by the server and cannot be changed",
+                f"data.headers.{name}",
+            )
+            for name in d.headers
+            if name.lower() in RESERVED_HEADERS
+        ]
+        found += [
             ("invalid_query_name", "a query parameter needs a name", "data.query")
             for name in d.query
             if not name.strip()
@@ -154,10 +174,11 @@ class HttpRequestNode(NodeModel):
             "nodes": state.get("nodes", {}),
             "secrets": ctx.secrets.as_scope(),
         }
-        url = _as_text(_render(d.url, scopes, "url"))
-        query = {k: _as_text(_render(v, scopes, f"query.{k}")) for k, v in d.query.items()}
-        headers = {k: _as_text(_render(v, scopes, f"headers.{k}")) for k, v in d.headers.items()}
-        content = self._body(scopes)
+        renderer = _Renderer(scopes, ctx.outbound.max_bytes)
+        url = _as_text(renderer.one(d.url, "url"))
+        query = {k: _as_text(renderer.one(v, f"query.{k}")) for k, v in d.query.items()}
+        headers = {k: _as_text(renderer.one(v, f"headers.{k}")) for k, v in d.headers.items()}
+        content = self._body(renderer)
         if content is not None and not any(k.lower() == "content-type" for k in headers):
             headers["Content-Type"] = CONTENT_TYPES[d.body_type]
         try:
@@ -196,13 +217,13 @@ class HttpRequestNode(NodeModel):
         }
         return {"nodes": {self.id: {"output": output}}}
 
-    def _body(self, scopes: dict[str, Any]) -> bytes | None:
+    def _body(self, renderer: _Renderer) -> bytes | None:
         d = self.data
         if d.body_type == "json":
-            return json.dumps(_render_tree(d.body, scopes, "body")).encode()
+            return json.dumps(renderer.tree(d.body, "body")).encode()
         if d.body_type == "form":
-            fields = {k: _as_text(_render(v, scopes, f"body.{k}")) for k, v in d.body.items()}
+            fields = {k: _as_text(renderer.one(v, f"body.{k}")) for k, v in d.body.items()}
             return urlencode(fields).encode()
         if d.body_type == "text":
-            return _as_text(_render(d.body, scopes, "body")).encode()
+            return _as_text(renderer.one(d.body, "body")).encode()
         return None

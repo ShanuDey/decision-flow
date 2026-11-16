@@ -336,3 +336,76 @@ async def test_a_certificate_for_another_name_is_refused(tmp_path: Path) -> None
         )
 
     assert error.code == "tls_failed"
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"X-A": "a\r\nX-Injected: 1"},
+        {"X-A": "a\nX-Injected: 1"},
+        {"X-A\r\nX-Injected": "1"},
+        {"X-A": "a\x00b"},
+    ],
+)
+async def test_a_header_with_a_line_break_or_null_is_refused_before_anything_is_sent(
+    headers: dict[str, str],
+) -> None:
+    async with serve() as (port, seen):
+        error = await refused(fetch(policy(), "GET", f"http://127.0.0.1:{port}/", headers=headers))
+
+    assert error.code == "invalid_request"
+    assert seen.requests == []
+
+
+@pytest.mark.parametrize("target", ["/a\r\nX-Injected: 1", "/p?x=a\r\nb"])
+async def test_a_url_with_a_line_break_is_refused(target: str) -> None:
+    async with serve() as (port, seen):
+        error = await refused(fetch(policy(), "GET", f"http://127.0.0.1:{port}{target}"))
+
+    assert error.code == "invalid_url" and seen.requests == []
+
+
+async def test_an_encoded_line_break_stays_encoded_and_a_space_is_encoded() -> None:
+    async with serve() as (port, seen):
+        await fetch(policy(), "GET", f"http://127.0.0.1:{port}/a%0d%0aX-Injected:1")
+        await fetch(policy(), "GET", f"http://127.0.0.1:{port}/a b")
+
+    paths = [path for path, _ in seen.requests]
+    assert paths == ["/a%0d%0aX-Injected:1", "/a%20b"]
+    assert all("x-injected" not in headers for _, headers in seen.requests)
+
+
+async def test_headers_that_frame_the_message_are_the_clients_to_set() -> None:
+    async with serve() as (port, seen):
+        response = await fetch(
+            policy(),
+            "POST",
+            f"http://127.0.0.1:{port}/",
+            headers={
+                "Content-Length": "999",
+                "Transfer-Encoding": "chunked",
+                "Connection": "Upgrade",
+                "Upgrade": "websocket",
+                "TE": "trailers",
+                "X-Kept": "1",
+            },
+            content=b"abc",
+        )
+
+    assert response.status_code == 200
+    ((_, headers),) = seen.requests
+    assert headers["content-length"] == "3"
+    assert headers["x-kept"] == "1"
+    for name in ("transfer-encoding", "upgrade", "te"):
+        assert name not in headers
+    assert headers.get("connection", "keep-alive") != "Upgrade"
+
+
+async def test_the_request_says_who_is_calling_unless_the_caller_says_otherwise() -> None:
+    async with serve() as (port, seen):
+        await fetch(policy(), "GET", f"http://127.0.0.1:{port}/")
+        await fetch(policy(), "GET", f"http://127.0.0.1:{port}/", headers={"user-agent": "mine"})
+
+    first, second = (headers for _, headers in seen.requests)
+    assert first["user-agent"].startswith("decision-flow")
+    assert second["user-agent"] == "mine"

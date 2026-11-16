@@ -21,8 +21,23 @@ export interface Row {
 
 export type NameCheck = (name: string) => string | null;
 
-export const headerNameCheck: NameCheck = (name) =>
-  HEADER_NAME.test(name) ? null : "Not a valid header name";
+// The server sets these itself; they mirror FRAMING_HEADERS in the API.
+const RESERVED_HEADERS = new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive",
+  "proxy-connection",
+  "te",
+  "trailer",
+  "upgrade",
+]);
+
+export const headerNameCheck: NameCheck = (name) => {
+  if (!HEADER_NAME.test(name)) return "Not a valid header name";
+  return RESERVED_HEADERS.has(name.toLowerCase()) ? "This header is set by the server" : null;
+};
 
 export const rowsOf = (record: Record<string, string> | null | undefined): Row[] =>
   Object.entries(record ?? {}).map(([name, value]) => ({ name, value }));

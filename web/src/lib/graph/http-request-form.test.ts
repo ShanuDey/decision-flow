@@ -59,6 +59,14 @@ describe("rows", () => {
     expect(rowProblem(rows, 0, headerNameCheck)).toBe("Not a valid header name");
     expect(recordOf(rows, headerNameCheck)).toEqual({});
   });
+
+  it("refuses the headers the server sets itself, whatever their case", () => {
+    for (const name of ["Host", "content-length", "Transfer-Encoding", "CONNECTION", "Upgrade", "TE"]) {
+      expect(headerNameCheck(name)).toBe("This header is set by the server");
+    }
+    expect(headerNameCheck("Content-Type")).toBeNull();
+    expect(headerNameCheck("Authorization")).toBeNull();
+  });
 });
 
 describe("authentication presets", () => {

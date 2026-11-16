@@ -8,7 +8,7 @@ Calls an HTTP API and makes the response available to the nodes after it.
 |---|---|
 | `method` | `GET` (default), `POST`, `PUT`, `PATCH` or `DELETE` |
 | `url` | A [template](../concepts/templates). Must start with `http://` or `https://`. [Secrets](../secrets) are not allowed here |
-| `headers` | Header name to value. Values are templates and may use secrets |
+| `headers` | Header name to value. Values are templates and may use secrets. Headers that frame the message (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Upgrade`, `TE`, `Trailer`, `Keep-Alive`, `Proxy-Connection`) are set by the server and are refused here |
 | `query` | Query parameter name to value. Values are templates and may use secrets. They are encoded for you |
 | `body_type` | `none` (default), `json`, `form` or `text` |
 | `body` | The body, shaped by `body_type` (see below). Not allowed on `GET` |
@@ -77,12 +77,20 @@ All outgoing calls are checked before they are made. The name is looked up once,
 
 A flow cannot read the server's environment variables.
 
+A header or URL that contains a line break is refused before anything is sent. The call identifies itself with a `User-Agent` of `decision-flow` unless you set your own, so a site that sees abuse can trace it to the server.
+
+## Keep credentials safe
+
+A secret goes wherever the flow sends it. Anyone who can edit a flow in a workspace can point a header at any address the server may call, so only give edit access to people you trust. On a shared server, set `HTTP_ALLOWED_HOSTS` so a flow can reach only hosts you have chosen.
+
+The request is limited in size too: the URL, headers, query and body together cannot exceed `MAX_HTTP_RESPONSE_BYTES`, so a template cannot turn a large input into a huge request.
+
 ## Settings
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `ALLOW_PRIVATE_NETWORKS` | `true` | Allow `localhost` and private addresses, and `http`. Off on a shared deployment |
 | `HTTP_ALLOWED_HOSTS` | empty (any host) | Comma-separated hosts the node may call. `*.example.com` matches subdomains. Write international names in their `xn--` form |
-| `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response accepted |
+| `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response accepted, and the largest request the node will build |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Longest a call may take, including looking up the name and connecting |
 | `DISABLED_NODE_TYPES` | empty | Comma-separated node types that flows may not use on this server, for example `http_request` |

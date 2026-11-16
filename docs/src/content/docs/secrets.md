@@ -23,6 +23,8 @@ A node can read a secret as `{{ secrets.NAME }}`, but only in fields that say th
 
 The [HTTP Request](nodes/http-request) node accepts secrets in its header values, query values and body, and never in its URL. Start, Assign, Condition and End accept none.
 
+A secret goes wherever the flow sends it. Anyone who can edit a flow in the workspace can send a secret to any address the server may call, so give edit access only to people you trust, and set `HTTP_ALLOWED_HOSTS` on a shared server.
+
 A flow can name a secret before it exists. Saving works, and a run that needs the missing secret stops before any node runs with a `secret_not_found` error that lists the names.
 
 Secrets are managed from the signed-in web app only. API keys and the MCP connection cannot list, read or change them.
