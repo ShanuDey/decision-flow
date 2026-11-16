@@ -436,6 +436,62 @@ export const GetRunStepsResponse = zod.object({
 
 
 /**
+ * Lists the workspace's secret names. A value is never returned.
+ * @summary List Secrets
+ */
+export const ListSecretsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Removes the secret for good.
+ * @summary Delete Secret
+ */
+export const deleteSecretPathNameRegExp = new RegExp('^[A-Z][A-Z0-9_]{0,63}$');
+
+
+export const DeleteSecretParams = zod.object({
+  "name": zod.string().regex(deleteSecretPathNameRegExp)
+})
+
+export const DeleteSecretResponse = zod.void()
+
+
+/**
+ * Creates the secret, or replaces its value. The value is encrypted and cannot be read back.
+ *
+ * Names are uppercase letters, digits and underscores, starting with a letter.
+ * @summary Put Secret
+ */
+export const putSecretPathNameRegExp = new RegExp('^[A-Z][A-Z0-9_]{0,63}$');
+
+
+export const PutSecretParams = zod.object({
+  "name": zod.string().regex(putSecretPathNameRegExp)
+})
+
+export const putSecretBodyValueMin = 8;
+export const putSecretBodyValueMax = 4096;
+
+
+
+export const PutSecretBody = zod.object({
+  "value": zod.string().min(putSecretBodyValueMin).max(putSecretBodyValueMax)
+})
+
+export const PutSecretResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "name": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * @summary List Templates
  */
 export const ListTemplatesResponse = zod.object({

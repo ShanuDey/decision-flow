@@ -22,6 +22,7 @@ from app.ratelimit import RateLimiters, RateLimitMiddleware, limit_visitor, limi
 from app.retention import runner as retention
 from app.runs import router as runs
 from app.runs.slots import RunSlots
+from app.secrets import router as secrets
 from app.settings import get_settings
 from app.templates import router as templates
 
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
         responses=protected["responses"],
     )
     app.include_router(runs.router, **protected)
+    app.include_router(secrets.router, **protected)
     app.include_router(
         templates.router,
         dependencies=[Depends(current_principal), Depends(limit_visitor)],
