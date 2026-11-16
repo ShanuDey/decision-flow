@@ -18,6 +18,8 @@ const ROOTS: Suggestion[] = [
   { insert: "nodes.", label: "nodes", detail: "outputs of earlier nodes" },
 ];
 
+const SECRETS_ROOT: Suggestion = { insert: "secrets.", label: "secrets", detail: "saved secrets" };
+
 const TOKEN = /[A-Za-z_]\w*(?:\.\w*)*$|\.?$/;
 
 export function ancestors(graph: Graph, nodeId: string): Set<string> {
@@ -64,9 +66,17 @@ export function outputKeys(node: GraphNode, graph: Graph): { name: string; type:
   }
 }
 
-function candidates(graph: Graph, nodeId: string, head: string[]): Suggestion[] {
+function candidates(
+  graph: Graph,
+  nodeId: string,
+  head: string[],
+  secrets: string[] | undefined,
+): Suggestion[] {
   const [scope, id, output] = head;
-  if (head.length === 0) return ROOTS;
+  if (head.length === 0) return secrets ? [...ROOTS, SECRETS_ROOT] : ROOTS;
+  if (head.length === 1 && scope === "secrets") {
+    return (secrets ?? []).map((name) => ({ insert: `secrets.${name}`, label: name, detail: "secret" }));
+  }
   if (head.length === 1 && scope === "input") {
     const start = graph.nodes.find((n) => n.type === "start");
     const inputs = start?.type === "start" ? start.data.inputs : [];
@@ -116,8 +126,14 @@ function insideString(text: string): boolean {
   return quote !== "";
 }
 
-// What to offer for the identifier path that ends at `cursor`; `from` is where it starts.
-export function suggest(graph: Graph, nodeId: string, text: string, cursor: number): Suggestions {
+// Offers the path ending at `cursor` (`from` is where it starts); `secrets` only where accepted.
+export function suggest(
+  graph: Graph,
+  nodeId: string,
+  text: string,
+  cursor: number,
+  secrets?: string[],
+): Suggestions {
   const before = text.slice(0, cursor);
   if (insideString(before)) return { from: cursor, items: [] };
   const token = before.match(TOKEN)?.[0] ?? "";
@@ -126,7 +142,7 @@ export function suggest(graph: Graph, nodeId: string, text: string, cursor: numb
   if (token.startsWith(".") || (prev && /[\w.]/.test(prev))) return { from, items: [] };
   const parts = token.split(".");
   const partial = parts[parts.length - 1].toLowerCase();
-  const items = candidates(graph, nodeId, parts.slice(0, -1)).filter(
+  const items = candidates(graph, nodeId, parts.slice(0, -1), secrets).filter(
     (c) => c.label.toLowerCase().startsWith(partial) && c.insert !== token,
   );
   return { from, items };

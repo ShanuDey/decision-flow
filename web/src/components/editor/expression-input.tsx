@@ -16,10 +16,19 @@ interface Props {
   value: string;
   placeholder?: string;
   title?: string;
+  secrets?: boolean;
   onChange: (value: string) => void;
 }
 
-export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expression", onChange }: Props) {
+export function ExpressionInput({
+  id,
+  nodeId,
+  value,
+  placeholder,
+  title = "Expression",
+  secrets = false,
+  onChange,
+}: Props) {
   const input = useRef<HTMLTextAreaElement>(null);
   const [cursor, setCursor] = useState(value.length);
   const [open, setOpen] = useState(false);
@@ -28,9 +37,10 @@ export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expre
   // read on demand: subscribing to the store would re-render this field on every node drag
   const { from, items } = useMemo(() => {
     if (!open) return { from: 0, items: [] };
-    const { nodes, edges, variables } = useEditor.getState();
-    return suggest(fromReactFlow({ nodes, edges, variables }), nodeId, value, cursor);
-  }, [open, nodeId, value, cursor]);
+    const { nodes, edges, variables, secretNames } = useEditor.getState();
+    const graph = fromReactFlow({ nodes, edges, variables });
+    return suggest(graph, nodeId, value, cursor, secrets ? secretNames : undefined);
+  }, [open, nodeId, value, cursor, secrets]);
   const showing = open && items.length > 0;
   const current = Math.min(active, items.length - 1);
 
@@ -103,6 +113,7 @@ export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expre
         kind="expression"
         value={value}
         onChange={onChange}
+        secrets={secrets}
         className="absolute top-1.5 right-1.5"
       />
       {showing && (

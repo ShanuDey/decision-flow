@@ -18,10 +18,11 @@ interface Props {
   kind: SourceKind;
   value: string;
   onChange: (value: string) => void;
+  secrets?: boolean;
   className?: string;
 }
 
-export function ExpandButton({ nodeId, title, kind, value, onChange, className }: Props) {
+export function ExpandButton({ nodeId, title, kind, value, onChange, secrets, className }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -45,6 +46,7 @@ export function ExpandButton({ nodeId, title, kind, value, onChange, className }
           kind={kind}
           value={value}
           onChange={onChange}
+          secrets={secrets}
         />
       )}
     </>
@@ -56,7 +58,15 @@ interface InputProps extends Omit<Props, "kind" | "className"> {
   placeholder?: string;
 }
 
-export function ExpandableInput({ id, nodeId, title, value, placeholder, onChange }: InputProps) {
+export function ExpandableInput({
+  id,
+  nodeId,
+  title,
+  value,
+  placeholder,
+  onChange,
+  secrets,
+}: InputProps) {
   return (
     <div className="relative">
       <Input
@@ -72,6 +82,7 @@ export function ExpandableInput({ id, nodeId, title, value, placeholder, onChang
         kind="template"
         value={value}
         onChange={onChange}
+        secrets={secrets}
         className="absolute top-1/2 right-1.5 -translate-y-1/2"
       />
     </div>

@@ -48,6 +48,8 @@ interface EditorState {
   revision: number;
   savedAt: Date | null;
   issues: FieldIssue[];
+  // Names of the workspace's saved secrets, for fields that accept them. Never the values.
+  secretNames: string[];
 
   load: (flow: {
     id: string;
@@ -76,6 +78,7 @@ interface EditorState {
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
   setIssues: (issues: FieldIssue[]) => void;
+  setSecretNames: (names: string[]) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
   markPublished: (version: number, draftVersion: number) => void;
 }
@@ -134,6 +137,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   revision: 0,
   savedAt: null,
   issues: [],
+  secretNames: [],
 
   load: ({ id, name, draftVersion, graph, published }) =>
     set({
@@ -315,6 +319,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setVariables: (variables) => set((s) => ({ variables, ...touch(s) })),
 
   setIssues: (issues) => set({ issues }),
+  setSecretNames: (secretNames) => set({ secretNames }),
 
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),

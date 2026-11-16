@@ -26,6 +26,8 @@ interface Props {
   kind: SourceKind;
   value: string;
   onChange: (value: string) => void;
+  // The field accepts `{{ secrets.NAME }}`, so offer the saved names.
+  secrets?: boolean;
 }
 
 const liveGraph = () => {
@@ -68,9 +70,14 @@ export default function ExpandDialog({
   kind,
   value,
   onChange,
+  secrets = false,
 }: Props) {
   const name = useEditor((s) => s.nodes.find((n) => n.id === nodeId)?.data.name ?? nodeId);
-  const sections = useMemo(() => availableData(liveGraph(), nodeId), [nodeId]);
+  const secretNames = useEditor((s) => s.secretNames);
+  const sections = useMemo(
+    () => availableData(liveGraph(), nodeId, secrets ? secretNames : undefined),
+    [nodeId, secrets, secretNames],
+  );
   const [insert, setInsert] = useState<{ text: string; n: number } | null>(null);
   const { check, failed } = useCheck(kind, value);
 
@@ -126,6 +133,7 @@ export default function ExpandDialog({
                 value={value}
                 onChange={onChange}
                 getGraph={liveGraph}
+                getSecrets={secrets ? () => useEditor.getState().secretNames : undefined}
                 nodeId={nodeId}
                 label={title}
                 insertRequest={insert}

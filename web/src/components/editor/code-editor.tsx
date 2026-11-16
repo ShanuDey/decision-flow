@@ -22,7 +22,7 @@ const TOKENS: [RegExp, string][] = [
   [/^("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/, "cm-tok-string"],
   [/^\d+(?:\.\d+)?/, "cm-tok-number"],
   [/^(?:true|false|null|in)\b/, "cm-tok-keyword"],
-  [/^(?:input|vars|nodes)\b/, "cm-tok-scope"],
+  [/^(?:input|vars|nodes|secrets)\b/, "cm-tok-scope"],
   [/^(?:&&|\|\||==|!=|<=|>=|[<>!?:+\-*/%])/, "cm-tok-op"],
   [/^\{\{|^\}\}/, "cm-tok-op"],
 ];
@@ -88,20 +88,32 @@ interface Props {
   // Called on demand so completions always see the live graph.
   getGraph: () => Graph;
   nodeId: string;
+  // Called on demand; set only for a field that accepts secrets.
+  getSecrets?: () => string[];
   label: string;
   // Insert request from clicking the data tree.
   insertRequest?: { text: string; n: number } | null;
 }
 
-export function CodeEditor({ value, onChange, getGraph, nodeId, label, insertRequest }: Props) {
+export function CodeEditor({
+  value,
+  onChange,
+  getGraph,
+  getSecrets,
+  nodeId,
+  label,
+  insertRequest,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const change = useRef(onChange);
   const graph = useRef(getGraph);
+  const secrets = useRef(getSecrets);
   const id = useRef(nodeId);
   useEffect(() => {
     change.current = onChange;
     graph.current = getGraph;
+    secrets.current = getSecrets;
     id.current = nodeId;
   });
 
@@ -109,7 +121,13 @@ export function CodeEditor({ value, onChange, getGraph, nodeId, label, insertReq
     if (!host.current) return;
     const complete = (ctx: CompletionContext) => {
       const text = ctx.state.doc.toString();
-      const { from, items } = suggest(graph.current(), id.current, text, ctx.pos);
+      const { from, items } = suggest(
+        graph.current(),
+        id.current,
+        text,
+        ctx.pos,
+        secrets.current?.(),
+      );
       if (!items.length && !ctx.explicit) return null;
       return {
         from,
