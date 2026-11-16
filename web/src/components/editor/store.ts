@@ -50,6 +50,12 @@ interface EditorState {
   issues: FieldIssue[];
   // Names of the workspace's saved secrets, for fields that accept them. Never the values.
   secretNames: string[];
+  // UI only: the top bar button and the Assign dropdown both open the variables dialog.
+  variablesOpen: boolean;
+  variablesSelected: number;
+  setVariablesOpen: (open: boolean) => void;
+  openVariables: (selected?: number) => void;
+  selectVariable: (index: number) => void;
 
   load: (flow: {
     id: string;
@@ -138,6 +144,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   savedAt: null,
   issues: [],
   secretNames: [],
+  variablesOpen: false,
+  variablesSelected: 0,
+  setVariablesOpen: (variablesOpen) => set({ variablesOpen }),
+  openVariables: (selected = 0) => set({ variablesOpen: true, variablesSelected: selected }),
+  selectVariable: (variablesSelected) => set({ variablesSelected }),
 
   load: ({ id, name, draftVersion, graph, published }) =>
     set({

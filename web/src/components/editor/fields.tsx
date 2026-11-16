@@ -11,6 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import type { FieldIssue } from "@/lib/call";
 import { FIELD_TYPES, type FieldType } from "@/lib/graph/types";
 
+export function patch<T>(list: T[], index: number, change: Partial<T>): T[] {
+  return list.map((item, i) => (i === index ? { ...item, ...change } : item));
+}
+
+// Switching away from enum drops its values; switching type clears a now-meaningless default.
+export function typeChange(type: FieldType): { type: FieldType; values?: string[] } {
+  return type === "enum" ? { type } : { type, values: undefined };
+}
+
 export function FieldError({ issue }: { issue?: FieldIssue }) {
   if (!issue) return null;
   return (

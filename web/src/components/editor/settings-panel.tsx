@@ -18,32 +18,31 @@ import type {
   ConditionData,
   EndData,
   FieldDef,
-  FieldType,
   OutputDef,
   StartData,
-  Variable,
 } from "@/lib/graph/types";
+import { nextVariableName } from "@/lib/graph/variables";
 import { cn } from "@/lib/utils";
 
 import { deleteFromCanvas } from "./actions";
 import { ExpandableInput } from "./expand-field";
 import { HttpRequestForm } from "./http-request-form";
 import { ExpressionInput } from "./expression-input";
-import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
+import {
+  EnumValues,
+  FieldError,
+  Labeled,
+  ListEditor,
+  patch,
+  TypedValueInput,
+  typeChange,
+  TypeSelect,
+} from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
 import { clampWidth, useLayout } from "./layout";
 import { ResizeHandle } from "./resize-handle";
 import { selectedNode, useEditor } from "./store";
 import { TestPane } from "./test-pane";
-
-function patch<T>(list: T[], index: number, change: Partial<T>): T[] {
-  return list.map((item, i) => (i === index ? { ...item, ...change } : item));
-}
-
-// Switching away from enum drops its values; switching type clears a now-meaningless default.
-function typeChange(type: FieldType): { type: FieldType; values?: string[] } {
-  return type === "enum" ? { type } : { type, values: undefined };
-}
 
 function StartForm({ node }: { node: FlowNode }) {
   const setConfig = useEditor((s) => s.setNodeConfig);
@@ -206,19 +205,31 @@ function ConditionForm({ node }: { node: FlowNode }) {
   );
 }
 
+const NEW_VARIABLE = "__new_variable__";
+
 function AssignForm({ node }: { node: FlowNode }) {
   const setConfig = useEditor((s) => s.setNodeConfig);
   const variables = useEditor((s) => s.variables);
+  const setVariables = useEditor((s) => s.setVariables);
+  const openVariables = useEditor((s) => s.openVariables);
   const issues = useEditor((s) => s.issues);
   const config = node.data.config as AssignData;
   const set = (assignments: AssignData["assignments"]) => setConfig(node.id, { assignments });
+
+  function pick(index: number, value: string) {
+    if (value !== NEW_VARIABLE) return set(patch(config.assignments, index, { variable: value }));
+    const name = nextVariableName(variables);
+    setVariables([...variables, { name, type: "string" }]);
+    set(patch(config.assignments, index, { variable: name }));
+    openVariables(variables.length);
+  }
 
   return (
     <ListEditor
       title="Assignments"
       items={config.assignments}
       addLabel="Add assignment"
-      emptyText="No assignments yet. Declare variables below first."
+      emptyText="No assignments yet. Declare variables with the Variables button in the top bar."
       onAdd={() => set([...config.assignments, { variable: variables[0]?.name ?? "", value: "" }])}
       onRemove={(i) => set(config.assignments.filter((_, j) => j !== i))}
       renderItem={(assignment, i) => {
@@ -235,12 +246,13 @@ function AssignForm({ node }: { node: FlowNode }) {
                 id={`${id}-var`}
                 value={assignment.variable}
                 placeholder="Select a variable…"
-                onValueChange={(v) => set(patch(config.assignments, i, { variable: v }))}
+                onValueChange={(v) => pick(i, v)}
                 options={[
                   ...(!known && assignment.variable
                     ? [{ value: assignment.variable, label: `${assignment.variable} (undeclared)` }]
                     : []),
                   ...variables.map((v) => ({ value: v.name, label: v.name })),
+                  { value: NEW_VARIABLE, label: "+ New variable…" },
                 ]}
               />
             </Labeled>
@@ -256,64 +268,6 @@ function AssignForm({ node }: { node: FlowNode }) {
                 value={assignment.value}
                 placeholder="{{ input.amount }}"
                 onChange={(value) => set(patch(config.assignments, i, { value }))}
-              />
-            </Labeled>
-          </>
-        );
-      }}
-    />
-  );
-}
-
-function VariablesForm() {
-  const variables = useEditor((s) => s.variables);
-  const setVariables = useEditor((s) => s.setVariables);
-
-  return (
-    <ListEditor
-      title="Flow variables"
-      items={variables}
-      addLabel="Add variable"
-      emptyText="Variables hold values between nodes. Assign nodes write to them."
-      onAdd={() => setVariables([...variables, { name: "", type: "string" }])}
-      onRemove={(i) => setVariables(variables.filter((_, j) => j !== i))}
-      renderItem={(variable: Variable, i) => {
-        const id = `var-${i}`;
-        return (
-          <>
-            <Labeled id={`${id}-name`} label="Name">
-              <Input
-                id={`${id}-name`}
-                className="h-10"
-                value={variable.name}
-                onChange={(e) => setVariables(patch(variables, i, { name: e.target.value }))}
-              />
-            </Labeled>
-            <Labeled id={`${id}-type`} label="Type">
-              <TypeSelect
-                id={`${id}-type`}
-                value={variable.type}
-                onChange={(t) =>
-                  setVariables(patch(variables, i, { ...typeChange(t), initial: undefined }))
-                }
-              />
-            </Labeled>
-            {variable.type === "enum" && (
-              <Labeled id={`${id}-values`} label="Allowed values (comma separated)">
-                <EnumValues
-                  id={`${id}-values`}
-                  values={variable.values}
-                  onChange={(values) => setVariables(patch(variables, i, { values }))}
-                />
-              </Labeled>
-            )}
-            <Labeled id={`${id}-initial`} label="Initial value">
-              <TypedValueInput
-                id={`${id}-initial`}
-                type={variable.type}
-                values={variable.values}
-                value={variable.initial}
-                onChange={(initial) => setVariables(patch(variables, i, { initial }))}
               />
             </Labeled>
           </>
@@ -469,7 +423,6 @@ export function SettingsPanel() {
                 {node.type === "assign" && <AssignForm node={node} />}
                 {node.type === "condition" && <ConditionForm node={node} />}
                 {node.type === "http_request" && <HttpRequestForm node={node} />}
-                <VariablesForm />
               </TabsContent>
               <TabsContent value="test" className="overflow-y-auto p-4">
                 {node.type === "condition" ? (
@@ -500,7 +453,6 @@ export function SettingsPanel() {
                 </div>
               )}
               <p className="text-sm text-muted-foreground">Select a node to edit its settings.</p>
-              <VariablesForm />
             </div>
           )}
 

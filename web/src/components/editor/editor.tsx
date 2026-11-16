@@ -15,6 +15,7 @@ import { SettingsPanel } from "./settings-panel";
 import type { PublishedInfo } from "./published";
 import { useEditor } from "./store";
 import { TopBar } from "./top-bar";
+import { VariablesDialog } from "./variables-dialog";
 
 export interface EditorProps {
   id: string;
@@ -60,6 +61,7 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
         </div>
         <SettingsPanel />
       </div>
+      <VariablesDialog />
       <LeaveDialog />
     </div>
   );
