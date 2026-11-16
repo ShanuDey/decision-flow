@@ -7,7 +7,11 @@ import { PROD_APP_URL } from "./src/lib/prod-app-url.mjs";
 // Two builds ship: /docs (behind the app's rewrite) and /decision-flow (the Pages root).
 const base = `/${(process.env.DOCS_BASE ?? "docs").replace(/^\/+/, "")}`;
 // The copy behind the app's rewrite duplicates the Pages root, so keep it out of search.
-const head = process.env.DOCS_NOINDEX ? [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }] : [];
+const head = [
+  // The app frames node pages in its Docs tab; this strips the site chrome there.
+  { tag: "script", content: 'if (window.self !== window.top) document.documentElement.classList.add("embedded");' },
+  ...(process.env.DOCS_NOINDEX ? [{ tag: "meta", attrs: { name: "robots", content: "noindex" } }] : []),
+];
 
 export default defineConfig({
   site: process.env.DOCS_SITE ?? PROD_APP_URL,
@@ -23,6 +27,7 @@ export default defineConfig({
     starlight({
       title: "Decision Flow",
       head,
+      customCss: ["./src/styles/embed.css"],
       logo: { src: "./src/assets/logo.svg" },
       components: {
         SocialIcons: "./src/components/SocialIcons.astro",

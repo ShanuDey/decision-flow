@@ -70,6 +70,39 @@ describe("dirty tracking", () => {
   });
 });
 
+describe("renameVariable", () => {
+  const targets = () =>
+    state()
+      .nodes.filter((n) => n.type === "assign")
+      .flatMap((n) => (n.data.config as { assignments: { variable: string }[] }).assignments)
+      .map((a) => a.variable);
+
+  beforeEach(() => {
+    state().setNodeConfig("assign_values", { assignments: [{ variable: "total", value: "1" }] });
+  });
+
+  it("repoints Assign targets to the new name", () => {
+    state().renameVariable(0, "sum");
+    expect(state().variables[0].name).toBe("sum");
+    expect(targets()).toEqual(["sum"]);
+    expect(state().dirty).toBe(true);
+  });
+
+  it("keeps following the name while it is typed one letter at a time", () => {
+    for (const name of ["s", "su", "sum"]) state().renameVariable(0, name);
+    expect(targets()).toEqual(["sum"]);
+  });
+
+  it("leaves targets alone when the new name is taken by another variable", () => {
+    state().setVariables([
+      { name: "total", type: "number" },
+      { name: "sum", type: "number" },
+    ]);
+    state().renameVariable(0, "sum");
+    expect(targets()).toEqual(["total"]);
+  });
+});
+
 describe("node rules", () => {
   it("refuses to delete the only Start or End node", () => {
     state().onNodesChange([

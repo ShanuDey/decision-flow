@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FlowNode } from "@/lib/graph/convert";
 import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { NODE_SPECS } from "@/lib/graph/nodes";
-import { ioSummary } from "@/lib/graph/picker";
 import type {
   AssignData,
   NodeType,
@@ -292,20 +291,23 @@ function NodeTitle({ node }: { node: FlowNode }) {
 }
 
 function NodeDocs({ node }: { node: FlowNode }) {
-  const spec = NODE_SPECS[node.type as NodeType];
-  const io = ioSummary(node.type as NodeType);
+  const type = node.type as NodeType;
+  const spec = NODE_SPECS[type];
+  if (spec.source !== "builtin") {
+    return <p className="text-sm text-muted-foreground">{spec.description}</p>;
+  }
+  const href = `/docs/nodes/${type.replaceAll("_", "-")}`;
   return (
-    <div className="flex flex-col gap-3 text-sm">
-      <h3 className="font-semibold">{spec.label}</h3>
-      <p className="text-muted-foreground">{spec.description}</p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-        <dt className="text-muted-foreground">Group</dt>
-        <dd>{spec.group}</dd>
-        <dt className="text-muted-foreground">Inputs</dt>
-        <dd>{io.inputs}</dd>
-        <dt className="text-muted-foreground">Outputs</dt>
-        <dd>{io.outputs}</dd>
-      </dl>
+    <div className="flex h-full flex-col gap-2">
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="self-end text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        Open in new tab
+      </a>
+      <iframe src={href} title={`${spec.label} docs`} className="min-h-0 w-full flex-1 rounded-md border" />
     </div>
   );
 }
@@ -439,7 +441,7 @@ export function SettingsPanel() {
                   </p>
                 )}
               </TabsContent>
-              <TabsContent value="docs" className="overflow-y-auto p-4">
+              <TabsContent value="docs" className="p-4">
                 <NodeDocs node={node} />
               </TabsContent>
             </Tabs>

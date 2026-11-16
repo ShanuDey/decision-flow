@@ -11,23 +11,23 @@ loadEnvConfig(path.resolve(process.cwd(), ".."), dev, console, true);
 const DOCS_ORIGIN =
   process.env.DOCS_ORIGIN ?? (dev ? "http://localhost:4321" : "https://shanudey.github.io/decision-flow/embed");
 
-// The docs site's search index is WebAssembly, so only /docs may compile it.
-const csp = (wasm: boolean) => [
+// /docs compiles its WebAssembly search index and may be framed by the editor.
+const csp = (docs: boolean) => [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${wasm ? " 'wasm-unsafe-eval'" : ""}${dev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${docs ? " 'wasm-unsafe-eval'" : ""}${dev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
   `connect-src 'self'${dev ? " ws: wss:" : ""}`,
-  "frame-ancestors 'none'",
+  `frame-ancestors ${docs ? "'self'" : "'none'"}`,
   "base-uri 'self'",
   "form-action 'self'",
 ].join("; ");
 
-const securityHeaders = (wasm: boolean) => [
-  { key: "Content-Security-Policy", value: csp(wasm) },
+const securityHeaders = (docs: boolean) => [
+  { key: "Content-Security-Policy", value: csp(docs) },
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: docs ? "SAMEORIGIN" : "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 ];
 

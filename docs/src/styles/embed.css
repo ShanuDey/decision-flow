@@ -1,0 +1,22 @@
+html.embedded {
+  --sl-nav-height: 0rem;
+  --sl-sidebar-width: 0rem;
+  --sl-content-inline-start: 0rem;
+  --sl-mobile-toc-height: 0rem;
+}
+html.embedded .header,
+html.embedded .sidebar,
+html.embedded .right-sidebar-container,
+html.embedded mobile-starlight-toc,
+html.embedded .sl-container + footer,
+html.embedded footer {
+  display: none !important;
+}
+html.embedded .main-pane,
+html.embedded .content-panel {
+  width: 100%;
+  max-width: none;
+}
+html.embedded .content-panel {
+  padding: 1rem;
+}

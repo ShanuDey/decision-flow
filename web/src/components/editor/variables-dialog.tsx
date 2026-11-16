@@ -32,6 +32,7 @@ export function VariablesDialog() {
   const setOpen = useEditor((s) => s.setVariablesOpen);
   const variables = useEditor((s) => s.variables);
   const setVariables = useEditor((s) => s.setVariables);
+  const renameVariable = useEditor((s) => s.renameVariable);
   const selected = useEditor((s) => s.variablesSelected);
   const select = useEditor((s) => s.selectVariable);
   const allIssues = useEditor((s) => s.issues);
@@ -119,7 +120,7 @@ export function VariablesDialog() {
                     id="var-name"
                     className="h-10"
                     value={current.name}
-                    onChange={(e) => setVariables(patch(variables, index, { name: e.target.value }))}
+                    onChange={(e) => renameVariable(index, e.target.value)}
                   />
                 </Labeled>
                 <Labeled id="var-type" label="Type">

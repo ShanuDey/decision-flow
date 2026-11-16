@@ -24,7 +24,14 @@ import {
   uniqueId,
   uniqueName,
 } from "@/lib/graph/nodes";
-import type { Graph, NodeData, NodeType, Position, Variable } from "@/lib/graph/types";
+import type {
+  AssignData,
+  Graph,
+  NodeData,
+  NodeType,
+  Position,
+  Variable,
+} from "@/lib/graph/types";
 
 import type { PublishedInfo } from "./published";
 
@@ -83,6 +90,8 @@ interface EditorState {
   setNodeConfig: (id: string, config: NodeData) => void;
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
+  // Also repoints Assign targets that used the old name; skipped when it would merge two variables.
+  renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
@@ -320,6 +329,24 @@ export const useEditor = create<EditorState>()((set, get) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, config } } : n)),
       ...touch(s),
     })),
+
+  renameVariable: (index, name) =>
+    set((s) => {
+      const old = s.variables[index]?.name;
+      if (old === undefined) return {};
+      const variables = s.variables.map((v, i) => (i === index ? { ...v, name } : v));
+      const safe =
+        old !== "" && s.variables.every((v, i) => i === index || (v.name !== old && v.name !== name));
+      const repoint = (n: FlowNode): FlowNode => {
+        if (n.type !== "assign") return n;
+        const config = n.data.config as AssignData;
+        const assignments = config.assignments.map((a) =>
+          a.variable === old ? { ...a, variable: name } : a,
+        );
+        return { ...n, data: { ...n.data, config: { ...config, assignments } } };
+      };
+      return { variables, nodes: safe ? s.nodes.map(repoint) : s.nodes, ...touch(s) };
+    }),
 
   renameNode: (id, name) =>
     set((s) => ({
