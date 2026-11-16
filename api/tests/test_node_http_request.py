@@ -12,6 +12,7 @@ from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.security.ssrf import OutboundPolicy
+from app.templates.service import load_templates
 from tests.recorder import Recorder
 
 SECRET = "sk_live_abcdefghij123"
@@ -53,6 +54,12 @@ async def serve() -> AsyncIterator[tuple[int, list[dict[str, Any]]]]:
                 "body": body.decode(),
             }
             await reply(writer, "200 OK", "application/json", json.dumps(payload).encode())
+        elif path.startswith("/users/"):
+            if path == "/users/99":
+                await reply(writer, "404 Not Found", "application/json", b"{}")
+            else:
+                user = {"name": "Ada", "email": "ada@example.test", "company": {"name": "Acme"}}
+                await reply(writer, "200 OK", "application/json", json.dumps(user).encode())
         elif path == "/missing":
             await reply(writer, "404 Not Found", "application/json", b'{"error": "nope"}')
         elif path == "/text":
@@ -427,3 +434,33 @@ async def test_without_an_outbound_policy_the_node_refuses_to_run() -> None:
 
     assert result.status == "failed"
     assert "not configured" in result.error.message
+
+
+@pytest.mark.anyio
+async def test_the_api_lookup_template_reads_the_response_and_fails_on_an_error_status() -> None:
+    template = next(t for t in load_templates() if t.id == "api-lookup")
+    async with serve() as (port, received):
+        raw = json.loads(json.dumps(template.draft))
+        call = next(n for n in raw["nodes"] if n["id"] == "lookup")
+        call["data"]["url"] = f"http://127.0.0.1:{port}/users/{{{{ input.user_id }}}}"
+        found = await run(raw, {"user_id": 3})
+        missing = await run(raw, {"user_id": 99})
+
+    assert found.status == "succeeded", found.error
+    assert found.output == {
+        "name": "Ada",
+        "email": "ada@example.test",
+        "company": "Acme",
+        "status": 200,
+    }
+    assert [r["target"] for r in received] == ["/users/3", "/users/99"]
+    assert missing.status == "failed" and missing.error.node_id == "lookup"
+    assert "HTTP 404" in missing.error.message
+
+
+def test_the_api_lookup_template_calls_a_public_https_address() -> None:
+    template = next(t for t in load_templates() if t.id == "api-lookup")
+    call = next(n for n in template.draft["nodes"] if n["id"] == "lookup")
+
+    assert call["data"]["url"].startswith("https://")
+    assert template.node_types == ["end", "http_request", "start"]

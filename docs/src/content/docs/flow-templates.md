@@ -15,6 +15,7 @@ Creating a flow from a template counts toward your flow limit like any other flo
 | Loan eligibility | A condition that splits into approve and decline |
 | Lead scoring | Two conditions in a row giving three outcomes |
 | Discount tier | A decision that depends on two inputs |
+| Look up a record from an API | An [HTTP Request](nodes/http-request) node, reading its response in the End node, and failing the run on an error status. It calls the free JSONPlaceholder test API |
 
 ## Adding a template
 

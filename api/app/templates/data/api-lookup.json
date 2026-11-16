@@ -1,0 +1,60 @@
+{
+  "id": "api-lookup",
+  "title": "Look up a record from an API",
+  "summary": "Call an HTTP API and use its answer",
+  "description": "Fetches a user from the free JSONPlaceholder test API by number (1 to 10) and returns the name, email and company. Shows an HTTP Request node, reading its response in the End node, and failing the run on an error status. To call your own API, change the URL and add a header such as Authorization: Bearer {{ secrets.YOUR_KEY }} with a secret from Settings.",
+  "category": "Integrations",
+  "draft": {
+    "schema_version": 1,
+    "variables": [],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": { "x": 0, "y": 100 },
+        "data": {
+          "inputs": [{ "name": "user_id", "type": "number", "required": true }]
+        }
+      },
+      {
+        "id": "lookup",
+        "type": "http_request",
+        "name": "Look up user",
+        "position": { "x": 300, "y": 100 },
+        "data": {
+          "method": "GET",
+          "url": "https://jsonplaceholder.typicode.com/users/{{ input.user_id }}",
+          "headers": { "Accept": "application/json" },
+          "query": {},
+          "body_type": "none",
+          "body": null,
+          "timeout_seconds": 10,
+          "fail_on_error_status": true
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": { "x": 600, "y": 100 },
+        "data": {
+          "outputs": [
+            { "name": "name", "type": "string", "value": "{{ nodes.lookup.output.body.name }}" },
+            { "name": "email", "type": "string", "value": "{{ nodes.lookup.output.body.email }}" },
+            {
+              "name": "company",
+              "type": "string",
+              "value": "{{ nodes.lookup.output.body.company.name }}"
+            },
+            { "name": "status", "type": "number", "value": "{{ nodes.lookup.output.status }}" }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "target": "lookup", "sourceHandle": null },
+      { "id": "e2", "source": "lookup", "target": "end", "sourceHandle": null }
+    ]
+  }
+}
