@@ -75,6 +75,8 @@ All outgoing calls are checked before they are made. The name is looked up once,
 - With it off, only public addresses over `https` work. Turn it off on any shared deployment.
 - `HTTP_ALLOWED_HOSTS` can limit calls to a list of hosts.
 
+**Validate**, publish and run all check the URL you wrote against these rules, so a URL the server would refuse is reported at Validate, with the node and the field, and not only when the flow runs. A message about a host that is not allowed lists the hosts that are. A host built from a template (`https://{{ input.host }}/…`) cannot be known until the run, so only its scheme is checked.
+
 A flow cannot read the server's environment variables.
 
 A header or URL that contains a line break is refused before anything is sent. The call identifies itself with a `User-Agent` of `decision-flow` unless you set your own, so a site that sees abuse can trace it to the server.

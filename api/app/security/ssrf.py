@@ -108,11 +108,40 @@ def _parse(raw: str, policy: OutboundPolicy) -> tuple[httpx.URL, str, int]:
     if url.userinfo or not HOST.fullmatch(host) or odd_ip:
         raise OutboundError("invalid_url", "The URL is not valid")
     if not host_allowed(host, policy.allowed_hosts):
-        raise OutboundError("host_not_allowed", "This host is not on the allowed list")
+        shown = ", ".join(policy.allowed_hosts[:10])
+        more = ", ..." if len(policy.allowed_hosts) > 10 else ""
+        raise OutboundError(
+            "host_not_allowed", f"This host is not on the allowed list ({shown}{more})"
+        )
     port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)
     if not 1 <= port <= 65535:
         raise OutboundError("invalid_url", "The URL is not valid")
     return url, host, port
+
+
+TEMPLATE = re.compile(r"\{\{.*?\}\}")
+WRITTEN_URL = re.compile(r"(https?)://([^/?#]*)", re.IGNORECASE)
+
+
+def static_url_problem(raw: str, policy: OutboundPolicy) -> OutboundError | None:
+    """Refusals knowable without a lookup, as in fetch; a templated host is only scheme-checked."""
+    written = WRITTEN_URL.match(raw.strip())
+    if written is None:
+        return None
+    if "{{" in written[2]:
+        if written[1].lower() != "https" and not policy.allow_private:
+            return OutboundError("scheme_not_allowed", "Only https URLs are allowed here")
+        return None
+    try:
+        _, host, _ = _parse(TEMPLATE.sub("x", raw.strip()), policy)
+    except OutboundError as error:
+        return error
+    if _is_ip(host):
+        if is_blocked(ipaddress.ip_address(host), policy.allow_private):
+            return OutboundError("blocked_destination", "This address is not allowed")
+    elif not policy.allow_private and (host == "localhost" or host.endswith(".localhost")):
+        return OutboundError("blocked_destination", "This address is not allowed")
+    return None
 
 
 async def system_resolver(host: str, port: int) -> list[str]:

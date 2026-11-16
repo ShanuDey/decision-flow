@@ -111,7 +111,7 @@ async def _run(
     disabled_types: Collection[str],
     outbound: OutboundPolicy | None,
 ) -> Run:
-    graph, issues = parse_graph(raw_graph, max_nodes, max_edges, disabled_types)
+    graph, issues = parse_graph(raw_graph, max_nodes, max_edges, disabled_types, outbound)
     if graph is None:
         raise invalid_flow(issues)
     names = referenced_secret_names(graph)

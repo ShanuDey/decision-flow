@@ -409,3 +409,28 @@ async def test_the_request_says_who_is_calling_unless_the_caller_says_otherwise(
     first, second = (headers for _, headers in seen.requests)
     assert first["user-agent"].startswith("decision-flow")
     assert second["user-agent"] == "mine"
+
+
+async def test_a_refused_host_message_lists_what_is_allowed() -> None:
+    allowed = OutboundPolicy(
+        allow_private=True,
+        allowed_hosts=("a.test", "*.b.test"),
+        max_bytes=1000,
+        timeout_seconds=5,
+    )
+
+    error = await refused(fetch(allowed, "GET", "https://other.test/"))
+
+    assert error.code == "host_not_allowed"
+    assert error.message == "This host is not on the allowed list (a.test, *.b.test)"
+
+
+async def test_a_long_allowed_list_is_cut_short_in_the_message() -> None:
+    hosts = tuple(f"h{i}.test" for i in range(15))
+    allowed = OutboundPolicy(
+        allow_private=True, allowed_hosts=hosts, max_bytes=1, timeout_seconds=5
+    )
+
+    error = await refused(fetch(allowed, "GET", "https://other.test/"))
+
+    assert "h9.test, ..." in error.message and "h10.test" not in error.message

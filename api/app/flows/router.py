@@ -25,6 +25,7 @@ from app.flows.schemas import (
 )
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
+from app.security.policy import outbound_policy
 from app.settings import Settings, get_settings
 from app.workspaces.deps import CurrentMember
 
@@ -147,14 +148,15 @@ async def save_draft(
 
 @router.post("/flows/{flow_id}/validate", responses={**NOT_FOUND, **INVALID})
 async def validate_flow(
-    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim, settings: AppSettings
 ) -> ValidateResponse:
     """Checks the saved draft without publishing it.
 
     Returns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`
     and `field`.
     """
-    service.validate_draft(await service.require_flow(store, member, flow_id), limits)
+    flow = await service.require_flow(store, member, flow_id)
+    service.validate_draft(flow, limits, outbound_policy(settings, limits))
     return ValidateResponse(valid=True)
 
 
@@ -171,7 +173,12 @@ async def publish_flow(
     409 `nothing_to_publish` if the draft has not changed since the last version.
     """
     version = await service.publish_flow(
-        store, member, flow_id, limits, soft=settings.delete_mode == "soft"
+        store,
+        member,
+        flow_id,
+        limits,
+        soft=settings.delete_mode == "soft",
+        outbound=outbound_policy(settings, limits),
     )
     return VersionDetail.model_validate(version, from_attributes=True)
 

@@ -14,10 +14,19 @@ from app.engine.base import StrictBaseModel
 from app.engine.issues import Issue
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.templates import TemplateError, render
-from app.security.ssrf import FRAMING_HEADERS, FetchResponse, OutboundError, fetch
+from app.security.ssrf import (
+    FRAMING_HEADERS,
+    FetchResponse,
+    OutboundError,
+    OutboundPolicy,
+    fetch,
+    static_url_problem,
+)
 
 HEADER_NAME = re.compile(r"[A-Za-z0-9!#$%&'*+.^_`|~-]+")
 RESERVED_HEADERS = FRAMING_HEADERS
+# Used when validating without a server policy: only what no server ever allows is flagged.
+OPEN_POLICY = OutboundPolicy(allow_private=True, max_bytes=1, timeout_seconds=1)
 URL_START = re.compile(r"https?://", re.IGNORECASE)
 CONTENT_TYPES = {
     "json": "application/json",
@@ -125,6 +134,8 @@ class HttpRequestNode(NodeModel):
             found.append(("missing_url", "enter the URL to call", "data.url"))
         elif "{{" not in d.url and not URL_START.match(d.url.strip()):
             found.append(("invalid_url", "the URL must start with http:// or https://", "data.url"))
+        if (problem := static_url_problem(d.url, ctx.outbound or OPEN_POLICY)) is not None:
+            found.append((problem.code, problem.message, "data.url"))
         found += [
             ("invalid_header_name", f"'{name}' is not a valid header name", f"data.headers.{name}")
             for name in d.headers

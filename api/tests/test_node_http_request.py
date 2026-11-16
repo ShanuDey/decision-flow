@@ -522,3 +522,93 @@ async def test_a_request_within_the_size_limit_still_goes_out() -> None:
         result = await run(raw, {"name": "x" * 1000}, outbound=policy(max_bytes=100_000))
 
     assert result.status == "succeeded" and len(received) == 1
+
+
+def url_issues(url: str, outbound: OutboundPolicy | None = None) -> list[tuple[str, str | None]]:
+    _, issues = parse_graph(flow({"url": url}), outbound=outbound)
+    return [(i.code, i.field) for i in issues]
+
+
+@pytest.mark.parametrize(
+    ("url", "code"),
+    [
+        ("https://", "invalid_url"),
+        ("https:///x", "invalid_url"),
+        ("https://:443/x", "invalid_url"),
+        ("https://user:pw@example.com/", "invalid_url"),
+        ("https://example.com:99999/", "invalid_url"),
+        ("https://exa mple.com/", "invalid_url"),
+        ("https://2130706433/", "invalid_url"),
+        ("http://169.254.169.254/latest/meta-data/", "blocked_destination"),
+        ("https://0.0.0.0/", "blocked_destination"),
+        ("https://[fe80::1]/", "blocked_destination"),
+    ],
+)
+def test_validation_flags_a_url_that_no_server_would_ever_call(url: str, code: str) -> None:
+    assert url_issues(url) == [(code, "data.url")]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost:8000/health",
+        "http://192.168.1.10/x",
+        "https://example.com/users/{{ input.amount }}",
+        "{{ input.name }}/x",
+        "https://{{ input.name }}/x",
+    ],
+)
+def test_validation_leaves_alone_what_a_default_server_would_call(url: str) -> None:
+    assert url_issues(url) == []
+
+
+CLOSED = OutboundPolicy(allow_private=False, max_bytes=1000, timeout_seconds=5)
+LISTED = OutboundPolicy(
+    allow_private=True,
+    allowed_hosts=("api.example.com", "*.partner.test"),
+    max_bytes=1000,
+    timeout_seconds=5,
+)
+
+
+@pytest.mark.parametrize(
+    ("url", "code"),
+    [
+        ("https://localhost/x", "blocked_destination"),
+        ("https://api.localhost/x", "blocked_destination"),
+        ("https://127.0.0.1:8000/", "blocked_destination"),
+        ("https://10.0.0.5/", "blocked_destination"),
+        ("https://[::1]/", "blocked_destination"),
+        ("http://example.com/", "scheme_not_allowed"),
+        ("http://{{ input.name }}/x", "scheme_not_allowed"),
+    ],
+)
+def test_a_server_that_blocks_private_networks_makes_validation_say_so(url: str, code: str) -> None:
+    assert url_issues(url, CLOSED) == [(code, "data.url")]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/x",
+        "https://{{ input.name }}/x",
+        "https://example.com/{{ input.amount }}",
+    ],
+)
+def test_a_public_https_url_passes_on_a_server_that_blocks_private_networks(url: str) -> None:
+    assert url_issues(url, CLOSED) == []
+
+
+def test_a_server_with_an_allowed_list_flags_other_hosts_and_names_the_list() -> None:
+    _, issues = parse_graph(flow({"url": "https://other.example.com/"}), outbound=LISTED)
+
+    assert [(i.code, i.field) for i in issues] == [("host_not_allowed", "data.url")]
+    assert "api.example.com, *.partner.test" in issues[0].message
+    assert url_issues("https://partner.test/", LISTED) == [("host_not_allowed", "data.url")]
+    for ok in (
+        "https://api.example.com/users/{{ input.amount }}",
+        "https://x.partner.test/",
+        "https://{{ input.name }}/x",
+        "http://api.example.com/",
+    ):
+        assert url_issues(ok, LISTED) == [], ok

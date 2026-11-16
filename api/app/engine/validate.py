@@ -13,6 +13,7 @@ from app.engine.inputs import check_value
 from app.engine.issues import Issue
 from app.engine.nodes import NODE_TYPES, NodeContext, NodeModel, StartNode
 from app.engine.templates import Ref, TemplateError, references
+from app.security.ssrf import OutboundPolicy
 
 RESERVED_IDS = {"input", "vars", "nodes", "secrets", "env", "run"}
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
@@ -41,7 +42,11 @@ def check_size(raw: Any, max_nodes: int, max_edges: int) -> list[Issue]:
 
 
 def parse_graph(
-    raw: Any, max_nodes: int = 0, max_edges: int = 0, disabled_types: Collection[str] = ()
+    raw: Any,
+    max_nodes: int = 0,
+    max_edges: int = 0,
+    disabled_types: Collection[str] = (),
+    outbound: OutboundPolicy | None = None,
 ) -> tuple[Graph | None, list[Issue]]:
     """Stages 0 (size), 1 (schema), 2 (structure), 3 (settings); each needs the last to pass."""
     if size_issues := check_size(raw, max_nodes, max_edges):
@@ -50,7 +55,11 @@ def parse_graph(
         graph = Graph.model_validate(raw)
     except ValidationError as exc:
         return None, [_schema_issue(raw, err) for err in exc.errors()]
-    issues = _disabled(graph, disabled_types) or check_structure(graph) or check_settings(graph)
+    issues = (
+        _disabled(graph, disabled_types)
+        or check_structure(graph)
+        or check_settings(graph, outbound)
+    )
     return (None if issues else graph), issues
 
 
@@ -73,9 +82,9 @@ def _schema_issue(raw: Any, err: Any) -> Issue:
     return _issue("schema", err["msg"], node_id, ".".join(str(p) for p in loc))
 
 
-def check_settings(graph: Graph) -> list[Issue]:
+def check_settings(graph: Graph, outbound: OutboundPolicy | None = None) -> list[Issue]:
     issues: list[Issue] = []
-    ctx = NodeContext(variables=graph.variables)
+    ctx = NodeContext(variables=graph.variables, outbound=outbound)
     inputs = {f.name for n in graph.nodes if isinstance(n, StartNode) for f in n.data.inputs}
     variables = {v.name for v in graph.variables}
     ids = {n.id for n in graph.nodes}
