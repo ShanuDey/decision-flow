@@ -242,7 +242,7 @@ async def test_a_run_with_all_its_secrets_goes_ahead(
     box = new_box()
     app.dependency_overrides[get_box_factory] = lambda: lambda: box
     try:
-        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        await client.put("/secrets/API_KEY", json={"value": "test-secret-value-123456"})
         response = await run_naming_secrets(client, monkeypatch, "API_KEY")
     finally:
         app.dependency_overrides.pop(get_box_factory, None)
@@ -258,7 +258,7 @@ async def test_a_secret_saved_under_another_key_is_reported_not_crashed(
     old, new = new_box(), new_box()
     try:
         app.dependency_overrides[get_box_factory] = lambda: lambda: old
-        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        await client.put("/secrets/API_KEY", json={"value": "test-secret-value-123456"})
         app.dependency_overrides[get_box_factory] = lambda: lambda: new
         response = await run_naming_secrets(client, monkeypatch, "API_KEY")
     finally:
@@ -266,7 +266,7 @@ async def test_a_secret_saved_under_another_key_is_reported_not_crashed(
 
     assert response.status_code == 500
     assert response.json()["code"] == "secret_unreadable"
-    assert "sk_live_1234567890" not in response.text
+    assert "test-secret-value-123456" not in response.text
 
 
 @pytest.mark.anyio
@@ -316,7 +316,7 @@ async def test_a_stored_secret_is_sent_and_never_appears_in_the_run_record(
     box = new_box()
     app.dependency_overrides[get_box_factory] = lambda: lambda: box
     try:
-        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        await client.put("/secrets/API_KEY", json={"value": "test-secret-value-123456"})
         async with serve() as (port, received):
             draft = http_flow(
                 {
@@ -339,8 +339,8 @@ async def test_a_stored_secret_is_sent_and_never_appears_in_the_run_record(
         app.dependency_overrides.pop(get_box_factory, None)
 
     assert response.status_code == 200 and response.json()["status"] == "succeeded"
-    assert received[0]["headers"]["authorization"] == "Bearer sk_live_1234567890"
-    assert "sk_live_1234567890" not in response.text + str(run)
+    assert received[0]["headers"]["authorization"] == "Bearer test-secret-value-123456"
+    assert "test-secret-value-123456" not in response.text + str(run)
 
 
 @pytest.mark.anyio

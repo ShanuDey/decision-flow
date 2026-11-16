@@ -15,7 +15,7 @@ from app.security.ssrf import OutboundPolicy
 from app.templates.service import load_templates
 from tests.recorder import Recorder
 
-SECRET = "sk_live_abcdefghij123"
+SECRET = "test-secret-value-abc123"
 
 
 @pytest.fixture

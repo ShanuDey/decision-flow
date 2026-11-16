@@ -13,7 +13,7 @@ from tests.conftest import FakeSecretStore
 
 pytestmark = pytest.mark.anyio
 
-VALUE = "sk_live_1234567890"
+VALUE = "test-secret-value-123456"
 
 
 @pytest.fixture
