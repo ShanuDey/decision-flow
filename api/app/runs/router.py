@@ -16,9 +16,12 @@ from app.ratelimit import limit_runs
 from app.runs import service
 from app.runs.models import Run
 from app.runs.schemas import RunDetail, RunList, RunRequest, RunResponse, RunSteps, RunSummary
-from app.runs.service import ObserverFactory, TraceReader
+from app.runs.service import ObserverFactory, SecretLoader, TraceReader
 from app.runs.slots import RunSlots, get_run_slots
 from app.runs.store import FlowInfo, RunStore, get_run_store
+from app.secrets.crypto import BoxFactory, get_box_factory
+from app.secrets.service import load_run_secrets
+from app.secrets.store import SecretStore, get_secret_store
 from app.settings import get_settings
 from app.tracing import MlflowObserver
 from app.workspaces.deps import CurrentMember
@@ -34,6 +37,14 @@ TOO_MANY = {429: {"model": ErrorResponse}}
 
 def get_observer_factory() -> ObserverFactory:
     return lambda name: MlflowObserver(get_settings(), name)
+
+
+def get_secret_loader(
+    member: CurrentMember,
+    store: Annotated[SecretStore, Depends(get_secret_store)],
+    make_box: Annotated[BoxFactory, Depends(get_box_factory)],
+) -> SecretLoader:
+    return lambda names: load_run_secrets(store, make_box, member, names)
 
 
 def get_trace_reader() -> TraceReader:
@@ -92,6 +103,7 @@ async def create_run(
     flows: Annotated[FlowStore, Depends(get_store)],
     runs: Annotated[RunStore, Depends(get_run_store)],
     new_observer: Annotated[ObserverFactory, Depends(get_observer_factory)],
+    load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
     limits: Annotated[Limits, Depends(get_limits)],
 ) -> RunResponse:
@@ -117,10 +129,12 @@ async def create_run(
             "max_edges": limits.max_edges,
         }
         if version is None:
-            run = await service.run_draft(runs, member, flow, body.input, new_observer, **common)
+            run = await service.run_draft(
+                runs, member, flow, body.input, new_observer, load_secrets, **common
+            )
         else:
             run = await service.run_published(
-                runs, member, flow, version, body.input, new_observer, **common
+                runs, member, flow, version, body.input, new_observer, load_secrets, **common
             )
     return _run_response(run)
 

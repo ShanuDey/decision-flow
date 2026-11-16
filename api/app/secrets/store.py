@@ -38,6 +38,14 @@ class SecretStore:
         )
         return found is not None
 
+    async def get_encrypted(self, member: Member, names: set[str]) -> dict[str, str]:
+        rows = await self.session.execute(
+            select(Secret.name, Secret.value_encrypted).where(
+                Secret.workspace_id == member.workspace_id, Secret.name.in_(names)
+            )
+        )
+        return {name: value for name, value in rows}
+
     async def put(self, member: Member, name: str, encrypted: str) -> Secret:
         stmt = (
             insert(Secret)

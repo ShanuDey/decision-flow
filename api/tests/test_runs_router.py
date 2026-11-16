@@ -3,7 +3,11 @@ import uuid
 
 import httpx
 import pytest
+from cryptography.fernet import Fernet
 
+from app.main import app
+from app.secrets.crypto import SecretBox, get_box_factory
+from app.settings import Settings, get_settings
 from tests.conftest import FakeRunStore, create_flow, example
 
 
@@ -198,3 +202,80 @@ async def test_list_runs_rejects_a_bad_cursor_and_limit(client: httpx.AsyncClien
     assert bad.status_code == 422 and bad.json()["code"] == "invalid_cursor"
     too_big = await client.get("/runs", params={"limit": 101})
     assert too_big.status_code == 422 and too_big.json()["code"] == "invalid_request"
+
+
+def new_box() -> SecretBox:
+    return SecretBox([Fernet.generate_key().decode()])
+
+
+async def run_naming_secrets(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch, *names: str
+) -> httpx.Response:
+    monkeypatch.setattr("app.runs.service.referenced_secret_names", lambda _graph: set(names))
+    flow = await create_flow(client, example("assign-variable.json"))
+    return await client.post(
+        f"/flows/{flow['id']}/runs?wait=true", json={"test": True, "input": {"amount": 5}}
+    )
+
+
+@pytest.mark.anyio
+async def test_a_run_fails_before_starting_when_a_secret_is_missing(
+    client: httpx.AsyncClient, run_store: FakeRunStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    response = await run_naming_secrets(client, monkeypatch, "API_KEY", "OTHER_KEY")
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "secret_not_found"
+    assert body["details"]["names"] == ["API_KEY", "OTHER_KEY"]
+    assert run_store.runs == {}
+
+
+@pytest.mark.anyio
+async def test_a_run_with_all_its_secrets_goes_ahead(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    box = new_box()
+    app.dependency_overrides[get_box_factory] = lambda: lambda: box
+    try:
+        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        response = await run_naming_secrets(client, monkeypatch, "API_KEY")
+    finally:
+        app.dependency_overrides.pop(get_box_factory, None)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "succeeded"
+
+
+@pytest.mark.anyio
+async def test_a_secret_saved_under_another_key_is_reported_not_crashed(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old, new = new_box(), new_box()
+    try:
+        app.dependency_overrides[get_box_factory] = lambda: lambda: old
+        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        app.dependency_overrides[get_box_factory] = lambda: lambda: new
+        response = await run_naming_secrets(client, monkeypatch, "API_KEY")
+    finally:
+        app.dependency_overrides.pop(get_box_factory, None)
+
+    assert response.status_code == 500
+    assert response.json()["code"] == "secret_unreadable"
+    assert "sk_live_1234567890" not in response.text
+
+
+@pytest.mark.anyio
+async def test_a_run_that_uses_no_secret_needs_no_encryption_key(
+    client: httpx.AsyncClient,
+) -> None:
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, encryption_key="")
+    try:
+        flow = await create_flow(client, example("assign-variable.json"))
+        response = await client.post(
+            f"/flows/{flow['id']}/runs?wait=true", json={"test": True, "input": {"amount": 5}}
+        )
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
+
+    assert response.status_code == 200

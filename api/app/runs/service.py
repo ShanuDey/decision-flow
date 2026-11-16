@@ -9,6 +9,7 @@ from typing import Any, Protocol
 from app.engine.compiler import compile_graph
 from app.engine.inputs import InputValidationError
 from app.engine.observer import Observer
+from app.engine.run_secrets import RunSecrets, referenced_secret_names
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.errors import ApiError
@@ -26,6 +27,7 @@ class TracingObserver(Observer, Protocol):
     trace_id: str | None
 
 
+SecretLoader = Callable[[set[str]], Awaitable[RunSecrets]]
 ObserverFactory = Callable[[str], TracingObserver]
 TraceReader = Callable[[str], Awaitable[list[TraceSpan] | None]]
 
@@ -38,6 +40,7 @@ async def run_draft(
     flow: Flow,
     payload: dict[str, Any],
     new_observer: ObserverFactory,
+    load_secrets: SecretLoader,
     timeout_seconds: float = 0,
     max_nodes: int = 0,
     max_edges: int = 0,
@@ -50,6 +53,7 @@ async def run_draft(
         None,
         payload,
         new_observer,
+        load_secrets,
         timeout_seconds,
         max_nodes,
         max_edges,
@@ -63,6 +67,7 @@ async def run_published(
     version: FlowVersion,
     payload: dict[str, Any],
     new_observer: ObserverFactory,
+    load_secrets: SecretLoader,
     timeout_seconds: float = 0,
     max_nodes: int = 0,
     max_edges: int = 0,
@@ -75,6 +80,7 @@ async def run_published(
         version.version,
         payload,
         new_observer,
+        load_secrets,
         timeout_seconds,
         max_nodes,
         max_edges,
@@ -89,6 +95,7 @@ async def _run(
     flow_version: int | None,
     payload: dict[str, Any],
     new_observer: ObserverFactory,
+    load_secrets: SecretLoader,
     timeout_seconds: float,
     max_nodes: int,
     max_edges: int,
@@ -96,9 +103,11 @@ async def _run(
     graph, issues = parse_graph(raw_graph, max_nodes, max_edges)
     if graph is None:
         raise invalid_flow(issues)
+    names = referenced_secret_names(graph)
+    secrets = await load_secrets(names) if names else RunSecrets()
     observer = new_observer(flow.name)
     try:
-        result = await run_flow(compile_graph(graph), payload, observer, timeout_seconds)
+        result = await run_flow(compile_graph(graph), payload, observer, timeout_seconds, secrets)
     except InputValidationError as exc:
         first = exc.issues[0]
         raise ApiError(

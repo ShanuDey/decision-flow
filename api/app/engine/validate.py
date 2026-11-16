@@ -79,6 +79,10 @@ def check_settings(graph: Graph) -> list[Issue]:
                 issues.append(_issue("unsupported_expression", str(exc), node.id, field))
                 continue
             for ref in refs:
+                if ref.scope == "secrets":
+                    if problem := _secret_problem(node, field, ref):
+                        issues.append(problem)
+                    continue
                 known = inputs if ref.scope == "input" else variables
                 if ref.path[0] not in known:
                     issues.append(
@@ -97,6 +101,15 @@ def check_settings(graph: Graph) -> list[Issue]:
                 if problem:
                     issues.append(_issue(*problem, node.id, field))
     return issues
+
+
+def _secret_problem(node: NodeModel, field: str, ref: Ref) -> Issue | None:
+    # Whether the secret exists is checked when the run starts, so a flow can be saved first.
+    if field not in node.secret_fields():
+        return _issue("secret_not_allowed", f"{ref} cannot be used in this field", node.id, field)
+    if len(ref.path) > 1:
+        return _issue("unknown_reference", f"{ref}: a secret is a single value", node.id, field)
+    return None
 
 
 def _reference_problem(

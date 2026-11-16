@@ -261,6 +261,10 @@ class FakeSecretStore:
     async def exists(self, member: Member, name: str) -> bool:
         return (member.workspace_id, name) in self.secrets
 
+    async def get_encrypted(self, member: Member, names: set[str]) -> dict[str, str]:
+        found = {n: self.secrets.get((member.workspace_id, n)) for n in names}
+        return {n: s.value_encrypted for n, s in found.items() if s is not None}
+
     async def put(self, member: Member, name: str, encrypted: str) -> Secret:
         now = datetime.now(UTC)
         key = (member.workspace_id, name)

@@ -6,6 +6,7 @@ from app.engine.base import FrozenBaseModel
 from app.engine.compiler import CompiledFlow
 from app.engine.inputs import validate_input
 from app.engine.observer import NodeError, NullObserver, Observer
+from app.engine.run_secrets import RunSecrets
 
 
 class RunError(FrozenBaseModel):
@@ -36,12 +37,13 @@ async def run_flow(
     payload: dict[str, Any],
     observer: Observer | None = None,
     timeout_seconds: float = 0,
+    secrets: RunSecrets | None = None,
 ) -> RunResult:
     """Raises InputValidationError before anything runs; a failure inside the flow is a result."""
     inputs = validate_input(flow.start.data.inputs, payload)
     state = {"input": inputs}
     observer = observer or NullObserver()
-    config = {"configurable": {"observer": observer}}
+    config = {"configurable": {"observer": observer, "secrets": secrets or RunSecrets()}}
     await observer.run_started(inputs)
     started = time.perf_counter()
     try:

@@ -7,7 +7,7 @@ from typing import Any
 from app.engine.base import FrozenBaseModel
 
 _EXPR = re.compile(r"\{\{(.*?)\}\}")
-_PATH = re.compile(r"^(input|vars)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
+_PATH = re.compile(r"^(input|vars|secrets)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
 
 
 class TemplateError(ValueError):
@@ -33,7 +33,7 @@ def _parse(template: str) -> list[str | Ref]:
         if not match:
             raise TemplateError(
                 f"unsupported expression '{chunk.strip()}': "
-                "only input.* and vars.* references work yet"
+                "only input.*, vars.* and secrets.* references work yet"
             )
         parts.append(Ref(scope=match[1], path=tuple(match[2].lstrip(".").split("."))))
     return parts
@@ -44,9 +44,13 @@ def references(template: str) -> list[Ref]:
 
 
 def _resolve(ref: Ref, scopes: dict[str, Any]) -> Any:
-    value: Any = scopes[ref.scope]
+    value: Any = scopes.get(ref.scope)
+    if value is None:
+        raise TemplateError(f"{ref} is not available in this field")
     for key in ref.path:
         if not isinstance(value, dict) or key not in value:
+            if ref.scope == "secrets":
+                raise TemplateError(f"secret {key} is not set; add it in Settings > Secrets")
             raise TemplateError(f"{ref} is not set")
         value = value[key]
     return value
