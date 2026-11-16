@@ -13,7 +13,7 @@ export interface NodeSpec {
   acceptsIncoming: boolean;
   acceptsOutgoing: boolean;
   handles: readonly string[];
-  // False until the editor can configure the node; a flow that has one still opens.
+  // False hides the node from the picker; a flow that has one still opens.
   pickable: boolean;
 }
 
@@ -65,7 +65,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     acceptsIncoming: true,
     acceptsOutgoing: true,
     handles: [],
-    pickable: false,
+    pickable: true,
   },
   end: {
     label: "End",

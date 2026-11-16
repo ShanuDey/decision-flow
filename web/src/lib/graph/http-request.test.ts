@@ -6,11 +6,18 @@ import { outputKeys } from "./suggest";
 import type { Graph } from "./types";
 
 describe("the HTTP Request node in the editor", () => {
-  it("is not offered in the picker until the editor can configure it", () => {
-    expect(NODE_SPECS.http_request.pickable).toBe(false);
-    expect(flatTypes(pickerGroups("", "all"))).not.toContain("http_request");
-    expect(flatTypes(pickerGroups("http", "all"))).toEqual([]);
-    expect(flatTypes(pickerGroups("", "all"))).toEqual(["start", "end", "condition", "assign"]);
+  it("is offered in the picker under Data", () => {
+    expect(NODE_SPECS.http_request.pickable).toBe(true);
+    const data = pickerGroups("", "all").find((g) => g.group === "Data");
+    expect(data?.types).toEqual(["assign", "http_request"]);
+    expect(flatTypes(pickerGroups("http", "all"))).toEqual(["http_request"]);
+    expect(flatTypes(pickerGroups("", "all"))).toEqual([
+      "start",
+      "end",
+      "condition",
+      "assign",
+      "http_request",
+    ]);
   });
 
   it("starts as an empty GET with no body", () => {

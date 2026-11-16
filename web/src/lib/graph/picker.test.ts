@@ -6,7 +6,7 @@ describe("pickerGroups", () => {
   it("groups every built-in node in a stable order", () => {
     const groups = pickerGroups("", "all");
     expect(groups.map((g) => g.group)).toEqual(["Flow", "Logic", "Data"]);
-    expect(flatTypes(groups).sort()).toEqual(["assign", "condition", "end", "start"]);
+    expect(flatTypes(groups).sort()).toEqual(["assign", "condition", "end", "http_request", "start"]);
   });
 
   it("filters by search text across label and description", () => {
@@ -16,7 +16,7 @@ describe("pickerGroups", () => {
   });
 
   it("filters by source and has no community nodes yet", () => {
-    expect(flatTypes(pickerGroups("", "builtin")).length).toBe(4);
+    expect(flatTypes(pickerGroups("", "builtin")).length).toBe(5);
     expect(pickerGroups("", "community")).toEqual([]);
   });
 });

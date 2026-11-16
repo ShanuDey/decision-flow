@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 
 import { deleteFromCanvas } from "./actions";
 import { ExpandableInput } from "./expand-field";
+import { HttpRequestForm } from "./http-request-form";
 import { ExpressionInput } from "./expression-input";
 import { EnumValues, FieldError, Labeled, ListEditor, TypedValueInput, TypeSelect } from "./fields";
 import { fieldIssue, flowIssues, issuesForNode } from "./issues";
@@ -467,12 +468,7 @@ export function SettingsPanel() {
                 {node.type === "end" && <EndForm node={node} />}
                 {node.type === "assign" && <AssignForm node={node} />}
                 {node.type === "condition" && <ConditionForm node={node} />}
-                {node.type === "http_request" && (
-                  <p className="text-xs text-muted-foreground">
-                    This node is set up in the flow JSON for now. The editor cannot change its
-                    settings yet.
-                  </p>
-                )}
+                {node.type === "http_request" && <HttpRequestForm node={node} />}
                 <VariablesForm />
               </TabsContent>
               <TabsContent value="test" className="overflow-y-auto p-4">

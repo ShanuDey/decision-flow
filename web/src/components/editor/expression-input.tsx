@@ -7,6 +7,7 @@ import { fromReactFlow } from "@/lib/graph/convert";
 import { suggest } from "@/lib/graph/suggest";
 import { cn } from "@/lib/utils";
 
+import type { SourceKind } from "./expand-dialog";
 import { ExpandButton } from "./expand-field";
 import { useEditor } from "./store";
 
@@ -16,6 +17,8 @@ interface Props {
   value: string;
   placeholder?: string;
   title?: string;
+  // "template" for text with {{ }} references; the default is a CEL expression.
+  kind?: SourceKind;
   secrets?: boolean;
   onChange: (value: string) => void;
 }
@@ -26,6 +29,7 @@ export function ExpressionInput({
   value,
   placeholder,
   title = "Expression",
+  kind = "expression",
   secrets = false,
   onChange,
 }: Props) {
@@ -110,7 +114,7 @@ export function ExpressionInput({
       <ExpandButton
         nodeId={nodeId}
         title={title}
-        kind="expression"
+        kind={kind}
         value={value}
         onChange={onChange}
         secrets={secrets}
