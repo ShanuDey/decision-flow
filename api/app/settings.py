@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # soft keeps deleted flows and old versions (marked deleted_at/by); hard removes them.
     delete_mode: Literal["hard", "soft"] = "soft"
 
+    # Off on a shared deployment: then only public https addresses can be called.
+    allow_private_networks: bool = True
+    # Empty allows any host; `*.example.com` matches subdomains.
+    http_allowed_hosts: Annotated[list[str], NoDecode] = []
+
     # Fernet key(s), comma separated: the first encrypts, all decrypt. Empty turns secrets off.
     encryption_key: SecretStr = SecretStr("")
 
@@ -88,6 +93,11 @@ class Settings(BaseSettings):
     @classmethod
     def _clean_domains(cls, domains: list[str]) -> list[str]:
         return [d.strip().lower().lstrip("@") for d in domains]
+
+    @field_validator("http_allowed_hosts", mode="after")
+    @classmethod
+    def _clean_hosts(cls, hosts: list[str]) -> list[str]:
+        return [h.strip().lower() for h in hosts if h.strip()]
 
     @field_validator("retention_keep_emails", mode="after")
     @classmethod
@@ -113,7 +123,11 @@ class Settings(BaseSettings):
         return bool(self.run_retention_days or self.user_retention_days)
 
     @field_validator(
-        "cors_origins", "auth_allowed_email_domains", "retention_keep_emails", mode="before"
+        "cors_origins",
+        "auth_allowed_email_domains",
+        "retention_keep_emails",
+        "http_allowed_hosts",
+        mode="before",
     )
     @classmethod
     def _split_commas(cls, value: object) -> object:
