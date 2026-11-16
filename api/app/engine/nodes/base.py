@@ -5,6 +5,8 @@ from pydantic import Field
 from app.engine.base import FrozenBaseModel, StrictBaseModel
 from app.engine.fields import Variable
 from app.engine.issues import Issue
+from app.engine.run_secrets import RunSecrets
+from app.security.ssrf import OutboundPolicy
 
 
 class Position(StrictBaseModel):
@@ -14,6 +16,9 @@ class Position(StrictBaseModel):
 
 class NodeContext(FrozenBaseModel):
     variables: list[Variable]
+    # Per run: the compiled flow is reused, so the runner swaps this in for each call.
+    secrets: RunSecrets = Field(default_factory=RunSecrets)
+    outbound: OutboundPolicy | None = None
 
 
 class NodeModel(StrictBaseModel):
@@ -46,6 +51,10 @@ class NodeModel(StrictBaseModel):
     def templates(self) -> dict[str, str]:
         """Template settings by field path, so the validator can check what they reference."""
         return {}
+
+    def secret_fields(self) -> set[str]:
+        """Template fields that may use `{{ secrets.NAME }}`; every other field rejects it."""
+        return set()
 
     def expressions(self) -> dict[str, str]:
         """CEL settings by field path, so the validator can check what they reference."""

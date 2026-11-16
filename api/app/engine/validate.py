@@ -2,6 +2,7 @@
 
 import re
 from collections import defaultdict, deque
+from collections.abc import Collection
 from typing import Any
 
 from pydantic import ValidationError
@@ -12,6 +13,7 @@ from app.engine.inputs import check_value
 from app.engine.issues import Issue
 from app.engine.nodes import NODE_TYPES, NodeContext, NodeModel, StartNode
 from app.engine.templates import Ref, TemplateError, references
+from app.security.ssrf import OutboundPolicy
 
 RESERVED_IDS = {"input", "vars", "nodes", "secrets", "env", "run"}
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
@@ -40,7 +42,11 @@ def check_size(raw: Any, max_nodes: int, max_edges: int) -> list[Issue]:
 
 
 def parse_graph(
-    raw: Any, max_nodes: int = 0, max_edges: int = 0
+    raw: Any,
+    max_nodes: int = 0,
+    max_edges: int = 0,
+    disabled_types: Collection[str] = (),
+    outbound: OutboundPolicy | None = None,
 ) -> tuple[Graph | None, list[Issue]]:
     """Stages 0 (size), 1 (schema), 2 (structure), 3 (settings); each needs the last to pass."""
     if size_issues := check_size(raw, max_nodes, max_edges):
@@ -49,8 +55,20 @@ def parse_graph(
         graph = Graph.model_validate(raw)
     except ValidationError as exc:
         return None, [_schema_issue(raw, err) for err in exc.errors()]
-    issues = check_structure(graph) or check_settings(graph)
+    issues = (
+        _disabled(graph, disabled_types)
+        or check_structure(graph)
+        or check_settings(graph, outbound)
+    )
     return (None if issues else graph), issues
+
+
+def _disabled(graph: Graph, disabled_types: Collection[str]) -> list[Issue]:
+    return [
+        _issue("node_disabled", f"'{n.type}' nodes are turned off on this server", n.id, "type")
+        for n in graph.nodes
+        if n.type in disabled_types
+    ]
 
 
 def _schema_issue(raw: Any, err: Any) -> Issue:
@@ -64,12 +82,19 @@ def _schema_issue(raw: Any, err: Any) -> Issue:
     return _issue("schema", err["msg"], node_id, ".".join(str(p) for p in loc))
 
 
-def check_settings(graph: Graph) -> list[Issue]:
+def check_settings(graph: Graph, outbound: OutboundPolicy | None = None) -> list[Issue]:
     issues: list[Issue] = []
-    ctx = NodeContext(variables=graph.variables)
+    ctx = NodeContext(variables=graph.variables, outbound=outbound)
     inputs = {f.name for n in graph.nodes if isinstance(n, StartNode) for f in n.data.inputs}
     variables = {v.name for v in graph.variables}
     ids = {n.id for n in graph.nodes}
+    ancestors: dict[str, set[str]] = {}
+
+    def upstream_of(node_id: str) -> set[str]:
+        if node_id not in ancestors:
+            ancestors[node_id] = _ancestors(graph, node_id)
+        return ancestors[node_id]
+
     for node in graph.nodes:
         issues.extend(node.check(ctx))
         for field, template in node.templates().items():
@@ -79,13 +104,22 @@ def check_settings(graph: Graph) -> list[Issue]:
                 issues.append(_issue("unsupported_expression", str(exc), node.id, field))
                 continue
             for ref in refs:
+                if ref.scope == "secrets":
+                    if problem := _secret_problem(node, field, ref):
+                        issues.append(problem)
+                    continue
+                if ref.scope == "nodes":
+                    problem = _reference_problem(ref, inputs, variables, ids, upstream_of(node.id))
+                    if problem:
+                        issues.append(_issue(*problem, node.id, field))
+                    continue
                 known = inputs if ref.scope == "input" else variables
                 if ref.path[0] not in known:
                     issues.append(
                         _issue("unknown_reference", f"{ref} is not declared", node.id, field)
                     )
         exprs = node.expressions()
-        upstream = _ancestors(graph, node.id) if exprs else set()
+        upstream = upstream_of(node.id) if exprs else set()
         for field, source in exprs.items():
             try:
                 refs = expressions.references(expressions.compile(source))
@@ -97,6 +131,15 @@ def check_settings(graph: Graph) -> list[Issue]:
                 if problem:
                     issues.append(_issue(*problem, node.id, field))
     return issues
+
+
+def _secret_problem(node: NodeModel, field: str, ref: Ref) -> Issue | None:
+    # Whether the secret exists is checked when the run starts, so a flow can be saved first.
+    if field not in node.secret_fields():
+        return _issue("secret_not_allowed", f"{ref} cannot be used in this field", node.id, field)
+    if len(ref.path) > 1:
+        return _issue("unknown_reference", f"{ref}: a secret is a single value", node.id, field)
+    return None
 
 
 def _reference_problem(

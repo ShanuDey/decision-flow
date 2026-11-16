@@ -6,7 +6,7 @@ TESTS := pnpm --dir tests
 STUDIO_PORT ?= 2024
 MLFLOW_UI_PORT ?= 5000
 
-.PHONY: start api auth-setup auth-token auth-migrate studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
+.PHONY: start api setup auth-setup secrets-setup auth-token auth-migrate studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
 	test-api test-api-fast typecheck-web build-web docs build-docs checks \
 	e2e-install e2e e2e-ui e2e-api e2e-report
@@ -15,11 +15,17 @@ MLFLOW_UI_PORT ?= 5000
 start: db adminer
 	$(MAKE) -j2 api web
 
-api: auth-setup migrate
+api: setup migrate
 	$(API) fastapi dev
+
+# local config in the untracked .env; never overwrites a value
+setup: auth-setup secrets-setup
 
 auth-setup:
 	$(API) python -m scripts.auth_keys init
+
+secrets-setup:
+	$(API) python -m scripts.secrets_key $(ARGS)
 
 # the web server also migrates at start unless AUTH_AUTO_MIGRATE=false
 auth-migrate:

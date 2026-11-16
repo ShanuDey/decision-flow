@@ -28,12 +28,27 @@ def test_missing_value_names_the_reference() -> None:
         render("{{ input.amount.deeper }}", SCOPES)
 
 
-@pytest.mark.parametrize(
-    "expr", ["input.amount > 1", "nodes.a.output", "input", "secrets.X", "1 + 1"]
-)
+@pytest.mark.parametrize("expr", ["input.amount > 1", "input", "secrets", "1 + 1"])
 def test_unsupported_expressions_fail_loudly(expr: str) -> None:
     with pytest.raises(TemplateError, match="unsupported expression"):
         render("{{ " + expr + " }}", SCOPES)
+
+
+def test_secrets_scope_resolves_and_keeps_the_text() -> None:
+    scopes = {**SCOPES, "secrets": {"API_KEY": "s3cret-value"}}
+    assert render("{{ secrets.API_KEY }}", scopes) == "s3cret-value"
+    assert render("Bearer {{ secrets.API_KEY }}", scopes) == "Bearer s3cret-value"
+    assert references("{{ secrets.API_KEY }}") == [Ref(scope="secrets", path=("API_KEY",))]
+
+
+def test_a_missing_secret_says_where_to_add_it() -> None:
+    with pytest.raises(TemplateError, match="secret API_KEY is not set; add it in Settings"):
+        render("{{ secrets.API_KEY }}", {**SCOPES, "secrets": {}})
+
+
+def test_a_field_with_no_secrets_scope_cannot_read_one() -> None:
+    with pytest.raises(TemplateError, match="is not available in this field"):
+        render("{{ secrets.API_KEY }}", SCOPES)
 
 
 def test_references() -> None:

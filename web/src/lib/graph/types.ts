@@ -46,11 +46,23 @@ export interface ConditionData {
   expression: string;
 }
 
+export interface HttpRequestData {
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  url: string;
+  headers: Record<string, string>;
+  query: Record<string, string>;
+  body_type: "none" | "json" | "form" | "text";
+  body: unknown;
+  timeout_seconds: number | null;
+  fail_on_error_status: boolean;
+}
+
 export interface NodeDataByType {
   start: StartData;
   end: EndData;
   assign: AssignData;
   condition: ConditionData;
+  http_request: HttpRequestData;
 }
 
 export type NodeType = keyof NodeDataByType;

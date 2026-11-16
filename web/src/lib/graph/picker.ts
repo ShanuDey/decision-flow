@@ -14,6 +14,7 @@ export function pickerGroups(query: string, source: SourceFilter): PickerGroup[]
   const needle = query.trim().toLowerCase();
   const matches = (type: NodeType) => {
     const spec = NODE_SPECS[type];
+    if (!spec.pickable) return false;
     if (source !== "all" && spec.source !== source) return false;
     return !needle || `${spec.label} ${spec.description} ${spec.group}`.toLowerCase().includes(needle);
   };

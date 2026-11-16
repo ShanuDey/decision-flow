@@ -43,3 +43,16 @@ describe("sampleScope", () => {
     });
   });
 });
+
+describe("availableData with secrets", () => {
+  it("lists saved secret names only when asked", () => {
+    expect(availableData(graph, "end").map((s) => s.title)).not.toContain("secrets");
+    const sections = availableData(graph, "end", ["STRIPE_KEY"]);
+    expect(sections.at(-1)).toEqual({
+      title: "secrets",
+      items: [{ label: "STRIPE_KEY", path: "secrets.STRIPE_KEY", detail: "secret" }],
+    });
+    expect(availableData(graph, "end", []).map((s) => s.title)).not.toContain("secrets");
+  });
+});
+

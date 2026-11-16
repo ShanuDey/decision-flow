@@ -7,6 +7,7 @@ import {
   CircleDot,
   ListChecks,
   Play,
+  Variable,
   Rocket,
   Save,
 } from "lucide-react";
@@ -36,6 +37,8 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
   const dirty = useEditor((s) => s.dirty);
   const savedAt = useEditor((s) => s.savedAt);
   const problems = useEditor((s) => s.issues.length);
+  const variableCount = useEditor((s) => s.variables.length);
+  const openVariables = useEditor((s) => s.openVariables);
   const publishedVersion = useEditor((s) => s.publishedVersion);
   // Unsaved edits count: Publish saves first.
   const unpublished = useEditor(
@@ -174,6 +177,13 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
         )}
       </p>
       <div className="ml-auto flex flex-wrap items-center gap-2">
+        <Button variant="outline" className="h-9" onClick={() => openVariables()}>
+          <Variable aria-hidden /> Variables
+          <span className="rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground">
+            {variableCount}
+          </span>
+        </Button>
+        <div aria-hidden className="mx-1 h-6 w-px bg-border" />
         <Popover open={issuesOpen} onOpenChange={(open) => !open && setIssuesOpen(false)}>
           <PopoverTrigger
             render={

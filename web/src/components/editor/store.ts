@@ -24,7 +24,14 @@ import {
   uniqueId,
   uniqueName,
 } from "@/lib/graph/nodes";
-import type { Graph, NodeData, NodeType, Position, Variable } from "@/lib/graph/types";
+import type {
+  AssignData,
+  Graph,
+  NodeData,
+  NodeType,
+  Position,
+  Variable,
+} from "@/lib/graph/types";
 
 import type { PublishedInfo } from "./published";
 
@@ -48,6 +55,14 @@ interface EditorState {
   revision: number;
   savedAt: Date | null;
   issues: FieldIssue[];
+  // Names of the workspace's saved secrets, for fields that accept them. Never the values.
+  secretNames: string[];
+  // UI only: the top bar button and the Assign dropdown both open the variables dialog.
+  variablesOpen: boolean;
+  variablesSelected: number;
+  setVariablesOpen: (open: boolean) => void;
+  openVariables: (selected?: number) => void;
+  selectVariable: (index: number) => void;
 
   load: (flow: {
     id: string;
@@ -75,7 +90,10 @@ interface EditorState {
   setNodeConfig: (id: string, config: NodeData) => void;
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
+  // Also repoints Assign targets that used the old name; skipped when it would merge two variables.
+  renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
+  setSecretNames: (names: string[]) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
   markPublished: (version: number, draftVersion: number) => void;
 }
@@ -101,6 +119,7 @@ function countByType(nodes: FlowNode[]): Record<NodeType, number> {
     start: 0,
     assign: 0,
     condition: 0,
+    http_request: 0,
     end: 0,
   };
   for (const n of nodes) counts[n.type as NodeType] += 1;
@@ -133,6 +152,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
   revision: 0,
   savedAt: null,
   issues: [],
+  secretNames: [],
+  variablesOpen: false,
+  variablesSelected: 0,
+  setVariablesOpen: (variablesOpen) => set({ variablesOpen }),
+  openVariables: (selected = 0) => set({ variablesOpen: true, variablesSelected: selected }),
+  selectVariable: (variablesSelected) => set({ variablesSelected }),
 
   load: ({ id, name, draftVersion, graph, published }) =>
     set({
@@ -305,6 +330,24 @@ export const useEditor = create<EditorState>()((set, get) => ({
       ...touch(s),
     })),
 
+  renameVariable: (index, name) =>
+    set((s) => {
+      const old = s.variables[index]?.name;
+      if (old === undefined) return {};
+      const variables = s.variables.map((v, i) => (i === index ? { ...v, name } : v));
+      const safe =
+        old !== "" && s.variables.every((v, i) => i === index || (v.name !== old && v.name !== name));
+      const repoint = (n: FlowNode): FlowNode => {
+        if (n.type !== "assign") return n;
+        const config = n.data.config as AssignData;
+        const assignments = config.assignments.map((a) =>
+          a.variable === old ? { ...a, variable: name } : a,
+        );
+        return { ...n, data: { ...n.data, config: { ...config, assignments } } };
+      };
+      return { variables, nodes: safe ? s.nodes.map(repoint) : s.nodes, ...touch(s) };
+    }),
+
   renameNode: (id, name) =>
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, name } } : n)),
@@ -314,6 +357,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setVariables: (variables) => set((s) => ({ variables, ...touch(s) })),
 
   setIssues: (issues) => set({ issues }),
+  setSecretNames: (secretNames) => set({ secretNames }),
 
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),

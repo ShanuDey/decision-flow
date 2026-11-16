@@ -7,6 +7,7 @@ import { fromReactFlow } from "@/lib/graph/convert";
 import { suggest } from "@/lib/graph/suggest";
 import { cn } from "@/lib/utils";
 
+import type { SourceKind } from "./expand-dialog";
 import { ExpandButton } from "./expand-field";
 import { useEditor } from "./store";
 
@@ -16,10 +17,22 @@ interface Props {
   value: string;
   placeholder?: string;
   title?: string;
+  // "template" for text with {{ }} references; the default is a CEL expression.
+  kind?: SourceKind;
+  secrets?: boolean;
   onChange: (value: string) => void;
 }
 
-export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expression", onChange }: Props) {
+export function ExpressionInput({
+  id,
+  nodeId,
+  value,
+  placeholder,
+  title = "Expression",
+  kind = "expression",
+  secrets = false,
+  onChange,
+}: Props) {
   const input = useRef<HTMLTextAreaElement>(null);
   const [cursor, setCursor] = useState(value.length);
   const [open, setOpen] = useState(false);
@@ -28,9 +41,10 @@ export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expre
   // read on demand: subscribing to the store would re-render this field on every node drag
   const { from, items } = useMemo(() => {
     if (!open) return { from: 0, items: [] };
-    const { nodes, edges, variables } = useEditor.getState();
-    return suggest(fromReactFlow({ nodes, edges, variables }), nodeId, value, cursor);
-  }, [open, nodeId, value, cursor]);
+    const { nodes, edges, variables, secretNames } = useEditor.getState();
+    const graph = fromReactFlow({ nodes, edges, variables });
+    return suggest(graph, nodeId, value, cursor, secrets ? secretNames : undefined);
+  }, [open, nodeId, value, cursor, secrets]);
   const showing = open && items.length > 0;
   const current = Math.min(active, items.length - 1);
 
@@ -100,9 +114,10 @@ export function ExpressionInput({ id, nodeId, value, placeholder, title = "Expre
       <ExpandButton
         nodeId={nodeId}
         title={title}
-        kind="expression"
+        kind={kind}
         value={value}
         onChange={onChange}
+        secrets={secrets}
         className="absolute top-1.5 right-1.5"
       />
       {showing && (

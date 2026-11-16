@@ -28,6 +28,9 @@ import type {
   RunResponse,
   RunSteps,
   SaveDraftBody,
+  SecretList,
+  SecretPut,
+  SecretSummary,
   TemplateList,
   ValidateResponse,
   VersionDetail,
@@ -1360,6 +1363,210 @@ export const getRunSteps = async (runId: string, options?: Parameters<typeof api
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export type listSecretsResponse200 = {
+  data: SecretList
+  status: 200
+}
+
+export type listSecretsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listSecretsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listSecretsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listSecretsResponseSuccess = (listSecretsResponse200) & {
+  headers: Headers;
+};
+export type listSecretsResponseError = (listSecretsResponse401 | listSecretsResponse403 | listSecretsResponse429) & {
+  headers: Headers;
+};
+
+export type listSecretsResponse = (listSecretsResponseSuccess | listSecretsResponseError)
+
+export const getListSecretsUrl = () => {
+
+
+
+
+  return `/secrets`
+}
+
+/**
+ * Lists the workspace's secret names. A value is never returned.
+ * @summary List Secrets
+ */
+export const listSecrets = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listSecretsResponse> => {
+
+  return apiFetch<listSecretsResponse>(getListSecretsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type deleteSecretResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteSecretResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type deleteSecretResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type deleteSecretResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteSecretResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteSecretResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type deleteSecretResponseSuccess = (deleteSecretResponse204) & {
+  headers: Headers;
+};
+export type deleteSecretResponseError = (deleteSecretResponse401 | deleteSecretResponse403 | deleteSecretResponse404 | deleteSecretResponse422 | deleteSecretResponse429) & {
+  headers: Headers;
+};
+
+export type deleteSecretResponse = (deleteSecretResponseSuccess | deleteSecretResponseError)
+
+export const getDeleteSecretUrl = (name: string,) => {
+
+
+
+
+  return `/secrets/${name}`
+}
+
+/**
+ * Removes the secret for good.
+ * @summary Delete Secret
+ */
+export const deleteSecret = async (name: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteSecretResponse> => {
+
+  return apiFetch<deleteSecretResponse>(getDeleteSecretUrl(name),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type putSecretResponse200 = {
+  data: SecretSummary
+  status: 200
+}
+
+export type putSecretResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type putSecretResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type putSecretResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type putSecretResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type putSecretResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type putSecretResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type putSecretResponseSuccess = (putSecretResponse200) & {
+  headers: Headers;
+};
+export type putSecretResponseError = (putSecretResponse401 | putSecretResponse403 | putSecretResponse409 | putSecretResponse422 | putSecretResponse429 | putSecretResponse503) & {
+  headers: Headers;
+};
+
+export type putSecretResponse = (putSecretResponseSuccess | putSecretResponseError)
+
+export const getPutSecretUrl = (name: string,) => {
+
+
+
+
+  return `/secrets/${name}`
+}
+
+/**
+ * Creates the secret, or replaces its value. The value is encrypted and cannot be read back.
+ *
+ * Names are uppercase letters, digits and underscores, starting with a letter.
+ * @summary Put Secret
+ */
+export const putSecret = async (name: string,
+    secretPut: SecretPut, options?: Parameters<typeof apiFetch>[1]): Promise<putSecretResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<putSecretResponse>(getPutSecretUrl(name),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(secretPut)
   }
 );}
 

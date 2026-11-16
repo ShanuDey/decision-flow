@@ -125,3 +125,32 @@ describe("suggest", () => {
     expect(inserts("a.input.")).toEqual([]);
   });
 });
+
+describe("suggest with secrets", () => {
+  const NAMES = ["STRIPE_KEY", "SLACK_URL", "OTHER"];
+  const withSecrets = (text: string, names: string[] | null = NAMES) =>
+    suggest(graph, "check", text, text.length, names ?? undefined).items.map((i) => i.insert);
+
+  it("offers the secrets scope only when the field accepts secrets", () => {
+    expect(withSecrets("")).toEqual(["input.", "vars.", "nodes.", "secrets."]);
+    expect(withSecrets("sec")).toEqual(["secrets."]);
+    expect(withSecrets("", null)).toEqual(["input.", "vars.", "nodes."]);
+    expect(withSecrets("secrets.", null)).toEqual([]);
+  });
+
+  it("lists the saved names, never values, and filters as you type", () => {
+    expect(withSecrets("secrets.")).toEqual(["secrets.STRIPE_KEY", "secrets.SLACK_URL", "secrets.OTHER"]);
+    expect(withSecrets("secrets.S")).toEqual(["secrets.STRIPE_KEY", "secrets.SLACK_URL"]);
+    expect(suggest(graph, "check", "secrets.", 8, NAMES).items[0]).toEqual({
+      insert: "secrets.STRIPE_KEY",
+      label: "STRIPE_KEY",
+      detail: "secret",
+    });
+  });
+
+  it("offers nothing for a flow with no saved secrets beyond the scope itself", () => {
+    expect(withSecrets("secrets.", [])).toEqual([]);
+    expect(withSecrets("", [])).toContain("secrets.");
+  });
+});
+

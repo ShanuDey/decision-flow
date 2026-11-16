@@ -2,7 +2,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from cryptography.fernet import Fernet
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -27,8 +28,15 @@ def mlflow_uri_from(database_url: str) -> str:
     return url.update_query_dict({"options": options}).render_as_string(hide_password=False)
 
 
+def _key_parts(key: SecretStr) -> list[str]:
+    return [part.strip() for part in key.get_secret_value().split(",") if part.strip()]
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=ROOT_ENV_FILE, extra="ignore")
+    # A bad ENCRYPTION_KEY must not be printed back in the startup error.
+    model_config = SettingsConfigDict(
+        env_file=ROOT_ENV_FILE, extra="ignore", hide_input_in_errors=True
+    )
 
     database_url: str = "postgresql+psycopg://decisionflow:decisionflow@localhost:5432/decisionflow"
 
@@ -62,6 +70,14 @@ class Settings(BaseSettings):
     # soft keeps deleted flows and old versions (marked deleted_at/by); hard removes them.
     delete_mode: Literal["hard", "soft"] = "soft"
 
+    # Off on a shared deployment: then only public https addresses can be called.
+    allow_private_networks: bool = True
+    # Empty allows any host; `*.example.com` matches subdomains.
+    http_allowed_hosts: Annotated[list[str], NoDecode] = []
+
+    # Fernet key(s), comma separated: the first encrypts, all decrypt. Empty turns secrets off.
+    encryption_key: SecretStr = SecretStr("")
+
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False
 
@@ -78,17 +94,40 @@ class Settings(BaseSettings):
     def _clean_domains(cls, domains: list[str]) -> list[str]:
         return [d.strip().lower().lstrip("@") for d in domains]
 
+    @field_validator("http_allowed_hosts", mode="after")
+    @classmethod
+    def _clean_hosts(cls, hosts: list[str]) -> list[str]:
+        return [h.strip().lower() for h in hosts if h.strip()]
+
     @field_validator("retention_keep_emails", mode="after")
     @classmethod
     def _clean_keep_emails(cls, emails: list[str]) -> list[str]:
         return [e.strip().lower() for e in emails if e.strip()]
+
+    @field_validator("encryption_key", mode="after")
+    @classmethod
+    def _valid_keys(cls, key: SecretStr) -> SecretStr:
+        for part in _key_parts(key):
+            try:
+                Fernet(part)
+            except ValueError:
+                raise ValueError("ENCRYPTION_KEY must hold Fernet keys, comma separated") from None
+        return key
+
+    @property
+    def encryption_keys(self) -> list[str]:
+        return _key_parts(self.encryption_key)
 
     @property
     def retention_enabled(self) -> bool:
         return bool(self.run_retention_days or self.user_retention_days)
 
     @field_validator(
-        "cors_origins", "auth_allowed_email_domains", "retention_keep_emails", mode="before"
+        "cors_origins",
+        "auth_allowed_email_domains",
+        "retention_keep_emails",
+        "http_allowed_hosts",
+        mode="before",
     )
     @classmethod
     def _split_commas(cls, value: object) -> object:

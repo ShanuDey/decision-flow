@@ -72,11 +72,18 @@ def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str
     info = NodeInfo(id=node.id, type=node.type, name=node.name or node.type)
 
     async def run(state: FlowState, config: RunnableConfig) -> dict[str, Any]:
-        observer = config.get("configurable", {}).get("observer") or NullObserver()
+        configurable = config.get("configurable", {})
+        observer = configurable.get("observer") or NullObserver()
+        node_ctx = ctx.model_copy(
+            update={
+                "secrets": configurable.get("secrets") or ctx.secrets,
+                "outbound": configurable.get("outbound") or ctx.outbound,
+            }
+        )
         await observer.node_started(info, {k: state.get(k) for k in ("input", "vars", "nodes")})
         started = time.perf_counter()
         try:
-            update = await node.run(state, ctx)  # type: ignore[arg-type]
+            update = await node.run(state, node_ctx)  # type: ignore[arg-type]
         except Exception as exc:
             ms = int((time.perf_counter() - started) * 1000)
             await observer.node_finished(info, "failed", ms, str(exc))

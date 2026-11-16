@@ -43,7 +43,11 @@ class AssignNode(NodeModel):
         variables = dict(state.get("vars", {}))
         assigned: dict[str, Any] = {}
         for a in self.data.assignments:
-            scopes = {"input": state.get("input", {}), "vars": variables}  # later ones see earlier
+            scopes = {  # later assignments see earlier ones
+                "input": state.get("input", {}),
+                "vars": variables,
+                "nodes": state.get("nodes", {}),
+            }
             try:
                 value = check_value(declared[a.variable], render(a.value, scopes))
             except ValueError as exc:

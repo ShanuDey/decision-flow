@@ -236,14 +236,8 @@ def _guarded(method: Any) -> Any:
 MAX_IO_CHARS = 10_000
 
 
-def redact(value: Any) -> Any:
-    """Placeholder: the secrets redactor plugs in here before anything is recorded."""
-    return value
-
-
 def _record(value: Any) -> Any:
-    """Redact, then cap the size so one huge payload cannot bloat the trace store."""
-    value = redact(value)
+    """Cap the size so one huge payload cannot bloat the trace store."""
     text = json.dumps(value, default=str)
     if len(text) <= MAX_IO_CHARS:
         return value

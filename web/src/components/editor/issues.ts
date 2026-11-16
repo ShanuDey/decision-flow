@@ -15,4 +15,9 @@ export function fieldIssue(
   );
 }
 
-export const flowIssues = (issues: FieldIssue[]) => issues.filter((i) => i.node_id === null);
+const isVariableIssue = (i: FieldIssue) => i.node_id === null && !!i.field?.startsWith("variables");
+
+export const variableIssues = (issues: FieldIssue[]) => issues.filter(isVariableIssue);
+
+export const flowIssues = (issues: FieldIssue[]) =>
+  issues.filter((i) => i.node_id === null && !isVariableIssue(i));

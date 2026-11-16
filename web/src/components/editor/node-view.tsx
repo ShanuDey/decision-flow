@@ -19,6 +19,7 @@ function summary(node: FlowNode): string {
   if ("inputs" in config) return count(config.inputs.length, "input");
   if ("outputs" in config) return count(config.outputs.length, "output");
   if ("expression" in config) return config.expression.trim() || "No expression yet";
+  if ("url" in config) return config.url.trim() ? `${config.method} ${config.url}` : "No URL yet";
   return count(config.assignments.length, "assignment");
 }
 
@@ -50,6 +51,7 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
   const Icon = NODE_ICONS[nodeType];
   const problems = useEditor((s) => issuesForNode(s.issues, id).length);
   const node = { data } as FlowNode;
+  const text = summary(node);
 
   return (
     <div
@@ -75,9 +77,10 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
         )}
       </div>
       <p
-        className={cn("mt-1 text-xs text-muted-foreground", spec.handles.length > 0 && "pr-8")}
+        title={text}
+        className={cn("mt-1 truncate text-xs text-muted-foreground", spec.handles.length > 0 && "pr-8")}
       >
-        {summary(node)}
+        {text}
       </p>
       {spec.handles.length > 0
         ? spec.handles.map((handle, i) => (
@@ -117,5 +120,6 @@ export const nodeTypes = {
   start: NodeView,
   assign: NodeView,
   condition: NodeView,
+  http_request: NodeView,
   end: NodeView,
 };

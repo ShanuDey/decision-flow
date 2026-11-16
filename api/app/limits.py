@@ -1,11 +1,12 @@
 """Every limit number, plus the request body size cap (security.md section 9)."""
 
 from functools import lru_cache
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.errors import ErrorResponse
@@ -27,6 +28,12 @@ class Limits(BaseSettings):
     max_nodes: int = Field(500, ge=0)
     max_edges: int = Field(1000, ge=0)
     max_flows_per_user: int = Field(0, ge=0)
+    max_secrets_per_workspace: int = Field(0, ge=0)
+    # Node types flows may not use here, comma separated, e.g. http_request.
+    disabled_node_types: Annotated[list[str], NoDecode] = []
+    # Outbound calls from flows always have a size and time bound.
+    max_http_response_bytes: int = Field(5_242_880, ge=1)
+    http_timeout_seconds: int = Field(30, ge=1)
     # Keep the newest N published versions of a flow; publishing deletes older ones.
     max_versions_per_flow: int = Field(0, ge=0)
     rate_limit_ip_per_minute: int = Field(600, ge=0)
@@ -38,6 +45,16 @@ class Limits(BaseSettings):
     rate_limit_new_workspaces_per_ip_per_hour: int = Field(0, ge=0)
     limit_notice: str = Field("", max_length=300)
     limit_notice_url: str = Field("", max_length=300)
+
+    @field_validator("disabled_node_types", mode="before")
+    @classmethod
+    def _split_types(cls, value: object) -> object:
+        return value.split(",") if isinstance(value, str) else value
+
+    @field_validator("disabled_node_types", mode="after")
+    @classmethod
+    def _clean_types(cls, types: list[str]) -> list[str]:
+        return [t.strip() for t in types if t.strip()]
 
     @field_validator("limit_notice", "limit_notice_url", mode="after")
     @classmethod

@@ -58,6 +58,9 @@ describe("requiredAction", () => {
     ["GET", "/flows/abc/trigger"],
     ["GET", "/flows/"],
     ["GET", "/templates"],
+    ["GET", "/secrets"],
+    ["PUT", "/secrets/API_KEY"],
+    ["DELETE", "/secrets/API_KEY"],
   ])("refuses %s %s", (method, path) => {
     expect(requiredAction(method, path)).toBeNull();
   });

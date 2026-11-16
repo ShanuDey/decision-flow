@@ -3,6 +3,8 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useState } from "react";
 
+import { listSecrets } from "@/lib/api/client";
+import { call } from "@/lib/call";
 import type { Graph } from "@/lib/graph/types";
 
 import type { RunOutcome } from "./actions";
@@ -13,6 +15,7 @@ import { SettingsPanel } from "./settings-panel";
 import type { PublishedInfo } from "./published";
 import { useEditor } from "./store";
 import { TopBar } from "./top-bar";
+import { VariablesDialog } from "./variables-dialog";
 
 export interface EditorProps {
   id: string;
@@ -27,6 +30,17 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
   useState(() => useEditor.getState().load({ id, name, draftVersion, graph, published }));
   const [outcome, setOutcome] = useState<RunOutcome | null>(null);
   const dirty = useEditor((s) => s.dirty);
+
+  useEffect(() => {
+    let stale = false;
+    call(listSecrets()).then((result) => {
+      if (stale || !result.ok) return;
+      useEditor.getState().setSecretNames(result.data.items.map((item) => item.name));
+    });
+    return () => {
+      stale = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!dirty) return;
@@ -47,6 +61,7 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
         </div>
         <SettingsPanel />
       </div>
+      <VariablesDialog />
       <LeaveDialog />
     </div>
   );

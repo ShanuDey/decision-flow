@@ -12,8 +12,8 @@ export interface DataSection {
   items: DataItem[];
 }
 
-// What a node's expressions can read: flow inputs, variables and outputs of earlier nodes.
-export function availableData(graph: Graph, nodeId: string): DataSection[] {
+// What a node can read: inputs, variables, earlier outputs, and `secrets` where accepted.
+export function availableData(graph: Graph, nodeId: string, secrets?: string[]): DataSection[] {
   const start = graph.nodes.find((n) => n.type === "start");
   const inputs = start?.type === "start" ? start.data.inputs : [];
   const upstream = ancestors(graph, nodeId);
@@ -41,6 +41,10 @@ export function availableData(graph: Graph, nodeId: string): DataSection[] {
             detail: k.type,
           })),
         ),
+    },
+    {
+      title: "secrets",
+      items: (secrets ?? []).map((name) => ({ label: name, path: `secrets.${name}`, detail: "secret" })),
     },
   ];
   return sections.filter((s) => s.items.length > 0);

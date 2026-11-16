@@ -22,6 +22,8 @@ from app.ratelimit import RateLimiters
 from app.runs.models import Run
 from app.runs.router import get_observer_factory
 from app.runs.store import FlowInfo, get_run_store
+from app.secrets.models import Secret
+from app.secrets.store import get_secret_store
 from app.workspaces.deps import get_workspace_store
 from app.workspaces.schemas import Member
 from tests.auth_helpers import bearer
@@ -245,6 +247,46 @@ class FakeRunStore:
         }
 
 
+class FakeSecretStore:
+    def __init__(self) -> None:
+        self.secrets: dict[tuple[uuid.UUID, str], Secret] = {}
+
+    async def list_secrets(self, member: Member) -> list[Secret]:
+        rows = [s for (ws, _), s in self.secrets.items() if ws == member.workspace_id]
+        return sorted(rows, key=lambda s: s.name)
+
+    async def count(self, member: Member) -> int:
+        return len(await self.list_secrets(member))
+
+    async def exists(self, member: Member, name: str) -> bool:
+        return (member.workspace_id, name) in self.secrets
+
+    async def get_encrypted(self, member: Member, names: set[str]) -> dict[str, str]:
+        found = {n: self.secrets.get((member.workspace_id, n)) for n in names}
+        return {n: s.value_encrypted for n, s in found.items() if s is not None}
+
+    async def put(self, member: Member, name: str, encrypted: str) -> Secret:
+        now = datetime.now(UTC)
+        key = (member.workspace_id, name)
+        secret = self.secrets.get(key)
+        if secret is None:
+            secret = Secret(
+                id=uuid.uuid4(),
+                workspace_id=member.workspace_id,
+                name=name,
+                created_by=member.user_id,
+                created_at=now,
+            )
+            self.secrets[key] = secret
+        secret.value_encrypted = encrypted
+        secret.updated_by = member.user_id
+        secret.updated_at = now
+        return secret
+
+    async def delete(self, member: Member, name: str) -> bool:
+        return self.secrets.pop((member.workspace_id, name), None) is not None
+
+
 class StubObserver:
     """Records nothing; exposes a fixed trace id like MlflowObserver after a run starts."""
 
@@ -284,15 +326,24 @@ def run_store(flow_store: FakeFlowStore) -> FakeRunStore:
 
 
 @pytest.fixture
+def secret_store() -> FakeSecretStore:
+    return FakeSecretStore()
+
+
+@pytest.fixture
 def workspace_store() -> FakeWorkspaceStore:
     return FakeWorkspaceStore()
 
 
 @pytest.fixture
 async def client(
-    flow_store: FakeFlowStore, run_store: FakeRunStore, workspace_store: FakeWorkspaceStore
+    flow_store: FakeFlowStore,
+    run_store: FakeRunStore,
+    workspace_store: FakeWorkspaceStore,
+    secret_store: FakeSecretStore,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
+    app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
@@ -301,21 +352,31 @@ async def client(
         transport=transport, base_url="http://test", headers=bearer()
     ) as c:
         yield c
-    for dep in (get_store, get_run_store, get_workspace_store, get_observer_factory):
+    for dep in (
+        get_store,
+        get_secret_store,
+        get_run_store,
+        get_workspace_store,
+        get_observer_factory,
+    ):
         app.dependency_overrides.pop(dep, None)
 
 
 @pytest.fixture
 async def anon_client(
-    flow_store: FakeFlowStore, run_store: FakeRunStore, workspace_store: FakeWorkspaceStore
+    flow_store: FakeFlowStore,
+    run_store: FakeRunStore,
+    workspace_store: FakeWorkspaceStore,
+    secret_store: FakeSecretStore,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
+    app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-    for dep in (get_store, get_run_store, get_workspace_store):
+    for dep in (get_store, get_secret_store, get_run_store, get_workspace_store):
         app.dependency_overrides.pop(dep, None)
 
 
