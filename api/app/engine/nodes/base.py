@@ -6,6 +6,7 @@ from app.engine.base import FrozenBaseModel, StrictBaseModel
 from app.engine.fields import Variable
 from app.engine.issues import Issue
 from app.engine.run_secrets import RunSecrets
+from app.security.ssrf import OutboundPolicy
 
 
 class Position(StrictBaseModel):
@@ -17,6 +18,7 @@ class NodeContext(FrozenBaseModel):
     variables: list[Variable]
     # Per run: the compiled flow is reused, so the runner swaps this in for each call.
     secrets: RunSecrets = Field(default_factory=RunSecrets)
+    outbound: OutboundPolicy | None = None
 
 
 class NodeModel(StrictBaseModel):

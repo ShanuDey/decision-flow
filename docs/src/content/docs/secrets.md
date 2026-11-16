@@ -21,7 +21,7 @@ Saving a name that already exists replaces its value. Deleting a secret is perma
 
 A node can read a secret as `{{ secrets.NAME }}`, but only in fields that say they accept one. Every other field refuses it with a `secret_not_allowed` error, so a secret cannot end up in a variable, an output or a trace by accident.
 
-The current nodes (Start, Assign, Condition and End) accept no secrets. Nodes that call outside services will accept them in their headers and body, and never in the URL.
+The [HTTP Request](nodes/http-request) node accepts secrets in its header values, query values and body, and never in its URL. Start, Assign, Condition and End accept none.
 
 A flow can name a secret before it exists. Saving works, and a run that needs the missing secret stops before any node runs with a `secret_not_found` error that lists the names.
 

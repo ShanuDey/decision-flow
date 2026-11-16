@@ -13,6 +13,11 @@ const SUMMARIES: Record<string, (step: RunStep) => Chip | null> = {
     const result = isRecord(step.output) ? step.output.result : undefined;
     return typeof result === "boolean" ? { text: String(result), tone: result ? "good" : "neutral" } : null;
   },
+  http_request: (step) => {
+    const status = isRecord(step.output) ? step.output.status : undefined;
+    if (typeof status !== "number") return null;
+    return { text: String(status), tone: status >= 200 && status < 300 ? "good" : "bad" };
+  },
   assign: (step) => {
     if (!isRecord(step.output)) return null;
     const entries = Object.entries(step.output);

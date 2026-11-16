@@ -13,6 +13,8 @@ export interface NodeSpec {
   acceptsIncoming: boolean;
   acceptsOutgoing: boolean;
   handles: readonly string[];
+  // False until the editor can configure the node; a flow that has one still opens.
+  pickable: boolean;
 }
 
 // Mirrors the ClassVars on the Python node models (min_count, max_count, accepts_*, handles).
@@ -27,6 +29,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     acceptsIncoming: false,
     acceptsOutgoing: true,
     handles: [],
+    pickable: true,
   },
   assign: {
     label: "Assign values",
@@ -38,6 +41,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     acceptsIncoming: true,
     acceptsOutgoing: true,
     handles: [],
+    pickable: true,
   },
   condition: {
     label: "Condition",
@@ -49,6 +53,19 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     acceptsIncoming: true,
     acceptsOutgoing: true,
     handles: ["true", "false"],
+    pickable: true,
+  },
+  http_request: {
+    label: "HTTP Request",
+    group: "Data",
+    source: "builtin",
+    description: "Call an HTTP API and use its response",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: false,
   },
   end: {
     label: "End",
@@ -60,6 +77,7 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     acceptsIncoming: true,
     acceptsOutgoing: false,
     handles: [],
+    pickable: true,
   },
 };
 
@@ -135,6 +153,17 @@ export function defaultData(type: NodeType): NodeData {
       return { assignments: [] };
     case "condition":
       return { expression: "" };
+    case "http_request":
+      return {
+        method: "GET",
+        url: "",
+        headers: {},
+        query: {},
+        body_type: "none",
+        body: null,
+        timeout_seconds: null,
+        fail_on_error_status: false,
+      };
   }
 }
 

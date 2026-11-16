@@ -2,6 +2,7 @@
 
 import re
 from collections import defaultdict, deque
+from collections.abc import Collection
 from typing import Any
 
 from pydantic import ValidationError
@@ -40,7 +41,7 @@ def check_size(raw: Any, max_nodes: int, max_edges: int) -> list[Issue]:
 
 
 def parse_graph(
-    raw: Any, max_nodes: int = 0, max_edges: int = 0
+    raw: Any, max_nodes: int = 0, max_edges: int = 0, disabled_types: Collection[str] = ()
 ) -> tuple[Graph | None, list[Issue]]:
     """Stages 0 (size), 1 (schema), 2 (structure), 3 (settings); each needs the last to pass."""
     if size_issues := check_size(raw, max_nodes, max_edges):
@@ -49,8 +50,16 @@ def parse_graph(
         graph = Graph.model_validate(raw)
     except ValidationError as exc:
         return None, [_schema_issue(raw, err) for err in exc.errors()]
-    issues = check_structure(graph) or check_settings(graph)
+    issues = _disabled(graph, disabled_types) or check_structure(graph) or check_settings(graph)
     return (None if issues else graph), issues
+
+
+def _disabled(graph: Graph, disabled_types: Collection[str]) -> list[Issue]:
+    return [
+        _issue("node_disabled", f"'{n.type}' nodes are turned off on this server", n.id, "type")
+        for n in graph.nodes
+        if n.type in disabled_types
+    ]
 
 
 def _schema_issue(raw: Any, err: Any) -> Issue:
@@ -70,6 +79,13 @@ def check_settings(graph: Graph) -> list[Issue]:
     inputs = {f.name for n in graph.nodes if isinstance(n, StartNode) for f in n.data.inputs}
     variables = {v.name for v in graph.variables}
     ids = {n.id for n in graph.nodes}
+    ancestors: dict[str, set[str]] = {}
+
+    def upstream_of(node_id: str) -> set[str]:
+        if node_id not in ancestors:
+            ancestors[node_id] = _ancestors(graph, node_id)
+        return ancestors[node_id]
+
     for node in graph.nodes:
         issues.extend(node.check(ctx))
         for field, template in node.templates().items():
@@ -83,13 +99,18 @@ def check_settings(graph: Graph) -> list[Issue]:
                     if problem := _secret_problem(node, field, ref):
                         issues.append(problem)
                     continue
+                if ref.scope == "nodes":
+                    problem = _reference_problem(ref, inputs, variables, ids, upstream_of(node.id))
+                    if problem:
+                        issues.append(_issue(*problem, node.id, field))
+                    continue
                 known = inputs if ref.scope == "input" else variables
                 if ref.path[0] not in known:
                     issues.append(
                         _issue("unknown_reference", f"{ref} is not declared", node.id, field)
                     )
         exprs = node.expressions()
-        upstream = _ancestors(graph, node.id) if exprs else set()
+        upstream = upstream_of(node.id) if exprs else set()
         for field, source in exprs.items():
             try:
                 refs = expressions.references(expressions.compile(source))

@@ -8,6 +8,7 @@ from app.engine.inputs import validate_input
 from app.engine.observer import NodeError, NullObserver, Observer
 from app.engine.redact import RedactingObserver, Redactor
 from app.engine.run_secrets import RunSecrets
+from app.security.ssrf import OutboundPolicy
 
 
 class RunError(FrozenBaseModel):
@@ -42,13 +43,20 @@ async def run_flow(
     observer: Observer | None = None,
     timeout_seconds: float = 0,
     secrets: RunSecrets | None = None,
+    outbound: OutboundPolicy | None = None,
 ) -> RunResult:
     """Raises InputValidationError before anything runs; a failure inside the flow is a result."""
     inputs = validate_input(flow.start.data.inputs, payload)
     state = {"input": inputs}
     redactor = Redactor(secrets)
     observer = RedactingObserver(observer or NullObserver(), redactor)
-    config = {"configurable": {"observer": observer, "secrets": secrets or RunSecrets()}}
+    config = {
+        "configurable": {
+            "observer": observer,
+            "secrets": secrets or RunSecrets(),
+            "outbound": outbound,
+        }
+    }
     await observer.run_started(inputs)
     started = time.perf_counter()
     try:

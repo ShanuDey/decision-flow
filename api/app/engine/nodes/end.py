@@ -40,7 +40,11 @@ class EndNode(NodeModel):
         return []
 
     async def run(self, state: dict[str, Any], ctx: NodeContext) -> dict[str, Any]:
-        scopes = {"input": state["input"], "vars": state.get("vars", {})}
+        scopes = {
+            "input": state["input"],
+            "vars": state.get("vars", {}),
+            "nodes": state.get("nodes", {}),
+        }
         output: dict[str, Any] = {}
         for out in self.data.outputs:
             try:

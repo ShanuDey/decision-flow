@@ -19,6 +19,7 @@ function summary(node: FlowNode): string {
   if ("inputs" in config) return count(config.inputs.length, "input");
   if ("outputs" in config) return count(config.outputs.length, "output");
   if ("expression" in config) return config.expression.trim() || "No expression yet";
+  if ("url" in config) return config.url.trim() ? `${config.method} ${config.url}` : "No URL yet";
   return count(config.assignments.length, "assignment");
 }
 
@@ -117,5 +118,6 @@ export const nodeTypes = {
   start: NodeView,
   assign: NodeView,
   condition: NodeView,
+  http_request: NodeView,
   end: NodeView,
 };

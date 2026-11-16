@@ -28,9 +28,7 @@ def test_missing_value_names_the_reference() -> None:
         render("{{ input.amount.deeper }}", SCOPES)
 
 
-@pytest.mark.parametrize(
-    "expr", ["input.amount > 1", "nodes.a.output", "input", "secrets", "1 + 1"]
-)
+@pytest.mark.parametrize("expr", ["input.amount > 1", "input", "secrets", "1 + 1"])
 def test_unsupported_expressions_fail_loudly(expr: str) -> None:
     with pytest.raises(TemplateError, match="unsupported expression"):
         render("{{ " + expr + " }}", SCOPES)

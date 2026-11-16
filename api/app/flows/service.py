@@ -71,7 +71,9 @@ async def require_flow(store: FlowStore, member: Member, flow_id: uuid.UUID) -> 
 
 
 def validate_draft(flow: Flow, limits: Limits) -> None:
-    _, issues = parse_graph(flow.draft, limits.max_nodes, limits.max_edges)
+    _, issues = parse_graph(
+        flow.draft, limits.max_nodes, limits.max_edges, limits.disabled_node_types
+    )
     if issues:
         raise invalid_flow(issues)
 

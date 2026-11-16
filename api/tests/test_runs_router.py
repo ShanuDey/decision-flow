@@ -5,10 +5,14 @@ import httpx
 import pytest
 from cryptography.fernet import Fernet
 
+from app.limits import Limits, get_limits
 from app.main import app
 from app.secrets.crypto import SecretBox, get_box_factory
+from app.security.ssrf import OutboundPolicy
 from app.settings import Settings, get_settings
 from tests.conftest import FakeRunStore, create_flow, example
+from tests.test_node_http_request import flow as http_flow
+from tests.test_node_http_request import serve
 
 
 @pytest.mark.anyio
@@ -279,3 +283,110 @@ async def test_a_run_that_uses_no_secret_needs_no_encryption_key(
         app.dependency_overrides.pop(get_settings, None)
 
     assert response.status_code == 200
+
+
+NO_OUTPUT = {"name": "status", "type": "number", "value": "{{ nodes.call.output.status }}"}
+
+
+@pytest.fixture
+def private_policy(monkeypatch: pytest.MonkeyPatch) -> OutboundPolicy:
+    allowed = OutboundPolicy(allow_private=True, max_bytes=100_000, timeout_seconds=5)
+    monkeypatch.setattr("app.runs.router.outbound_policy", lambda _settings, _limits: allowed)
+    return allowed
+
+
+@pytest.mark.anyio
+async def test_a_flow_with_an_http_node_runs_through_the_api(
+    client: httpx.AsyncClient, private_policy: OutboundPolicy
+) -> None:
+    async with serve() as (port, received):
+        draft = http_flow({"url": f"http://127.0.0.1:{port}/echo"}, [NO_OUTPUT])
+        flow = await create_flow(client, draft)
+        response = await client.post(f"/flows/{flow['id']}/runs?wait=true", json={"test": True})
+
+    assert response.status_code == 200
+    assert response.json()["output"] == {"status": 200}
+    assert [r["target"] for r in received] == ["/echo"]
+
+
+@pytest.mark.anyio
+async def test_a_stored_secret_is_sent_and_never_appears_in_the_run_record(
+    client: httpx.AsyncClient, private_policy: OutboundPolicy
+) -> None:
+    box = new_box()
+    app.dependency_overrides[get_box_factory] = lambda: lambda: box
+    try:
+        await client.put("/secrets/API_KEY", json={"value": "sk_live_1234567890"})
+        async with serve() as (port, received):
+            draft = http_flow(
+                {
+                    "url": f"http://127.0.0.1:{port}/echo",
+                    "headers": {"Authorization": "Bearer {{ secrets.API_KEY }}"},
+                },
+                [
+                    NO_OUTPUT,
+                    {
+                        "name": "seen",
+                        "type": "string",
+                        "value": "{{ nodes.call.output.body.body }}",
+                    },
+                ],
+            )
+            flow = await create_flow(client, draft)
+            response = await client.post(f"/flows/{flow['id']}/runs?wait=true", json={"test": True})
+            run = (await client.get(f"/runs/{response.json()['run_id']}")).json()
+    finally:
+        app.dependency_overrides.pop(get_box_factory, None)
+
+    assert response.status_code == 200 and response.json()["status"] == "succeeded"
+    assert received[0]["headers"]["authorization"] == "Bearer sk_live_1234567890"
+    assert "sk_live_1234567890" not in response.text + str(run)
+
+
+@pytest.mark.anyio
+async def test_a_run_naming_a_secret_that_does_not_exist_stops_before_calling_anything(
+    client: httpx.AsyncClient, private_policy: OutboundPolicy, run_store: FakeRunStore
+) -> None:
+    async with serve() as (port, received):
+        draft = http_flow(
+            {
+                "url": f"http://127.0.0.1:{port}/echo",
+                "headers": {"Authorization": "Bearer {{ secrets.MISSING_KEY }}"},
+            },
+            [NO_OUTPUT],
+        )
+        flow = await create_flow(client, draft)
+        response = await client.post(f"/flows/{flow['id']}/runs?wait=true", json={"test": True})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "secret_not_found"
+    assert response.json()["details"]["names"] == ["MISSING_KEY"]
+    assert received == [] and run_store.runs == {}
+
+
+@pytest.mark.anyio
+async def test_a_server_can_turn_the_node_off(
+    client: httpx.AsyncClient, private_policy: OutboundPolicy
+) -> None:
+    app.dependency_overrides[get_limits] = lambda: Limits(
+        _env_file=None, disabled_node_types=["http_request"]
+    )
+    try:
+        flow = await create_flow(client, http_flow({"url": "http://127.0.0.1:1/"}, [NO_OUTPUT]))
+        run = await client.post(f"/flows/{flow['id']}/runs?wait=true", json={"test": True})
+        validated = await client.post(f"/flows/{flow['id']}/validate")
+    finally:
+        app.dependency_overrides.pop(get_limits, None)
+
+    for response in (run, validated):
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_flow"
+        assert response.json()["details"]["errors"][0]["code"] == "node_disabled"
+
+
+def test_disabled_node_types_come_from_a_comma_separated_setting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DISABLED_NODE_TYPES", "http_request, assign ,")
+
+    assert Limits(_env_file=None).disabled_node_types == ["http_request", "assign"]

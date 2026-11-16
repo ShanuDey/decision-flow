@@ -2,7 +2,7 @@
 
 import base64
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
@@ -19,6 +19,7 @@ from app.runs.models import Run
 from app.runs.schemas import RunSteps
 from app.runs.steps import build_steps
 from app.runs.store import FlowGone, RunStore
+from app.security.ssrf import OutboundPolicy
 from app.tracing import TraceSpan, TraceUnavailable
 from app.workspaces.schemas import Member
 
@@ -44,6 +45,8 @@ async def run_draft(
     timeout_seconds: float = 0,
     max_nodes: int = 0,
     max_edges: int = 0,
+    disabled_types: Collection[str] = (),
+    outbound: OutboundPolicy | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -57,6 +60,8 @@ async def run_draft(
         timeout_seconds,
         max_nodes,
         max_edges,
+        disabled_types,
+        outbound,
     )
 
 
@@ -71,6 +76,8 @@ async def run_published(
     timeout_seconds: float = 0,
     max_nodes: int = 0,
     max_edges: int = 0,
+    disabled_types: Collection[str] = (),
+    outbound: OutboundPolicy | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -84,6 +91,8 @@ async def run_published(
         timeout_seconds,
         max_nodes,
         max_edges,
+        disabled_types,
+        outbound,
     )
 
 
@@ -99,15 +108,19 @@ async def _run(
     timeout_seconds: float,
     max_nodes: int,
     max_edges: int,
+    disabled_types: Collection[str],
+    outbound: OutboundPolicy | None,
 ) -> Run:
-    graph, issues = parse_graph(raw_graph, max_nodes, max_edges)
+    graph, issues = parse_graph(raw_graph, max_nodes, max_edges, disabled_types)
     if graph is None:
         raise invalid_flow(issues)
     names = referenced_secret_names(graph)
     secrets = await load_secrets(names) if names else RunSecrets()
     observer = new_observer(flow.name)
     try:
-        result = await run_flow(compile_graph(graph), payload, observer, timeout_seconds, secrets)
+        result = await run_flow(
+            compile_graph(graph), payload, observer, timeout_seconds, secrets, outbound
+        )
     except InputValidationError as exc:
         first = exc.issues[0]
         raise ApiError(

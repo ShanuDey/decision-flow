@@ -11,8 +11,6 @@ from ipaddress import IPv4Address, IPv6Address
 import httpx
 
 from app.engine.base import FrozenBaseModel
-from app.limits import Limits
-from app.settings import Settings
 
 Address = IPv4Address | IPv6Address
 Resolver = Callable[[str, int], Awaitable[list[str]]]
@@ -44,15 +42,6 @@ class FetchResponse(FrozenBaseModel):
     status_code: int
     headers: tuple[tuple[str, str], ...]
     body: bytes
-
-
-def outbound_policy(settings: Settings, limits: Limits) -> OutboundPolicy:
-    return OutboundPolicy(
-        allow_private=settings.allow_private_networks,
-        allowed_hosts=tuple(settings.http_allowed_hosts),
-        max_bytes=limits.max_http_response_bytes,
-        timeout_seconds=limits.http_timeout_seconds,
-    )
 
 
 def _unwrap(ip: Address) -> Address:

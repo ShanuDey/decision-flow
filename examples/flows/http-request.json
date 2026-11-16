@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "position": { "x": 0, "y": 0 },
+      "data": { "inputs": [{ "name": "customer_id", "type": "string", "required": true }] }
+    },
+    {
+      "id": "call",
+      "type": "http_request",
+      "name": "Look up score",
+      "position": { "x": 300, "y": 0 },
+      "data": {
+        "method": "GET",
+        "url": "https://api.example.com/score",
+        "headers": { "Authorization": "Bearer {{ secrets.SCORE_KEY }}" },
+        "query": { "customer": "{{ input.customer_id }}" },
+        "body_type": "none",
+        "body": null,
+        "timeout_seconds": 10,
+        "fail_on_error_status": true
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "position": { "x": 600, "y": 0 },
+      "data": {
+        "outputs": [
+          { "name": "status", "type": "number", "value": "{{ nodes.call.output.status }}" },
+          { "name": "score", "type": "number", "value": "{{ nodes.call.output.body.score }}" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "start", "target": "call", "sourceHandle": null },
+    { "id": "e2", "source": "call", "target": "end", "sourceHandle": null }
+  ]
+}

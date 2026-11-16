@@ -51,6 +51,14 @@ export function outputKeys(node: GraphNode, graph: Graph): { name: string; type:
         { name: "result", type: "boolean" },
         { name: "expression", type: "string" },
       ];
+    case "http_request":
+      return [
+        { name: "status", type: "number" },
+        { name: "ok", type: "boolean" },
+        { name: "headers", type: "object" },
+        { name: "body", type: "unknown" },
+        { name: "duration_ms", type: "number" },
+      ];
     case "end":
       return [];
   }

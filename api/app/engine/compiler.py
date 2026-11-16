@@ -74,7 +74,12 @@ def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str
     async def run(state: FlowState, config: RunnableConfig) -> dict[str, Any]:
         configurable = config.get("configurable", {})
         observer = configurable.get("observer") or NullObserver()
-        node_ctx = ctx.model_copy(update={"secrets": configurable.get("secrets") or ctx.secrets})
+        node_ctx = ctx.model_copy(
+            update={
+                "secrets": configurable.get("secrets") or ctx.secrets,
+                "outbound": configurable.get("outbound") or ctx.outbound,
+            }
+        )
         await observer.node_started(info, {k: state.get(k) for k in ("input", "vars", "nodes")})
         started = time.perf_counter()
         try:

@@ -22,6 +22,7 @@ from app.runs.store import FlowInfo, RunStore, get_run_store
 from app.secrets.crypto import BoxFactory, get_box_factory
 from app.secrets.service import load_run_secrets
 from app.secrets.store import SecretStore, get_secret_store
+from app.security.policy import outbound_policy
 from app.settings import get_settings
 from app.tracing import MlflowObserver
 from app.workspaces.deps import CurrentMember
@@ -127,6 +128,8 @@ async def create_run(
             "timeout_seconds": limits.run_timeout_seconds,
             "max_nodes": limits.max_nodes,
             "max_edges": limits.max_edges,
+            "disabled_types": limits.disabled_node_types,
+            "outbound": outbound_policy(get_settings(), limits),
         }
         if version is None:
             run = await service.run_draft(

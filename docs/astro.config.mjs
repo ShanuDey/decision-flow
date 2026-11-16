@@ -51,7 +51,13 @@ export default defineConfig({
         },
         {
           label: "Nodes",
-          items: ["nodes/start", "nodes/assign", "nodes/condition", "nodes/end"],
+          items: [
+            "nodes/start",
+            "nodes/assign",
+            "nodes/condition",
+            "nodes/http-request",
+            "nodes/end",
+          ],
         },
         { label: "Runs", items: ["traces"] },
         {

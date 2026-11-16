@@ -92,13 +92,20 @@ describe("summaryOf", () => {
     expect(summaryOf(step({ id: "a", output: { a: 1, b: 2 } }))?.text).toBe("2 variables");
   });
 
+  it("shows an HTTP Request's status", () => {
+    const call = (status: unknown) => step({ id: "h", node_type: "http_request", output: { status } });
+    expect(summaryOf(call(200))).toEqual({ text: "200", tone: "good" });
+    expect(summaryOf(call(404))).toEqual({ text: "404", tone: "bad" });
+    expect(summaryOf(call("200"))).toBeNull();
+  });
+
   it("never prints undefined for a value JSON cannot show", () => {
     expect(summaryOf(step({ id: "a", output: { fn: () => 1 } }))?.text).not.toContain("undefined");
   });
 
   it("flags a failed step and gives unknown node types no chip", () => {
     expect(summaryOf(step({ id: "x", status: "failed" }))).toEqual({ text: "error", tone: "bad" });
-    expect(summaryOf(step({ id: "h", node_type: "http", output: { status: 200 } }))).toBeNull();
+    expect(summaryOf(step({ id: "h", node_type: "teleport", output: { status: 200 } }))).toBeNull();
   });
 });
 

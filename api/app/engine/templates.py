@@ -1,4 +1,4 @@
-"""Minimal resolver: `{{ input.a.b }}` and `{{ vars.x }}` only; CEL replaces it later."""
+"""Minimal resolver: `{{ input.a.b }}`, `{{ vars.x }}`, `{{ nodes.id.output.k }}` and secrets."""
 
 import json
 import re
@@ -7,7 +7,7 @@ from typing import Any
 from app.engine.base import FrozenBaseModel
 
 _EXPR = re.compile(r"\{\{(.*?)\}\}")
-_PATH = re.compile(r"^(input|vars|secrets)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
+_PATH = re.compile(r"^(input|vars|secrets|nodes)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
 
 
 class TemplateError(ValueError):
@@ -33,7 +33,7 @@ def _parse(template: str) -> list[str | Ref]:
         if not match:
             raise TemplateError(
                 f"unsupported expression '{chunk.strip()}': "
-                "only input.*, vars.* and secrets.* references work yet"
+                "only input.*, vars.*, nodes.* and secrets.* references work yet"
             )
         parts.append(Ref(scope=match[1], path=tuple(match[2].lstrip(".").split("."))))
     return parts

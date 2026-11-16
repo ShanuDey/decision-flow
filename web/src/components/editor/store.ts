@@ -101,6 +101,7 @@ function countByType(nodes: FlowNode[]): Record<NodeType, number> {
     start: 0,
     assign: 0,
     condition: 0,
+    http_request: 0,
     end: 0,
   };
   for (const n of nodes) counts[n.type as NodeType] += 1;

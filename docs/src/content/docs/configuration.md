@@ -11,6 +11,7 @@ Settings are environment variables, read once at start. Copy `.env.example` to `
 | Deleting old runs and inactive users | [retention](retention) |
 | Sign-in methods, token issuers, allowed email domains | [auth](auth) |
 | Stored secrets and the key that encrypts them: `ENCRYPTION_KEY` | [secrets](secrets) |
+| Which addresses flows may call, and how large and slow a call may be | [HTTP Request](nodes/http-request) |
 
 Other settings:
 
