@@ -11,6 +11,7 @@ from sqlalchemy.engine import make_url
 
 from app import tracing
 from app.engine.compiler import compile_graph
+from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.settings import Settings
@@ -182,13 +183,15 @@ async def test_inputs_and_outputs_are_recorded_on_the_run_and_every_node(
 
 
 @pytest.mark.anyio
-async def test_redaction_hook_runs_before_anything_is_recorded(
-    fake: FakeMlflow, raw: dict, monkeypatch: pytest.MonkeyPatch
+async def test_a_secret_value_is_masked_before_anything_is_recorded(
+    fake: FakeMlflow, raw: dict
 ) -> None:
-    monkeypatch.setattr(tracing, "redact", lambda value: "[redacted]")
-    await run_flow(flow(raw), {"amount": 5000}, tracing.MlflowObserver(settings()))
+    secrets = RunSecrets(values={"TIER_VALUE": "silver"})
+    await run_flow(flow(raw), {"amount": 5000}, tracing.MlflowObserver(settings()), secrets=secrets)
+    assert fake.spans
     for span in fake.spans:
-        assert span.inputs == "[redacted]" and span.outputs == "[redacted]"
+        assert "silver" not in json.dumps([span.inputs, span.outputs])
+    assert by_name(fake)["run"].inputs["tier"] == "[REDACTED:TIER_VALUE]"
 
 
 @pytest.mark.anyio

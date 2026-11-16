@@ -60,6 +60,14 @@ Without a key the app still runs, runs that use no secrets still work, and the S
 
 If a run needs a secret that no listed key can decrypt, it stops with a `secret_unreadable` error naming the secret.
 
+## What is hidden in records
+
+Run traces, run results and error messages are checked before they are stored or returned. A stored secret's value is replaced by its name, for example `Bearer [REDACTED:STRIPE_KEY]`. This also catches the value in its JSON-escaped and URL-encoded forms.
+
+The values of credential headers (`Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key` and `Api-Key`) are replaced by `[REDACTED]`, even when the value was typed into the flow and is not a stored secret.
+
+This is a safety net, not a guarantee. A value that a node changes first, such as one encoded for Basic authentication, no longer matches and is not caught. The main protection is that a secret never enters flow state at all.
+
 ## Limit
 
 | Variable | Default | Meaning |
