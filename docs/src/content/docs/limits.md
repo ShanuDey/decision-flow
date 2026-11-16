@@ -15,6 +15,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_NODES` | `500` | Most nodes in one flow |
 | `MAX_EDGES` | `1000` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |
+| `MAX_SECRETS_PER_WORKSPACE` | `0` (off) | Most [secrets](secrets) one workspace can hold. Replacing one does not count |
 | `MAX_VERSIONS_PER_FLOW` | `0` (off) | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
 | `RATE_LIMIT_IP_PER_MINUTE` | `600` | Requests per minute from one client IP, on every route. Signed-in requests count per visitor IP |
 | `RATE_LIMIT_READY_PER_MINUTE` | `60` | Requests per minute from one IP to `/ready` (it queries the database) |
@@ -36,6 +37,7 @@ MAX_NODES=50
 MAX_EDGES=100
 MAX_FLOWS_PER_USER=20
 MAX_VERSIONS_PER_FLOW=10
+MAX_SECRETS_PER_WORKSPACE=20
 RATE_LIMIT_IP_PER_MINUTE=120
 RATE_LIMIT_READY_PER_MINUTE=6
 RATE_LIMIT_USER_WRITES_PER_MINUTE=60

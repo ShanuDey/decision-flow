@@ -59,6 +59,7 @@ export default defineConfig({
           items: [
             "auth",
             "mcp",
+            "secrets",
             "configuration",
             "limits",
             "data-deletion",
