@@ -1,10 +1,10 @@
 "use client";
 
-import { PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
+import { ExternalLink, PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -303,9 +303,10 @@ function NodeDocs({ node }: { node: FlowNode }) {
         href={href}
         target="_blank"
         rel="noreferrer"
-        className="self-end text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-end")}
       >
         Open in new tab
+        <ExternalLink aria-hidden />
       </a>
       <iframe src={href} title={`${spec.label} docs`} className="min-h-0 w-full flex-1 rounded-md border" />
     </div>
