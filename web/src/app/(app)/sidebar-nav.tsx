@@ -1,6 +1,14 @@
 "use client";
 
-import { GitBranch, LayoutDashboard, type LucideIcon, Play, Settings } from "lucide-react";
+import {
+  BookOpen,
+  ExternalLink,
+  GitBranch,
+  LayoutDashboard,
+  type LucideIcon,
+  Play,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -40,6 +48,16 @@ export function SidebarNav() {
           {label}
         </Link>
       ))}
+      <a
+        href="/docs"
+        target="_blank"
+        rel="noreferrer"
+        className={cn(ROW, "text-foreground hover:bg-muted")}
+      >
+        <BookOpen className="size-4" aria-hidden />
+        Docs
+        <ExternalLink className="ml-auto size-3.5 text-muted-foreground" aria-hidden />
+      </a>
     </nav>
   );
 }
