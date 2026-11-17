@@ -152,6 +152,10 @@ class TraceUnavailable(Exception):
     pass
 
 
+class TraceIncomplete(TraceUnavailable):
+    pass
+
+
 class TraceSpan(FrozenBaseModel):
     """One recorded span, free of MLflow types."""
 
@@ -197,6 +201,9 @@ def _read_spans_sync(settings: Settings, trace_id: str) -> list[TraceSpan] | Non
     except MlflowException as exc:
         if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
             return None
+        # MLflow writes spans after the run ends; until then a read fails with BAD_REQUEST
+        if exc.error_code == "BAD_REQUEST":
+            raise TraceIncomplete(str(exc)) from exc
         raise TraceUnavailable(str(exc)) from exc
     except Exception as exc:
         raise TraceUnavailable(f"{type(exc).__name__}: {exc}") from exc

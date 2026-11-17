@@ -472,3 +472,19 @@ async def test_read_spans_raises_when_the_store_cannot_be_read(
     monkeypatch.setattr(tracing, "_configured", False)
     with pytest.raises(tracing.TraceUnavailable):
         await tracing.read_spans(settings(), "tr-1")
+
+
+@pytest.mark.anyio
+async def test_read_spans_flags_a_trace_whose_spans_are_still_being_written(
+    fake: FakeMlflow,
+) -> None:
+    from mlflow.exceptions import MlflowException
+    from mlflow.protos.databricks_pb2 import BAD_REQUEST, INTERNAL_ERROR
+
+    fake.MlflowClient = _client_returning(MlflowException("no span data", error_code=BAD_REQUEST))
+    with pytest.raises(tracing.TraceIncomplete):
+        await tracing.read_spans(settings(), "tr-1")
+    fake.MlflowClient = _client_returning(MlflowException("boom", error_code=INTERNAL_ERROR))
+    with pytest.raises(tracing.TraceUnavailable) as other:
+        await tracing.read_spans(settings(), "tr-1")
+    assert not isinstance(other.value, tracing.TraceIncomplete)

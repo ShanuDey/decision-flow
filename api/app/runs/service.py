@@ -21,7 +21,7 @@ from app.runs.schemas import RunSteps
 from app.runs.steps import build_steps
 from app.runs.store import FlowGone, RunStore
 from app.security.ssrf import OutboundPolicy
-from app.tracing import TraceSpan, TraceUnavailable
+from app.tracing import TraceIncomplete, TraceSpan, TraceUnavailable
 from app.workspaces.schemas import Member
 
 
@@ -197,6 +197,16 @@ async def list_runs(
     return page, encode_cursor(page[-1]) if len(rows) > limit else None
 
 
+def _within_grace(run: Run) -> bool:
+    return datetime.now(UTC).replace(tzinfo=None) - run.started_at < TRACE_GRACE
+
+
+def _trace_unavailable() -> ApiError:
+    return ApiError(
+        503, "trace_unavailable", "Step history is unavailable right now. Try again shortly."
+    )
+
+
 async def run_steps(
     store: RunStore, member: Member, run_id: uuid.UUID, read: TraceReader
 ) -> RunSteps:
@@ -207,11 +217,12 @@ async def run_steps(
         return RunSteps(items=[], pending=False)
     try:
         spans = await read(run.mlflow_trace_id)
+    except TraceIncomplete:
+        if _within_grace(run):
+            return RunSteps(items=[], pending=True)
+        raise _trace_unavailable() from None
     except TraceUnavailable:
-        raise ApiError(
-            503, "trace_unavailable", "Step history is unavailable right now. Try again shortly."
-        ) from None
+        raise _trace_unavailable() from None
     if spans is None:
-        age = datetime.now(UTC).replace(tzinfo=None) - run.started_at
-        return RunSteps(items=[], pending=age < TRACE_GRACE)
+        return RunSteps(items=[], pending=_within_grace(run))
     return RunSteps(items=build_steps(spans), pending=False)

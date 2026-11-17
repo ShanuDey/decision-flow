@@ -7,7 +7,7 @@ import pytest
 from app.main import app
 from app.runs.router import get_trace_reader
 from app.runs.steps import build_steps
-from app.tracing import TraceSpan, TraceUnavailable
+from app.tracing import TraceIncomplete, TraceSpan, TraceUnavailable
 from tests.conftest import FakeRunStore, create_flow, example
 
 
@@ -180,6 +180,30 @@ async def test_unreadable_trace_store_is_503_in_the_shared_error_shape(
     assert response.status_code == 503
     assert response.json()["code"] == "trace_unavailable"
     assert (await client.get(f"/runs/{run_id}")).status_code == 200
+
+
+@pytest.mark.anyio
+async def test_a_trace_still_being_written_is_pending_for_a_fresh_run(
+    client: httpx.AsyncClient, reader: FakeReader
+) -> None:
+    run_id = await _run_id(client)
+    reader.error = TraceIncomplete("span data missing")
+    response = await client.get(f"/runs/{run_id}/steps")
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "pending": True}
+
+
+@pytest.mark.anyio
+async def test_a_trace_that_stays_incomplete_becomes_a_503(
+    client: httpx.AsyncClient, reader: FakeReader, run_store: FakeRunStore
+) -> None:
+    run_id = await _run_id(client)
+    run = run_store.runs[uuid.UUID(run_id)]
+    run.started_at = run.started_at - timedelta(minutes=5)
+    reader.error = TraceIncomplete("span data missing")
+    response = await client.get(f"/runs/{run_id}/steps")
+    assert response.status_code == 503
+    assert response.json()["code"] == "trace_unavailable"
 
 
 @pytest.mark.anyio
