@@ -156,7 +156,7 @@ async def validate_flow(
     and `field`.
     """
     flow = await service.require_flow(store, member, flow_id)
-    service.validate_draft(flow, limits, outbound_policy(settings, limits))
+    await service.validate_draft(store, member, flow, limits, outbound_policy(settings, limits))
     return ValidateResponse(valid=True)
 
 

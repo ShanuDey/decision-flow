@@ -41,9 +41,9 @@ export function ExpressionInput({
   // read on demand: subscribing to the store would re-render this field on every node drag
   const { from, items } = useMemo(() => {
     if (!open) return { from: 0, items: [] };
-    const { nodes, edges, variables, secretNames } = useEditor.getState();
+    const { nodes, edges, variables, secretNames, contracts } = useEditor.getState();
     const graph = fromReactFlow({ nodes, edges, variables });
-    return suggest(graph, nodeId, value, cursor, secrets ? secretNames : undefined);
+    return suggest(graph, nodeId, value, cursor, secrets ? secretNames : undefined, contracts);
   }, [open, nodeId, value, cursor, secrets]);
   const showing = open && items.length > 0;
   const current = Math.min(active, items.length - 1);

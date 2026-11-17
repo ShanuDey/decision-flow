@@ -24,6 +24,11 @@ import {
   uniqueId,
   uniqueName,
 } from "@/lib/graph/nodes";
+import {
+  type Contracts,
+  type FlowContract,
+  type PublishedFlow,
+} from "@/lib/graph/subflow";
 import type {
   AssignData,
   Graph,
@@ -57,6 +62,9 @@ interface EditorState {
   issues: FieldIssue[];
   // Names of the workspace's saved secrets, for fields that accept them. Never the values.
   secretNames: string[];
+  // Flows a Subflow node can call, and what each declares; loaded on demand, never saved.
+  publishedFlows: PublishedFlow[];
+  contracts: Contracts;
   // UI only: the top bar button and the Assign dropdown both open the variables dialog.
   variablesOpen: boolean;
   variablesSelected: number;
@@ -94,6 +102,8 @@ interface EditorState {
   renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
+  setPublishedFlows: (flows: PublishedFlow[]) => void;
+  setContract: (flowId: string, contract: FlowContract | null) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
   markPublished: (version: number, draftVersion: number) => void;
 }
@@ -120,6 +130,7 @@ function countByType(nodes: FlowNode[]): Record<NodeType, number> {
     assign: 0,
     condition: 0,
     http_request: 0,
+    subflow: 0,
     end: 0,
   };
   for (const n of nodes) counts[n.type as NodeType] += 1;
@@ -153,6 +164,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   savedAt: null,
   issues: [],
   secretNames: [],
+  publishedFlows: [],
+  contracts: {},
   variablesOpen: false,
   variablesSelected: 0,
   setVariablesOpen: (variablesOpen) => set({ variablesOpen }),
@@ -358,6 +371,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   setIssues: (issues) => set({ issues }),
   setSecretNames: (secretNames) => set({ secretNames }),
+  setPublishedFlows: (publishedFlows) => set({ publishedFlows }),
+  setContract: (flowId, contract) => set((s) => ({ contracts: { ...s.contracts, [flowId]: contract } })),
 
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),

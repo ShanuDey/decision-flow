@@ -1,3 +1,4 @@
+import type { Contracts } from "./subflow";
 import { ancestors, outputKeys } from "./suggest";
 import type { Graph } from "./types";
 
@@ -13,7 +14,12 @@ export interface DataSection {
 }
 
 // What a node can read: inputs, variables, earlier outputs, and `secrets` where accepted.
-export function availableData(graph: Graph, nodeId: string, secrets?: string[]): DataSection[] {
+export function availableData(
+  graph: Graph,
+  nodeId: string,
+  secrets?: string[],
+  contracts: Contracts = {},
+): DataSection[] {
   const start = graph.nodes.find((n) => n.type === "start");
   const inputs = start?.type === "start" ? start.data.inputs : [];
   const upstream = ancestors(graph, nodeId);
@@ -35,7 +41,7 @@ export function availableData(graph: Graph, nodeId: string, secrets?: string[]):
       items: graph.nodes
         .filter((n) => upstream.has(n.id))
         .flatMap((n) =>
-          outputKeys(n, graph).map((k) => ({
+          outputKeys(n, graph, contracts).map((k) => ({
             label: `${n.id}.${k.name}`,
             path: `nodes.${n.id}.output.${k.name}`,
             detail: k.type,

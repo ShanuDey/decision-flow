@@ -11,6 +11,7 @@ from app import tracing
 from app.errors import ApiError, ErrorResponse
 from app.flows import service as flows_service
 from app.flows.store import FlowStore, get_store
+from app.flows.subflows import SubflowSource
 from app.limits import Limits, get_limits
 from app.ratelimit import limit_runs
 from app.runs import service
@@ -124,12 +125,14 @@ async def create_run(
             )
         version = await flows_service.get_version(flows, member, flow_id, flow.published_version)
     async with slots.hold(member.workspace_id):
+        outbound = outbound_policy(get_settings(), limits)
         common = {
             "timeout_seconds": limits.run_timeout_seconds,
             "max_nodes": limits.max_nodes,
             "max_edges": limits.max_edges,
             "disabled_types": limits.disabled_node_types,
-            "outbound": outbound_policy(get_settings(), limits),
+            "outbound": outbound,
+            "subflows": SubflowSource(flows, member, limits, outbound),
         }
         if version is None:
             run = await service.run_draft(

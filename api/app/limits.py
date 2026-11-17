@@ -25,6 +25,7 @@ class Limits(BaseSettings):
     max_concurrent_runs: int = Field(50, ge=0)
     max_concurrent_runs_per_workspace: int = Field(0, ge=0)
     run_timeout_seconds: int = Field(300, ge=0)
+    max_subflow_depth: int = Field(5, ge=0)
     max_nodes: int = Field(500, ge=0)
     max_edges: int = Field(1000, ge=0)
     max_flows_per_user: int = Field(0, ge=0)

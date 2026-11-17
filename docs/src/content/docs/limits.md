@@ -12,6 +12,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_CONCURRENT_RUNS` | `50` | Runs in progress at once, across the whole app |
 | `MAX_CONCURRENT_RUNS_PER_WORKSPACE` | `0` (off) | Runs in progress at once for one workspace |
 | `RUN_TIMEOUT_SECONDS` | `300` | Longest a run may take |
+| `MAX_SUBFLOW_DEPTH` | `5` | How many [Subflow](nodes/subflow) calls may be nested inside one another. `0` is no limit |
 | `MAX_NODES` | `500` | Most nodes in one flow |
 | `MAX_EDGES` | `1000` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |

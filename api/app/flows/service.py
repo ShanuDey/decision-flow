@@ -17,6 +17,7 @@ from app.flows.store import (
     FlowMissing,
     FlowStore,
 )
+from app.flows.subflows import SubflowSource, loop_issues
 from app.limits import Limits
 from app.security.ssrf import OutboundPolicy
 from app.workspaces.schemas import Member
@@ -71,10 +72,24 @@ async def require_flow(store: FlowStore, member: Member, flow_id: uuid.UUID) -> 
     return flow
 
 
-def validate_draft(flow: Flow, limits: Limits, outbound: OutboundPolicy | None = None) -> None:
-    _, issues = parse_graph(
-        flow.draft, limits.max_nodes, limits.max_edges, limits.disabled_node_types, outbound
+async def validate_draft(
+    store: FlowStore,
+    member: Member,
+    flow: Flow,
+    limits: Limits,
+    outbound: OutboundPolicy | None = None,
+) -> None:
+    contracts = await SubflowSource(store, member, limits, outbound).contracts(flow.draft)
+    graph, issues = parse_graph(
+        flow.draft,
+        limits.max_nodes,
+        limits.max_edges,
+        limits.disabled_node_types,
+        outbound,
+        contracts,
     )
+    if graph is not None:
+        issues = loop_issues(flow.id, flow.draft, contracts)
     if issues:
         raise invalid_flow(issues)
 
@@ -142,7 +157,7 @@ async def publish_flow(
     flow = await require_flow(store, member, flow_id)
     if flow.published_draft_version == flow.draft_version:
         raise _nothing_to_publish()
-    validate_draft(flow, limits, outbound)
+    await validate_draft(store, member, flow, limits, outbound)
     try:
         return await store.publish(
             member, flow_id, flow.draft_version, limits.max_versions_per_flow, soft=soft

@@ -15,6 +15,7 @@ from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow, FlowVersion
 from app.flows.service import invalid_flow, not_found
+from app.flows.subflows import SubflowSource
 from app.runs.models import Run
 from app.runs.schemas import RunSteps
 from app.runs.steps import build_steps
@@ -47,6 +48,7 @@ async def run_draft(
     max_edges: int = 0,
     disabled_types: Collection[str] = (),
     outbound: OutboundPolicy | None = None,
+    subflows: SubflowSource | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -62,6 +64,7 @@ async def run_draft(
         max_edges,
         disabled_types,
         outbound,
+        subflows,
     )
 
 
@@ -78,6 +81,7 @@ async def run_published(
     max_edges: int = 0,
     disabled_types: Collection[str] = (),
     outbound: OutboundPolicy | None = None,
+    subflows: SubflowSource | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -93,6 +97,7 @@ async def run_published(
         max_edges,
         disabled_types,
         outbound,
+        subflows,
     )
 
 
@@ -110,16 +115,25 @@ async def _run(
     max_edges: int,
     disabled_types: Collection[str],
     outbound: OutboundPolicy | None,
+    subflows: SubflowSource | None,
 ) -> Run:
     graph, issues = parse_graph(raw_graph, max_nodes, max_edges, disabled_types, outbound)
     if graph is None:
         raise invalid_flow(issues)
     names = referenced_secret_names(graph)
+    if subflows is not None:
+        names |= await subflows.secret_names(graph)
     secrets = await load_secrets(names) if names else RunSecrets()
     observer = new_observer(flow.name)
     try:
         result = await run_flow(
-            compile_graph(graph), payload, observer, timeout_seconds, secrets, outbound
+            compile_graph(graph),
+            payload,
+            observer,
+            timeout_seconds,
+            secrets,
+            outbound,
+            subflows.access if subflows else None,
         )
     except InputValidationError as exc:
         first = exc.issues[0]

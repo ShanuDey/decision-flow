@@ -21,7 +21,7 @@ Saving a name that already exists replaces its value. Deleting a secret is perma
 
 A node can read a secret as `{{ secrets.NAME }}`, but only in fields that say they accept one. Every other field refuses it with a `secret_not_allowed` error, so a secret cannot end up in a variable, an output or a trace by accident.
 
-The [HTTP Request](nodes/http-request) node accepts secrets in its header values, query values and body, and never in its URL. Start, Assign, Condition and End accept none.
+The [HTTP Request](nodes/http-request) node accepts secrets in its header values, query values and body, and never in its URL. Start, Assign, Condition, Subflow and End accept none. A flow called by a [Subflow](nodes/subflow) node can use its own secrets.
 
 A secret goes wherever the flow sends it. Anyone who can edit a flow in the workspace can send a secret to any address the server may call, so give edit access only to people you trust, and set `HTTP_ALLOWED_HOSTS` on a shared server.
 

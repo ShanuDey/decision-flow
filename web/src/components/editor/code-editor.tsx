@@ -15,6 +15,7 @@ import {
 } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 
+import type { Contracts } from "@/lib/graph/subflow";
 import { suggest } from "@/lib/graph/suggest";
 import type { Graph } from "@/lib/graph/types";
 
@@ -90,6 +91,8 @@ interface Props {
   nodeId: string;
   // Called on demand; set only for a field that accepts secrets.
   getSecrets?: () => string[];
+  // Called on demand; what the flows that Subflow nodes call declare.
+  getContracts?: () => Contracts;
   label: string;
   // Insert request from clicking the data tree.
   insertRequest?: { text: string; n: number } | null;
@@ -100,6 +103,7 @@ export function CodeEditor({
   onChange,
   getGraph,
   getSecrets,
+  getContracts,
   nodeId,
   label,
   insertRequest,
@@ -109,11 +113,13 @@ export function CodeEditor({
   const change = useRef(onChange);
   const graph = useRef(getGraph);
   const secrets = useRef(getSecrets);
+  const contracts = useRef(getContracts);
   const id = useRef(nodeId);
   useEffect(() => {
     change.current = onChange;
     graph.current = getGraph;
     secrets.current = getSecrets;
+    contracts.current = getContracts;
     id.current = nodeId;
   });
 
@@ -127,6 +133,7 @@ export function CodeEditor({
         text,
         ctx.pos,
         secrets.current?.(),
+        contracts.current?.(),
       );
       if (!items.length && !ctx.explicit) return null;
       return {

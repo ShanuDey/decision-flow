@@ -279,10 +279,10 @@ class MlflowObserver:
     async def node_started(self, node: NodeInfo, inputs: dict[str, Any]) -> None:
         if self._root is None:
             return
-        self._spans[node.id] = mlflow.start_span_no_context(
+        self._spans[node.key] = mlflow.start_span_no_context(
             node.name,
             span_type=SpanType.TASK,
-            parent_span=self._root,
+            parent_span=self._spans.get(node.parent or "", self._root),
             inputs=_io(inputs),
             attributes={"node_id": node.id, "node_type": node.type, "node_name": node.name},
         )
@@ -296,7 +296,7 @@ class MlflowObserver:
         error: str | None,
         outputs: Any = None,
     ) -> None:
-        span = self._spans.pop(node.id, None)
+        span = self._spans.pop(node.key, None)
         if span is not None:
             span.end(
                 outputs=_io(outputs),

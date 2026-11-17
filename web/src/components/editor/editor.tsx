@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { listSecrets } from "@/lib/api/client";
 import { call } from "@/lib/call";
+import { calledFlowIds } from "@/lib/graph/subflow";
 import type { Graph } from "@/lib/graph/types";
 
 import type { RunOutcome } from "./actions";
@@ -14,6 +15,7 @@ import { RunPanel } from "./run-panel";
 import { SettingsPanel } from "./settings-panel";
 import type { PublishedInfo } from "./published";
 import { useEditor } from "./store";
+import { ensureContracts, loadPublishedFlows } from "./subflows";
 import { TopBar } from "./top-bar";
 import { VariablesDialog } from "./variables-dialog";
 
@@ -40,6 +42,20 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
     return () => {
       stale = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let stale = false;
+    loadPublishedFlows().then((flows) => {
+      if (stale) return;
+      useEditor.getState().setPublishedFlows(flows);
+    });
+    void ensureContracts(calledFlowIds(graph));
+    return () => {
+      stale = true;
+    };
+    // the flow is loaded once; later picks load their own contracts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
