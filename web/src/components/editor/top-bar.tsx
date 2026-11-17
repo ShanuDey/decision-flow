@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CircleCheck,
   CircleDot,
+  Download,
   ListChecks,
   Play,
   Variable,
@@ -21,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import { publish, type RunOutcome, save, validate } from "./actions";
+import { exportFlow, publish, type RunOutcome, save, validate } from "./actions";
 import { guardedLeave, useGuardedNavigate } from "./leave-store";
 import { useEditor } from "./store";
 import { TestDialog } from "./test-dialog";
@@ -182,6 +183,16 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
           <span className="rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground">
             {variableCount}
           </span>
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-9"
+          aria-label="Export flow as a file"
+          title="Export flow as a file"
+          onClick={exportFlow}
+        >
+          <Download aria-hidden />
         </Button>
         <div aria-hidden className="mx-1 h-6 w-px bg-border" />
         <Popover open={issuesOpen} onOpenChange={(open) => !open && setIssuesOpen(false)}>

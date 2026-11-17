@@ -7,6 +7,7 @@ import { createRun, getFlow, listCallers, publishFlow, saveDraft, validateFlow }
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
 import { tidy } from "@/lib/graph/tidy";
+import { buildFlowFile, flowFileName } from "@/lib/graph/transfer";
 
 import { useLayout } from "./layout";
 import { publishedInfo } from "./published";
@@ -177,4 +178,16 @@ export function configureNode(id: string, { select = false }: { select?: boolean
   layout.expand();
   // SettingsPanel focuses the field once it has rendered this node.
   layout.requestFocus({ select });
+}
+
+export function exportFlow(): void {
+  const { name, toGraph } = useEditor.getState();
+  const file = buildFlowFile(name, toGraph());
+  const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = flowFileName(name);
+  link.click();
+  URL.revokeObjectURL(url);
+  toast.success("Exported the flow");
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ import {
   flatTemplates,
   groupByCategory,
 } from "@/lib/templates/filter";
+import { parseFlowFile } from "@/lib/graph/transfer";
 import { cn } from "@/lib/utils";
 
 import { FlowPreview } from "./flow-preview";
@@ -65,6 +67,7 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   const [name, setName] = useState(BLANK_NAME);
   const [busy, setBusy] = useState(false);
   const request = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
   const filled = useRef(BLANK_NAME);
 
   const items = loaded.state === "ready" ? loaded.items : [];
@@ -130,6 +133,29 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
     const i = ids.indexOf(active);
     const down = e.key === "ArrowDown";
     chooseId(ids[i < 0 ? (down ? 0 : ids.length - 1) : (i + (down ? 1 : ids.length - 1)) % ids.length]);
+  }
+
+  async function importFile(file: File) {
+    setBusy(true);
+    const parsed = parseFlowFile(await file.text());
+    if (!parsed.ok) {
+      setBusy(false);
+      toast.error(parsed.message);
+      return;
+    }
+    const fallback = file.name.replace(/(\.flow)?\.json$/i, "").trim() || BLANK_NAME;
+    const result = await call(
+      createFlow({ name: (parsed.name ?? fallback).slice(0, 120), draft: { ...parsed.graph } }),
+    );
+    if (!result.ok) {
+      setBusy(false);
+      errorToast("Could not import the flow", result.error);
+      return;
+    }
+    if (parsed.clearedSubflows) {
+      toast.info(`Pick the flow again in ${parsed.clearedSubflows} subflow node(s); ids are not carried over.`);
+    }
+    router.push(`/flows/${result.data.id}`);
   }
 
   async function submit(event: React.FormEvent) {
@@ -266,6 +292,26 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
             />
           </div>
           <DialogFooter>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void importFile(file);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              className="h-10 sm:mr-auto"
+              onClick={() => fileInput.current?.click()}
+            >
+              <Upload aria-hidden /> Import file
+            </Button>
             <Button type="submit" disabled={busy || !name.trim()} className="h-10">
               {busy ? "Creating…" : "Create flow"}
             </Button>
