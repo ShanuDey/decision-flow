@@ -51,9 +51,9 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
 
   useEffect(() => {
     let stale = false;
-    loadPublishedFlows().then((flows) => {
-      if (stale) return;
-      useEditor.getState().setPublishedFlows(flows);
+    loadPublishedFlows().then((page) => {
+      if (stale || !page) return;
+      useEditor.getState().setPublishedFlows(page.flows, page.more);
     });
     void ensureContracts(calledFlowIds(graph));
     return () => {

@@ -7,6 +7,7 @@
 
 export * from './appConfig';
 export * from './appConfigDeleteMode';
+export * from './deleteFlowParams';
 export * from './draftSaved';
 export * from './errorResponse';
 export * from './errorResponseDetails';
@@ -14,6 +15,8 @@ export * from './evaluateRequest';
 export * from './evaluateRequestKind';
 export * from './evaluateRequestScope';
 export * from './evaluateResponse';
+export * from './flowCaller';
+export * from './flowCallers';
 export * from './flowCreate';
 export * from './flowCreateDraft';
 export * from './flowDetail';

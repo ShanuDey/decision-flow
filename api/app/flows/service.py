@@ -115,7 +115,22 @@ async def rename_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, name
     return flow
 
 
-async def delete_flow(store: FlowStore, member: Member, flow_id: uuid.UUID, *, soft: bool) -> None:
+async def list_callers(store: FlowStore, member: Member, flow_id: uuid.UUID) -> list[Flow]:
+    await require_flow(store, member, flow_id)
+    return await store.list_callers(member, flow_id)
+
+
+async def delete_flow(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, *, soft: bool, force: bool = False
+) -> None:
+    callers = [] if force else await store.list_callers(member, flow_id)
+    if callers:
+        raise ApiError(
+            409,
+            "flow_in_use",
+            "Other flows call this one; they will fail until you update them",
+            {"callers": [{"id": str(c.id), "name": c.name} for c in callers]},
+        )
     if not await store.delete_flow(member, flow_id, soft=soft):
         raise not_found("Flow")
 

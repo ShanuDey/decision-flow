@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -80,6 +80,26 @@ class FlowStore:
         return await self.session.scalar(
             select(Flow).where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
         )
+
+    async def list_callers(self, member: Member, flow_id: uuid.UUID) -> list[Flow]:
+        """Live flows whose latest published version has a Subflow node that calls this one."""
+        calls = {"nodes": [{"type": "subflow", "data": {"flow_id": str(flow_id)}}]}
+        rows = await self.session.scalars(
+            select(Flow)
+            .join(
+                FlowVersion,
+                and_(FlowVersion.flow_id == Flow.id, FlowVersion.version == Flow.published_version),
+            )
+            .where(
+                Flow.workspace_id == member.workspace_id,
+                Flow.id != flow_id,
+                LIVE,
+                FlowVersion.deleted_at.is_(None),
+                FlowVersion.graph.contains(calls),
+            )
+            .order_by(Flow.name, Flow.id)
+        )
+        return list(rows)
 
     async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
         result = await self.session.execute(

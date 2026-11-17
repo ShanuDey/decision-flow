@@ -39,3 +39,21 @@ export function missingInputs(contract: FlowContract, inputs: Record<string, str
 export function syncInputs(contract: FlowContract, inputs: Record<string, string>): Record<string, string> {
   return Object.fromEntries(contract.inputs.map((f) => [f.name, inputs[f.name] ?? ""]));
 }
+
+export interface PublishedPage {
+  flows: PublishedFlow[];
+  // A page is cut by size over all flows, so published ones may sit on pages not loaded.
+  more: boolean;
+}
+
+export function publishedPage(
+  items: { id: string; name: string; published_version: number | null }[],
+  total: number,
+): PublishedPage {
+  return {
+    flows: items.flatMap((f) =>
+      f.published_version === null ? [] : [{ id: f.id, name: f.name, version: f.published_version }],
+    ),
+    more: total > items.length,
+  };
+}

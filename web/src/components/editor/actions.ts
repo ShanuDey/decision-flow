@@ -1,8 +1,9 @@
 import { toast } from "sonner";
 
 import { errorToast } from "@/lib/api-error";
+import { calledByText } from "@/lib/callers";
 import { type ApiFailure, call, issuesOf } from "@/lib/call";
-import { createRun, getFlow, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
+import { createRun, getFlow, listCallers, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
 
@@ -86,7 +87,13 @@ export async function publish(): Promise<PublishResult> {
   if (result.ok) {
     useEditor.getState().setIssues([]);
     useEditor.getState().markPublished(result.data.version, result.data.source_draft_version);
-    toast.success(`Published version ${result.data.version}`);
+    const message = `Published version ${result.data.version}`;
+    const id = toast.success(message);
+    void call(listCallers(useEditor.getState().flowId)).then((callers) => {
+      if (callers.ok && callers.data.items.length > 0) {
+        toast.success(message, { id, description: calledByText(callers.data.items) });
+      }
+    });
     return "published";
   }
   const { code } = result.error;

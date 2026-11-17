@@ -161,6 +161,43 @@
         "title": "EvaluateResponse",
         "type": "object"
       },
+      "FlowCaller": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "FlowCaller",
+        "type": "object"
+      },
+      "FlowCallers": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FlowCaller"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "FlowCallers",
+        "type": "object"
+      },
       "FlowCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1682,7 +1719,7 @@
     },
     "/flows/{flow_id}": {
       "delete": {
-        "description": "Hard mode removes the flow and its runs for good; soft mode only hides the flow.",
+        "description": "Hard mode removes the flow and its runs for good; soft mode only hides the flow.\n\n409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.",
         "operationId": "delete_flow",
         "parameters": [
           {
@@ -1693,6 +1730,16 @@
               "format": "uuid",
               "title": "Flow Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
             }
           }
         ],
@@ -1729,6 +1776,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -1941,6 +1998,95 @@
           }
         ],
         "summary": "Rename Flow",
+        "tags": [
+          "flows"
+        ]
+      }
+    },
+    "/flows/{flow_id}/callers": {
+      "get": {
+        "description": "Lists the flows whose latest published version runs this one in a Subflow node.",
+        "operationId": "list_callers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flow_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Flow Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlowCallers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Callers",
         "tags": [
           "flows"
         ]

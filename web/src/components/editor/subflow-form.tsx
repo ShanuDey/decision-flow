@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import type { FlowNode } from "@/lib/graph/convert";
-import { missingInputs, syncInputs } from "@/lib/graph/subflow";
+import { missingInputs, type PublishedFlow, syncInputs } from "@/lib/graph/subflow";
 import type { SubflowData } from "@/lib/graph/types";
+import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/ui/select-field";
 
 import { ExpandableInput } from "./expand-field";
 import { FieldError, Labeled } from "./fields";
 import { fieldIssue } from "./issues";
 import { useEditor } from "./store";
-import { ensureContracts } from "./subflows";
+import { ensureContracts, loadPublishedFlows } from "./subflows";
 
 export function SubflowForm({ node }: { node: FlowNode }) {
   const setConfig = useEditor((s) => s.setNodeConfig);
@@ -25,7 +26,32 @@ export function SubflowForm({ node }: { node: FlowNode }) {
     if (config.flow_id) void ensureContracts([config.flow_id]);
   }, [config.flow_id]);
 
+  const [query, setQuery] = useState("");
+  // Tagged with its query so results for an earlier one are never shown.
+  const [found, setFound] = useState<{ query: string; flows: PublishedFlow[] } | null>(null);
+  const searchable = useEditor((s) => s.publishedFlowsMore);
+  const term = query.trim();
+
+  useEffect(() => {
+    if (!searchable || !term) return;
+    let stale = false;
+    const timer = setTimeout(() => {
+      void loadPublishedFlows(term).then((page) => {
+        if (!stale && page) setFound({ query: term, flows: page.flows });
+      });
+    }, 250);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [term, searchable]);
+
+  const listed = term && found?.query === term ? found.flows : flows;
+  const selected = flows.find((f) => f.id === config.flow_id);
+
   async function pick(id: string) {
+    const match = listed.find((f) => f.id === id);
+    if (match) useEditor.getState().addPublishedFlow(match);
     setConfig(node.id, { flow_id: id, inputs: {} });
     if (!id) return;
     await ensureContracts([id]);
@@ -53,12 +79,21 @@ export function SubflowForm({ node }: { node: FlowNode }) {
             ...(config.flow_id && !known
               ? [{ value: config.flow_id, label: "Unavailable flow" }]
               : []),
-            ...flows
+            ...(selected && !listed.some((f) => f.id === selected.id) ? [selected, ...listed] : listed)
               .filter((f) => f.id !== flowId)
               .map((f) => ({ value: f.id, label: `${f.name} (v${f.version})` })),
           ]}
         />
       </Labeled>
+      {searchable && (
+        <Input
+          aria-label="Search flows"
+          className="h-10"
+          placeholder="Search flows by name"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
         Always runs the flow&apos;s latest published version. Only flows with a published version are
         listed.

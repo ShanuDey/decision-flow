@@ -65,6 +65,8 @@ interface EditorState {
   secretNames: string[];
   // Flows a Subflow node can call, and what each declares; loaded on demand, never saved.
   publishedFlows: PublishedFlow[];
+  // True when more published flows exist than were loaded.
+  publishedFlowsMore: boolean;
   contracts: Contracts;
   // What this server allows; the server enforces it too.
   limits: EditorLimits;
@@ -105,7 +107,8 @@ interface EditorState {
   renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
-  setPublishedFlows: (flows: PublishedFlow[]) => void;
+  setPublishedFlows: (flows: PublishedFlow[], more: boolean) => void;
+  addPublishedFlow: (flow: PublishedFlow) => void;
   setContract: (flowId: string, contract: FlowContract | null) => void;
   setLimits: (limits: EditorLimits) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
@@ -169,6 +172,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   issues: [],
   secretNames: [],
   publishedFlows: [],
+  publishedFlowsMore: false,
   contracts: {},
   limits: NO_LIMITS,
   variablesOpen: false,
@@ -385,7 +389,13 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   setIssues: (issues) => set({ issues }),
   setSecretNames: (secretNames) => set({ secretNames }),
-  setPublishedFlows: (publishedFlows) => set({ publishedFlows }),
+  setPublishedFlows: (publishedFlows, publishedFlowsMore) => set({ publishedFlows, publishedFlowsMore }),
+  addPublishedFlow: (flow) =>
+    set((s) =>
+      s.publishedFlows.some((f) => f.id === flow.id)
+        ? s
+        : { publishedFlows: [...s.publishedFlows, flow] },
+    ),
   setLimits: (limits) => set({ limits }),
   setContract: (flowId, contract) => set((s) => ({ contracts: { ...s.contracts, [flowId]: contract } })),
 

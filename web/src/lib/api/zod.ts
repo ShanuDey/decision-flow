@@ -130,10 +130,18 @@ export const CreateFlowResponse = zod.object({
 
 /**
  * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
+ *
+ * 409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.
  * @summary Delete Flow
  */
 export const DeleteFlowParams = zod.object({
   "flow_id": zod.uuid()
+})
+
+export const deleteFlowQueryForceDefault = false;
+
+export const DeleteFlowQueryParams = zod.object({
+  "force": zod.boolean().default(deleteFlowQueryForceDefault)
 })
 
 export const DeleteFlowResponse = zod.void()
@@ -187,6 +195,22 @@ export const RenameFlowResponse = zod.object({
   "published_draft_version": zod.union([zod.int(),zod.null()]),
   "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Lists the flows whose latest published version runs this one in a Subflow node.
+ * @summary List Callers
+ */
+export const ListCallersParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const ListCallersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string()
+}))
 })
 
 

@@ -12,6 +12,8 @@ from app.flows.schemas import (
     DraftSaved,
     EvaluateRequest,
     EvaluateResponse,
+    FlowCaller,
+    FlowCallers,
     FlowCreate,
     FlowDetail,
     FlowFormat,
@@ -104,12 +106,32 @@ async def rename_flow(
     return FlowSummary.model_validate(flow, from_attributes=True)
 
 
-@router.delete("/flows/{flow_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.get("/flows/{flow_id}/callers", responses=NOT_FOUND)
+async def list_callers(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> FlowCallers:
+    """Lists the flows whose latest published version runs this one in a Subflow node."""
+    callers = await service.list_callers(store, member, flow_id)
+    return FlowCallers(items=[FlowCaller(id=c.id, name=c.name) for c in callers])
+
+
+@router.delete(
+    "/flows/{flow_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={**NOT_FOUND, **CONFLICT},
+)
 async def delete_flow(
-    flow_id: uuid.UUID, store: Store, member: CurrentMember, settings: AppSettings
+    flow_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    settings: AppSettings,
+    force: bool = False,
 ) -> None:
-    """Hard mode removes the flow and its runs for good; soft mode only hides the flow."""
-    await service.delete_flow(store, member, flow_id, soft=settings.delete_mode == "soft")
+    """Hard mode removes the flow and its runs for good; soft mode only hides the flow.
+
+    409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.
+    """
+    await service.delete_flow(
+        store, member, flow_id, soft=settings.delete_mode == "soft", force=force
+    )
 
 
 @router.put(

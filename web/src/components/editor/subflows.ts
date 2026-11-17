@@ -1,26 +1,26 @@
 import { getFlow, getVersion, listFlows } from "@/lib/api/client";
 import { call } from "@/lib/call";
-import { type FlowContract, contractOf, type PublishedFlow } from "@/lib/graph/subflow";
+import { contractOf, type FlowContract, type PublishedPage, publishedPage } from "@/lib/graph/subflow";
 import type { Graph } from "@/lib/graph/types";
 
 import { useEditor } from "./store";
 
-const PAGE_SIZE = 100;
+export const PAGE_SIZE = 100;
 
-// The first page by name; a workspace with more flows than that cannot pick the rest yet.
-export async function loadPublishedFlows(): Promise<PublishedFlow[]> {
-  const result = await call(listFlows({ sort: "name", page_size: PAGE_SIZE }));
-  if (!result.ok) return [];
-  return result.data.items.flatMap((f) =>
-    f.published_version === null ? [] : [{ id: f.id, name: f.name, version: f.published_version }],
-  );
+// One page by name; `more` says the picker's search is needed to reach the rest. Null: it failed.
+export async function loadPublishedFlows(query?: string): Promise<PublishedPage | null> {
+  const result = await call(listFlows({ sort: "name", page_size: PAGE_SIZE, q: query || undefined }));
+  return result.ok ? publishedPage(result.data.items, result.data.total) : null;
 }
 
 export async function loadContract(flowId: string): Promise<FlowContract | null> {
   const flow = await call(getFlow(flowId));
   if (!flow.ok || flow.data.published_version === null) return null;
   const version = await call(getVersion(flowId, flow.data.published_version));
-  return version.ok ? contractOf(version.data.graph as unknown as Graph) : null;
+  if (!version.ok) return null;
+  const { id, name, published_version } = flow.data;
+  useEditor.getState().addPublishedFlow({ id, name, version: published_version });
+  return contractOf(version.data.graph as unknown as Graph);
 }
 
 // Reads each flow once; an id already in the store (even a failed one) is not asked again.

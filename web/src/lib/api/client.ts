@@ -6,10 +6,12 @@
  */
 import type {
   AppConfig,
+  DeleteFlowParams,
   DraftSaved,
   ErrorResponse,
   EvaluateRequest,
   EvaluateResponse,
+  FlowCallers,
   FlowCreate,
   FlowDetail,
   FlowFormat,
@@ -389,6 +391,11 @@ export type deleteFlowResponse404 = {
   status: 404
 }
 
+export type deleteFlowResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
 export type deleteFlowResponse422 = {
   data: HTTPValidationError
   status: 422
@@ -402,27 +409,38 @@ export type deleteFlowResponse429 = {
 export type deleteFlowResponseSuccess = (deleteFlowResponse204) & {
   headers: Headers;
 };
-export type deleteFlowResponseError = (deleteFlowResponse401 | deleteFlowResponse403 | deleteFlowResponse404 | deleteFlowResponse422 | deleteFlowResponse429) & {
+export type deleteFlowResponseError = (deleteFlowResponse401 | deleteFlowResponse403 | deleteFlowResponse404 | deleteFlowResponse409 | deleteFlowResponse422 | deleteFlowResponse429) & {
   headers: Headers;
 };
 
 export type deleteFlowResponse = (deleteFlowResponseSuccess | deleteFlowResponseError)
 
-export const getDeleteFlowUrl = (flowId: string,) => {
+export const getDeleteFlowUrl = (flowId: string,
+    params?: DeleteFlowParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/flows/${flowId}`
+  return stringifiedParams.length > 0 ? `/flows/${flowId}?${stringifiedParams}` : `/flows/${flowId}`
 }
 
 /**
  * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
+ *
+ * 409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.
  * @summary Delete Flow
  */
-export const deleteFlow = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteFlowResponse> => {
+export const deleteFlow = async (flowId: string,
+    params?: DeleteFlowParams, options?: Parameters<typeof apiFetch>[1]): Promise<deleteFlowResponse> => {
 
-  return apiFetch<deleteFlowResponse>(getDeleteFlowUrl(flowId),
+  return apiFetch<deleteFlowResponse>(getDeleteFlowUrl(flowId,params),
   {
     ...options,
     method: 'DELETE'
@@ -573,6 +591,70 @@ return apiFetch<renameFlowResponse>(getRenameFlowUrl(flowId),
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(flowRename)
+  }
+);}
+
+
+
+export type listCallersResponse200 = {
+  data: FlowCallers
+  status: 200
+}
+
+export type listCallersResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listCallersResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listCallersResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type listCallersResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listCallersResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listCallersResponseSuccess = (listCallersResponse200) & {
+  headers: Headers;
+};
+export type listCallersResponseError = (listCallersResponse401 | listCallersResponse403 | listCallersResponse404 | listCallersResponse422 | listCallersResponse429) & {
+  headers: Headers;
+};
+
+export type listCallersResponse = (listCallersResponseSuccess | listCallersResponseError)
+
+export const getListCallersUrl = (flowId: string,) => {
+
+
+
+
+  return `/flows/${flowId}/callers`
+}
+
+/**
+ * Lists the flows whose latest published version runs this one in a Subflow node.
+ * @summary List Callers
+ */
+export const listCallers = async (flowId: string, options?: Parameters<typeof apiFetch>[1]): Promise<listCallersResponse> => {
+
+  return apiFetch<listCallersResponse>(getListCallersUrl(flowId),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

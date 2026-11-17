@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { availableData } from "./scope";
-import { calledFlowIds, contractOf, missingInputs, syncInputs } from "./subflow";
+import { calledFlowIds, contractOf, missingInputs, publishedPage, syncInputs } from "./subflow";
 import { outputKeys, suggest } from "./suggest";
 import type { Graph } from "./types";
 
@@ -98,5 +98,21 @@ describe("subflow outputs", () => {
     expect(items.map((i) => i.insert)).toEqual(["nodes.sub.output.total"]);
     const paths = availableData(graph, "end", undefined, contracts).flatMap((s) => s.items.map((i) => i.path));
     expect(paths).toContain("nodes.sub.output.total");
+  });
+});
+
+describe("publishedPage", () => {
+  const items = [
+    { id: "a", name: "A", published_version: 2 },
+    { id: "b", name: "B", published_version: null },
+  ];
+
+  it("keeps only published flows", () => {
+    expect(publishedPage(items, 2).flows).toEqual([{ id: "a", name: "A", version: 2 }]);
+  });
+
+  it("reports more when the page holds fewer flows than exist, however few are published", () => {
+    expect(publishedPage(items, 2).more).toBe(false);
+    expect(publishedPage(items, 150).more).toBe(true);
   });
 });

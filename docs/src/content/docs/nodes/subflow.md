@@ -50,6 +50,12 @@ Reading an output the called flow does not declare is reported as `unknown_refer
 
 The node fails the run, naming itself. The message says where the called flow failed, for example `the flow failed at 'end': output 'total': expected number`. It also fails when flows are nested more than `MAX_SUBFLOW_DEPTH` levels deep (see [Limits](../limits)).
 
+## Deleting a flow that others call
+
+`DELETE /flows/{id}` answers `409` with code `flow_in_use` when the latest published version of another flow in the workspace calls this one. `details.callers` lists them, and `GET /flows/{id}/callers` returns the same list. Add `?force=true` to delete anyway; the callers then fail with `the flow is missing, or has no published version` until you update them. The editor's delete dialog shows the callers and offers "Delete anyway", and publishing a called flow mentions who calls it.
+
+A flow that only has a draft calling it does not count, since that draft cannot run yet.
+
 ## Runs and traces
 
 A call is part of the caller's run: it uses the caller's time limit and one run slot, and has no run of its own. In the step history, the called flow's steps are nested under the Subflow step.

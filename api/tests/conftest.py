@@ -115,6 +115,29 @@ class FakeFlowStore:
     async def get_flow(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         return self._visible(member, flow_id)
 
+    async def list_callers(self, member: Member, flow_id: uuid.UUID) -> list[Flow]:
+        found = []
+        for flow in self.flows.values():
+            if flow.id == flow_id or self._visible(member, flow.id) is None:
+                continue
+            version = next(
+                (
+                    v
+                    for v in self.versions
+                    if v.flow_id == flow.id
+                    and v.version == flow.published_version
+                    and v.deleted_at is None
+                ),
+                None,
+            )
+            nodes = version.graph.get("nodes", []) if version else []
+            if any(
+                n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == str(flow_id)
+                for n in nodes
+            ):
+                found.append(flow)
+        return sorted(found, key=lambda f: (f.name, f.id))
+
     async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
         flow = self._visible(member, flow_id)
         if flow is not None:

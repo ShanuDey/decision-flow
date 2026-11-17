@@ -201,6 +201,20 @@ describe("server limits", () => {
   });
 });
 
+describe("published flows", () => {
+  it("remembers whether more exist than were loaded", () => {
+    state().setPublishedFlows([{ id: "a", name: "A", version: 1 }], true);
+    expect(state().publishedFlowsMore).toBe(true);
+  });
+
+  it("adds a flow from outside the loaded page once, and never twice", () => {
+    state().setPublishedFlows([{ id: "a", name: "A", version: 1 }], true);
+    state().addPublishedFlow({ id: "z", name: "Z", version: 3 });
+    state().addPublishedFlow({ id: "z", name: "Z", version: 3 });
+    expect(state().publishedFlows.map((f) => f.id)).toEqual(["a", "z"]);
+  });
+});
+
 describe("round trip", () => {
   it("exports the graph it was loaded with", () => {
     expect(state().toGraph()).toEqual(graph);
