@@ -55,6 +55,7 @@ export interface HttpRequestData {
   body: unknown;
   timeout_seconds: number | null;
   fail_on_error_status: boolean;
+  connection_id: string;
 }
 
 export interface SubflowData {

@@ -9,6 +9,7 @@ import {
 import { create } from "zustand";
 
 import type { FieldIssue } from "@/lib/call";
+import type { ConnectionOption } from "@/lib/connections";
 import {
   type EditorGraph,
   type FlowEdge,
@@ -63,6 +64,8 @@ interface EditorState {
   issues: FieldIssue[];
   // Names of the workspace's saved secrets, for fields that accept them. Never the values.
   secretNames: string[];
+  // The workspace's connections a node can pick; never their credentials.
+  connections: ConnectionOption[];
   // Flows a Subflow node can call, and what each declares; loaded on demand, never saved.
   publishedFlows: PublishedFlow[];
   // True when more published flows exist than were loaded.
@@ -108,6 +111,7 @@ interface EditorState {
   renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
+  setConnections: (connections: ConnectionOption[]) => void;
   setPublishedFlows: (flows: PublishedFlow[], more: boolean) => void;
   addPublishedFlow: (flow: PublishedFlow) => void;
   setContract: (flowId: string, contract: FlowContract | null) => void;
@@ -173,6 +177,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   savedAt: null,
   issues: [],
   secretNames: [],
+  connections: [],
   publishedFlows: [],
   publishedFlowsMore: false,
   contracts: {},
@@ -397,6 +402,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   setIssues: (issues) => set({ issues }),
   setSecretNames: (secretNames) => set({ secretNames }),
+
+  setConnections: (connections) => set({ connections }),
   setPublishedFlows: (publishedFlows, publishedFlowsMore) => set({ publishedFlows, publishedFlowsMore }),
   addPublishedFlow: (flow) =>
     set((s) =>

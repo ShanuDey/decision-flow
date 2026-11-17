@@ -17,6 +17,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_EDGES` | `1000` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |
 | `MAX_SECRETS_PER_WORKSPACE` | `0` (off) | Most [secrets](secrets) one workspace can hold. Replacing one does not count |
+| `MAX_CONNECTIONS_PER_WORKSPACE` | `0` (off) | Most connections one workspace can hold. Editing one does not count |
 | `DISABLED_NODE_TYPES` | empty | Comma-separated node types flows may not use here, for example `http_request`. Validating or running a flow that has one fails with `node_disabled`. The editor does not offer them |
 | `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response an [HTTP Request](nodes/http-request) accepts, and the largest request it builds. Always applies |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Longest an HTTP Request call may take. Always applies |
@@ -42,6 +43,7 @@ MAX_EDGES=100
 MAX_FLOWS_PER_USER=20
 MAX_VERSIONS_PER_FLOW=10
 MAX_SECRETS_PER_WORKSPACE=20
+MAX_CONNECTIONS_PER_WORKSPACE=10
 MAX_HTTP_RESPONSE_BYTES=1048576
 HTTP_TIMEOUT_SECONDS=10
 RATE_LIMIT_IP_PER_MINUTE=120

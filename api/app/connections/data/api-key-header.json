@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "api_key_header",
+  "name": "API key in a header",
+  "description": "Sends your key in a header you name, to the hosts you list.",
+  "icon": "braces",
+  "category": "custom",
+  "fields": [
+    {
+      "name": "header_name",
+      "label": "Header name",
+      "help": "For example X-Api-Key."
+    },
+    {
+      "name": "api_key",
+      "label": "API key",
+      "secret": true
+    },
+    {
+      "name": "hosts",
+      "label": "Allowed hosts",
+      "help": "Comma-separated hosts it may call, such as api.example.com or *.example.com."
+    }
+  ],
+  "auth": {
+    "kind": "header",
+    "name_field": "header_name",
+    "value": "api_key"
+  }
+}

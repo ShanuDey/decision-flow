@@ -31,6 +31,7 @@ describe("the HTTP Request node in the editor", () => {
       body: null,
       timeout_seconds: null,
       fail_on_error_status: false,
+      connection_id: "",
     });
     const node = createNode("http_request", [], { x: 0, y: 0 });
     expect(node.id).toBe("http_request");

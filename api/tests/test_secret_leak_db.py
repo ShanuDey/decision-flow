@@ -80,7 +80,7 @@ async def test_a_secret_leaves_no_trace_in_any_table_after_a_real_run(
     tracing.warm_up(settings)
     assert await tracing.ready() is True
 
-    async def load(names: set[str]) -> RunSecrets:
+    async def load(names: set[str], connection_ids: set[str]) -> RunSecrets:
         async with sessions() as session:
             return await load_run_secrets(SecretStore(session), lambda: box, member, names)
 

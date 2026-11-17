@@ -105,11 +105,13 @@ class SubflowSource:
 
     async def secret_names(self, graph: Graph) -> set[str]:
         """Secrets the flows it calls need, so a run can load them with its own."""
-        names: set[str] = set()
         contracts = await self.contracts(graph.model_dump(mode="json"))
-        for contract in contracts.values():
-            names.update(contract.secret_names)
-        return names
+        return {name for c in contracts.values() for name in c.secret_names}
+
+    async def connection_ids(self, graph: Graph) -> set[str]:
+        """Connections the flows it calls use, loaded with the run's own."""
+        contracts = await self.contracts(graph.model_dump(mode="json"))
+        return {cid for c in contracts.values() for cid in c.connection_ids}
 
 
 def loop_issues(flow_id: uuid.UUID, raw: Any, contracts: dict[str, FlowContract]) -> list[Issue]:

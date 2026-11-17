@@ -7,6 +7,17 @@
 
 export * from './appConfig';
 export * from './appConfigDeleteMode';
+export * from './connectionCreate';
+export * from './connectionCreateValues';
+export * from './connectionList';
+export * from './connectionSummary';
+export * from './connectionSummaryConfig';
+export * from './connectionTest';
+export * from './connectionTypeInfo';
+export * from './connectionTypeList';
+export * from './connectionUpdate';
+export * from './connectionUpdateValues';
+export * from './deleteConnectionParams';
 export * from './deleteFlowParams';
 export * from './draftSaved';
 export * from './errorResponse';
@@ -15,6 +26,7 @@ export * from './evaluateRequest';
 export * from './evaluateRequestKind';
 export * from './evaluateRequestScope';
 export * from './evaluateResponse';
+export * from './fieldInfo';
 export * from './flowCaller';
 export * from './flowCallers';
 export * from './flowCreate';

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "basic",
+  "name": "Basic auth",
+  "description": "Sends a username and password as HTTP Basic auth to the hosts you list.",
+  "icon": "user-round",
+  "category": "custom",
+  "fields": [
+    {
+      "name": "username",
+      "label": "Username"
+    },
+    {
+      "name": "password",
+      "label": "Password",
+      "secret": true
+    },
+    {
+      "name": "hosts",
+      "label": "Allowed hosts",
+      "help": "Comma-separated hosts it may call, such as api.example.com or *.example.com."
+    }
+  ],
+  "auth": {
+    "kind": "basic",
+    "username": "username",
+    "password": "password"
+  }
+}

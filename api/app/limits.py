@@ -30,6 +30,7 @@ class Limits(BaseSettings):
     max_edges: int = Field(1000, ge=0)
     max_flows_per_user: int = Field(0, ge=0)
     max_secrets_per_workspace: int = Field(0, ge=0)
+    max_connections_per_workspace: int = Field(0, ge=0)
     # Node types flows may not use here, comma separated, e.g. http_request.
     disabled_node_types: Annotated[list[str], NoDecode] = []
     # Outbound calls from flows always have a size and time bound.

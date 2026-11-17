@@ -58,6 +58,10 @@ class NodeModel(StrictBaseModel):
         """Template settings by field path, so the validator can check what they reference."""
         return {}
 
+    def connection_ids(self) -> set[str]:
+        """Connections this node sends, so a run can load them before it starts."""
+        return set()
+
     def secret_fields(self) -> set[str]:
         """Template fields that may use `{{ secrets.NAME }}`; every other field rejects it."""
         return set()

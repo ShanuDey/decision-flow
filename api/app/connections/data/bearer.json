@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "bearer",
+  "name": "Bearer token",
+  "description": "Sends Authorization: Bearer <token> to the hosts you list.",
+  "icon": "key-round",
+  "category": "custom",
+  "fields": [
+    {
+      "name": "token",
+      "label": "Token",
+      "secret": true
+    },
+    {
+      "name": "hosts",
+      "label": "Allowed hosts",
+      "help": "Comma-separated hosts it may call, such as api.example.com or *.example.com."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "token"
+  }
+}

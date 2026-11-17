@@ -1,0 +1,248 @@
+{
+  "$defs": {
+    "Basic": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "basic",
+          "default": "basic",
+          "title": "Kind",
+          "type": "string"
+        },
+        "password": {
+          "title": "Password",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "title": "Basic",
+      "type": "object"
+    },
+    "Bearer": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "bearer",
+          "default": "bearer",
+          "title": "Kind",
+          "type": "string"
+        },
+        "token": {
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "token"
+      ],
+      "title": "Bearer",
+      "type": "object"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "default": "",
+          "title": "Default",
+          "type": "string"
+        },
+        "format": {
+          "default": "text",
+          "enum": [
+            "text",
+            "url"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "help": {
+          "default": "",
+          "title": "Help",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "placeholder": {
+          "default": "",
+          "title": "Placeholder",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "secret": {
+          "default": false,
+          "title": "Secret",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "label"
+      ],
+      "title": "FieldSpec",
+      "type": "object"
+    },
+    "Header": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "header",
+          "default": "header",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name_field": {
+          "title": "Name Field",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name_field",
+        "value"
+      ],
+      "title": "Header",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "auth": {
+      "discriminator": {
+        "mapping": {
+          "basic": "#/$defs/Basic",
+          "bearer": "#/$defs/Bearer",
+          "header": "#/$defs/Header"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Bearer"
+        },
+        {
+          "$ref": "#/$defs/Basic"
+        },
+        {
+          "$ref": "#/$defs/Header"
+        }
+      ],
+      "title": "Auth"
+    },
+    "category": {
+      "default": "builtin",
+      "enum": [
+        "builtin",
+        "custom"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "docs_url": {
+      "default": "",
+      "title": "Docs Url",
+      "type": "string"
+    },
+    "fields": {
+      "items": {
+        "$ref": "#/$defs/FieldSpec"
+      },
+      "title": "Fields",
+      "type": "array"
+    },
+    "fixed_hosts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Fixed Hosts",
+      "type": "array"
+    },
+    "hosts_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hosts From"
+    },
+    "icon": {
+      "default": "plug",
+      "title": "Icon",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "test_path": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Test Path"
+    },
+    "test_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Test Url"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "fields",
+    "auth"
+  ],
+  "title": "ConnectionType",
+  "type": "object"
+}

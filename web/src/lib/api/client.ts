@@ -6,6 +6,13 @@
  */
 import type {
   AppConfig,
+  ConnectionCreate,
+  ConnectionList,
+  ConnectionSummary,
+  ConnectionTest,
+  ConnectionTypeList,
+  ConnectionUpdate,
+  DeleteConnectionParams,
   DeleteFlowParams,
   DraftSaved,
   ErrorResponse,
@@ -88,6 +95,441 @@ export const config = async ( options?: Parameters<typeof apiFetch>[1]): Promise
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listConnectionTypesResponse200 = {
+  data: ConnectionTypeList
+  status: 200
+}
+
+export type listConnectionTypesResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listConnectionTypesResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listConnectionTypesResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listConnectionTypesResponseSuccess = (listConnectionTypesResponse200) & {
+  headers: Headers;
+};
+export type listConnectionTypesResponseError = (listConnectionTypesResponse401 | listConnectionTypesResponse403 | listConnectionTypesResponse429) & {
+  headers: Headers;
+};
+
+export type listConnectionTypesResponse = (listConnectionTypesResponseSuccess | listConnectionTypesResponseError)
+
+export const getListConnectionTypesUrl = () => {
+
+
+
+
+  return `/connection-types`
+}
+
+/**
+ * Lists the connection types you can create, with the fields each one asks for.
+ * @summary List Connection Types
+ */
+export const listConnectionTypes = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listConnectionTypesResponse> => {
+
+  return apiFetch<listConnectionTypesResponse>(getListConnectionTypesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listConnectionsResponse200 = {
+  data: ConnectionList
+  status: 200
+}
+
+export type listConnectionsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listConnectionsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listConnectionsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listConnectionsResponseSuccess = (listConnectionsResponse200) & {
+  headers: Headers;
+};
+export type listConnectionsResponseError = (listConnectionsResponse401 | listConnectionsResponse403 | listConnectionsResponse429) & {
+  headers: Headers;
+};
+
+export type listConnectionsResponse = (listConnectionsResponseSuccess | listConnectionsResponseError)
+
+export const getListConnectionsUrl = () => {
+
+
+
+
+  return `/connections`
+}
+
+/**
+ * Lists the workspace's connections. Secret values are never returned.
+ * @summary List Connections
+ */
+export const listConnections = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listConnectionsResponse> => {
+
+  return apiFetch<listConnectionsResponse>(getListConnectionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type createConnectionResponse201 = {
+  data: ConnectionSummary
+  status: 201
+}
+
+export type createConnectionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createConnectionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type createConnectionResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type createConnectionResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type createConnectionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type createConnectionResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type createConnectionResponseSuccess = (createConnectionResponse201) & {
+  headers: Headers;
+};
+export type createConnectionResponseError = (createConnectionResponse401 | createConnectionResponse403 | createConnectionResponse409 | createConnectionResponse422 | createConnectionResponse429 | createConnectionResponse503) & {
+  headers: Headers;
+};
+
+export type createConnectionResponse = (createConnectionResponseSuccess | createConnectionResponseError)
+
+export const getCreateConnectionUrl = () => {
+
+
+
+
+  return `/connections`
+}
+
+/**
+ * Creates a connection of a given type.
+ *
+ * Its secret fields are encrypted and cannot be read back. It can only be used for the hosts
+ * it allows.
+ * @summary Create Connection
+ */
+export const createConnection = async (connectionCreate: ConnectionCreate, options?: Parameters<typeof apiFetch>[1]): Promise<createConnectionResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<createConnectionResponse>(getCreateConnectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(connectionCreate)
+  }
+);}
+
+
+
+export type deleteConnectionResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteConnectionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type deleteConnectionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type deleteConnectionResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteConnectionResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type deleteConnectionResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteConnectionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type deleteConnectionResponseSuccess = (deleteConnectionResponse204) & {
+  headers: Headers;
+};
+export type deleteConnectionResponseError = (deleteConnectionResponse401 | deleteConnectionResponse403 | deleteConnectionResponse404 | deleteConnectionResponse409 | deleteConnectionResponse422 | deleteConnectionResponse429) & {
+  headers: Headers;
+};
+
+export type deleteConnectionResponse = (deleteConnectionResponseSuccess | deleteConnectionResponseError)
+
+export const getDeleteConnectionUrl = (connectionId: string,
+    params?: DeleteConnectionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/connections/${connectionId}?${stringifiedParams}` : `/connections/${connectionId}`
+}
+
+/**
+ * Removes a connection for good.
+ *
+ * 409 `connection_in_use` lists the flows that use it; `force=true` deletes it anyway.
+ * @summary Delete Connection
+ */
+export const deleteConnection = async (connectionId: string,
+    params?: DeleteConnectionParams, options?: Parameters<typeof apiFetch>[1]): Promise<deleteConnectionResponse> => {
+
+  return apiFetch<deleteConnectionResponse>(getDeleteConnectionUrl(connectionId,params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type updateConnectionResponse200 = {
+  data: ConnectionSummary
+  status: 200
+}
+
+export type updateConnectionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type updateConnectionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type updateConnectionResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type updateConnectionResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type updateConnectionResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type updateConnectionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type updateConnectionResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type updateConnectionResponseSuccess = (updateConnectionResponse200) & {
+  headers: Headers;
+};
+export type updateConnectionResponseError = (updateConnectionResponse401 | updateConnectionResponse403 | updateConnectionResponse404 | updateConnectionResponse409 | updateConnectionResponse422 | updateConnectionResponse429 | updateConnectionResponse503) & {
+  headers: Headers;
+};
+
+export type updateConnectionResponse = (updateConnectionResponseSuccess | updateConnectionResponseError)
+
+export const getUpdateConnectionUrl = (connectionId: string,) => {
+
+
+
+
+  return `/connections/${connectionId}`
+}
+
+/**
+ * Renames a connection or changes fields. A secret field you leave out keeps its value.
+ * @summary Update Connection
+ */
+export const updateConnection = async (connectionId: string,
+    connectionUpdate: ConnectionUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<updateConnectionResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<updateConnectionResponse>(getUpdateConnectionUrl(connectionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(connectionUpdate)
+  }
+);}
+
+
+
+export type testConnectionResponse200 = {
+  data: ConnectionTest
+  status: 200
+}
+
+export type testConnectionResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type testConnectionResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type testConnectionResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type testConnectionResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type testConnectionResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type testConnectionResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type testConnectionResponseSuccess = (testConnectionResponse200) & {
+  headers: Headers;
+};
+export type testConnectionResponseError = (testConnectionResponse401 | testConnectionResponse403 | testConnectionResponse404 | testConnectionResponse422 | testConnectionResponse429 | testConnectionResponse503) & {
+  headers: Headers;
+};
+
+export type testConnectionResponse = (testConnectionResponseSuccess | testConnectionResponseError)
+
+export const getTestConnectionUrl = (connectionId: string,) => {
+
+
+
+
+  return `/connections/${connectionId}/test`
+}
+
+/**
+ * Calls the service's check endpoint with the saved credentials.
+ *
+ * Only types that have one can be tested, otherwise 422 `no_test_available`. The answer says
+ * whether the service accepted the credentials, and never includes what it sent back.
+ * @summary Test Connection
+ */
+export const testConnection = async (connectionId: string, options?: Parameters<typeof apiFetch>[1]): Promise<testConnectionResponse> => {
+
+  return apiFetch<testConnectionResponse>(getTestConnectionUrl(connectionId),
+  {
+    ...options,
+    method: 'POST'
 
 
   }

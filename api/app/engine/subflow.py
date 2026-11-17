@@ -16,6 +16,7 @@ class FlowContract(FrozenBaseModel):
     outputs: list[TypedField] = Field(default_factory=list)
     calls: list[str] = Field(default_factory=list)
     secret_names: list[str] = Field(default_factory=list)
+    connection_ids: list[str] = Field(default_factory=list)
 
 
 class SubflowAccess(FrozenBaseModel):

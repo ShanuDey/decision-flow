@@ -175,6 +175,7 @@ export function defaultData(type: NodeType): NodeData {
         body: null,
         timeout_seconds: null,
         fail_on_error_status: false,
+        connection_id: "",
       };
     case "subflow":
       return { flow_id: "", inputs: {} };
