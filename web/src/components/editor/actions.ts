@@ -6,6 +6,7 @@ import { type ApiFailure, call, issuesOf } from "@/lib/call";
 import { createRun, getFlow, listCallers, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
+import { tidy } from "@/lib/graph/tidy";
 
 import { useLayout } from "./layout";
 import { publishedInfo } from "./published";
@@ -147,6 +148,24 @@ export function deleteFromCanvas(nodeIds: string[], edgeIds: string[]): void {
           : `${edges.length} connections`;
   toast(`Deleted ${what}`, {
     action: { label: "Undo", onClick: () => useEditor.getState().restore(removed) },
+    duration: 8000,
+  });
+}
+
+export function tidyCanvas(): void {
+  const { nodes, edges, moveNodes } = useEditor.getState();
+  if (!nodes.length) return;
+  const sizes = Object.fromEntries(
+    nodes.flatMap((n) =>
+      n.measured?.width && n.measured?.height
+        ? [[n.id, { width: n.measured.width, height: n.measured.height }]]
+        : [],
+    ),
+  );
+  const before = Object.fromEntries(nodes.map((n) => [n.id, n.position]));
+  moveNodes(tidy(nodes, edges, sizes));
+  toast("Tidied up the layout", {
+    action: { label: "Undo", onClick: () => useEditor.getState().moveNodes(before) },
     duration: 8000,
   });
 }

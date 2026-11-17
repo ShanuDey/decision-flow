@@ -1,11 +1,19 @@
 "use client";
 
-import { Background, Controls, Panel, ReactFlow } from "@xyflow/react";
+import {
+  Background,
+  ControlButton,
+  Controls,
+  Panel,
+  ReactFlow,
+  useReactFlow,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { WandSparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState } from "react";
 
-import { configureNode, deleteFromCanvas } from "./actions";
+import { configureNode, deleteFromCanvas, tidyCanvas } from "./actions";
 import { AddNodeButton } from "./add-node-picker";
 import { CanvasMenu, type MenuTarget } from "./canvas-menu";
 import { LimitHint } from "./limit-hint";
@@ -20,6 +28,7 @@ export function Canvas() {
   const onConnect = useEditor((s) => s.onConnect);
   const isValidConnection = useEditor((s) => s.isValidConnection);
   const selectOnly = useEditor((s) => s.selectOnly);
+  const { fitView } = useReactFlow();
   const { resolvedTheme } = useTheme();
   const [target, setTarget] = useState<MenuTarget | null>(null);
 
@@ -55,7 +64,18 @@ export function Canvas() {
           proOptions={{ hideAttribution: false }}
         >
           <Background />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false}>
+            <ControlButton
+              title="Tidy up layout"
+              aria-label="Tidy up layout"
+              onClick={() => {
+                tidyCanvas();
+                void fitView({ maxZoom: 1, padding: 0.3, duration: 200 });
+              }}
+            >
+              <WandSparkles />
+            </ControlButton>
+          </Controls>
           <Panel position="top-left">
             <div className="flex items-center gap-3">
               <AddNodeButton />

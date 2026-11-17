@@ -101,6 +101,7 @@ interface EditorState {
   deleteItems: (nodeIds: string[], edgeIds: string[]) => Removed;
   restore: (removed: Removed) => void;
   setNodeConfig: (id: string, config: NodeData) => void;
+  moveNodes: (positions: Record<string, Position>) => void;
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
   // Also repoints Assign targets that used the old name; skipped when it would merge two variables.
@@ -359,6 +360,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, config } } : n)),
       ...touch(s),
+    })),
+
+  moveNodes: (positions) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
+      ...touch(s, s.nodes.some((n) => positions[n.id])),
     })),
 
   renameVariable: (index, name) =>

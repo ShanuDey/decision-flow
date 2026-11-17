@@ -32,6 +32,20 @@ beforeEach(() => {
   state().setLimits(NO_LIMITS);
 });
 
+describe("moveNodes", () => {
+  it("moves listed nodes, ignores unknown ids, and dirties the draft", () => {
+    state().moveNodes({ start: { x: 9, y: 9 }, nope: { x: 1, y: 1 } });
+    expect(state().nodes.find((n) => n.id === "start")?.position).toEqual({ x: 9, y: 9 });
+    expect(state().nodes).toHaveLength(3);
+    expect(state().dirty).toBe(true);
+  });
+
+  it("stays clean when nothing matches", () => {
+    state().moveNodes({ nope: { x: 1, y: 1 } });
+    expect(state().dirty).toBe(false);
+  });
+});
+
 describe("dirty tracking", () => {
   it("starts clean and ignores selection and measuring", () => {
     state().onNodesChange([{ id: "start", type: "select", selected: true }]);
