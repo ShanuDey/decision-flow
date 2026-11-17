@@ -11,7 +11,12 @@ import * as zod from 'zod';
  * @summary Config
  */
 export const ConfigResponse = zod.object({
-  "delete_mode": zod.enum(['hard', 'soft'])
+  "delete_mode": zod.enum(['hard', 'soft']),
+  "disabled_node_types": zod.array(zod.string()),
+  "limit_notice": zod.string(),
+  "limit_notice_url": zod.string(),
+  "max_edges": zod.int(),
+  "max_nodes": zod.int()
 })
 
 

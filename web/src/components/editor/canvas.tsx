@@ -8,6 +8,7 @@ import { useState } from "react";
 import { configureNode, deleteFromCanvas } from "./actions";
 import { AddNodeButton } from "./add-node-picker";
 import { CanvasMenu, type MenuTarget } from "./canvas-menu";
+import { LimitHint } from "./limit-hint";
 import { nodeTypes } from "./node-view";
 import { useEditor } from "./store";
 
@@ -56,7 +57,10 @@ export function Canvas() {
           <Background />
           <Controls showInteractive={false} />
           <Panel position="top-left">
-            <AddNodeButton />
+            <div className="flex items-center gap-3">
+              <AddNodeButton />
+              <LimitHint />
+            </div>
           </Panel>
         </ReactFlow>
       </CanvasMenu>

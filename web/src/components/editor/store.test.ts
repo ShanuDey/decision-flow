@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { NO_LIMITS } from "@/lib/graph/limits";
 import type { Graph } from "@/lib/graph/types";
 
 import { useEditor } from "./store";
@@ -28,6 +29,7 @@ const state = () => useEditor.getState();
 
 beforeEach(() => {
   state().load({ id: "f1", name: "Demo", draftVersion: 1, graph });
+  state().setLimits(NO_LIMITS);
 });
 
 describe("dirty tracking", () => {
@@ -162,6 +164,40 @@ describe("node rules", () => {
     state().addNode("condition");
     const added = state().toGraph().nodes.find((n) => n.type === "condition");
     expect(added?.data).toEqual({ expression: "" });
+  });
+});
+
+describe("server limits", () => {
+  const limit = (maxNodes: number, maxEdges: number) =>
+    state().setLimits({ disabledNodeTypes: [], maxNodes, maxEdges, notice: null });
+
+  it("refuses new and duplicated nodes at the node limit", () => {
+    limit(3, 0);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(3);
+    expect(state().duplicateNode("assign_values")).toBeNull();
+    expect(state().nodes).toHaveLength(3);
+  });
+
+  it("refuses new connections at the edge limit, and a node added from a handle", () => {
+    limit(0, 2);
+    expect(state().isValidConnection({ source: "start", target: "end", sourceHandle: null, targetHandle: null })).toBe(false);
+    state().onConnect({ source: "start", target: "end", sourceHandle: null, targetHandle: null });
+    state().addNode("assign", undefined, { id: "assign_values", handle: null });
+    expect(state().edges).toHaveLength(2);
+    expect(state().nodes).toHaveLength(3);
+  });
+
+  it("allows a node without a connection while only the edge limit is reached", () => {
+    limit(0, 2);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(4);
+  });
+
+  it("does not limit anything while a limit is 0", () => {
+    limit(0, 0);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(4);
   });
 });
 

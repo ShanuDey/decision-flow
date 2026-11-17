@@ -11,10 +11,38 @@
             ],
             "title": "Delete Mode",
             "type": "string"
+          },
+          "disabled_node_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Disabled Node Types",
+            "type": "array"
+          },
+          "limit_notice": {
+            "title": "Limit Notice",
+            "type": "string"
+          },
+          "limit_notice_url": {
+            "title": "Limit Notice Url",
+            "type": "string"
+          },
+          "max_edges": {
+            "title": "Max Edges",
+            "type": "integer"
+          },
+          "max_nodes": {
+            "title": "Max Nodes",
+            "type": "integer"
           }
         },
         "required": [
-          "delete_mode"
+          "delete_mode",
+          "disabled_node_types",
+          "max_nodes",
+          "max_edges",
+          "limit_notice",
+          "limit_notice_url"
         ],
         "title": "AppConfig",
         "type": "object"

@@ -3,8 +3,9 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useState } from "react";
 
-import { listSecrets } from "@/lib/api/client";
+import { config as getConfig, listSecrets } from "@/lib/api/client";
 import { call } from "@/lib/call";
+import { limitsOf } from "@/lib/graph/limits";
 import { calledFlowIds } from "@/lib/graph/subflow";
 import type { Graph } from "@/lib/graph/types";
 
@@ -38,6 +39,10 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
     call(listSecrets()).then((result) => {
       if (stale || !result.ok) return;
       useEditor.getState().setSecretNames(result.data.items.map((item) => item.name));
+    });
+    call(getConfig()).then((result) => {
+      if (stale || !result.ok) return;
+      useEditor.getState().setLimits(limitsOf(result.data));
     });
     return () => {
       stale = true;

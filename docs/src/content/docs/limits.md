@@ -17,6 +17,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_EDGES` | `1000` | Most edges in one flow |
 | `MAX_FLOWS_PER_USER` | `0` (off) | Most flows one user can create in a workspace. Deleting a flow frees a slot |
 | `MAX_SECRETS_PER_WORKSPACE` | `0` (off) | Most [secrets](secrets) one workspace can hold. Replacing one does not count |
+| `DISABLED_NODE_TYPES` | empty | Comma-separated node types flows may not use here, for example `http_request`. Validating or running a flow that has one fails with `node_disabled`. The editor does not offer them |
 | `MAX_HTTP_RESPONSE_BYTES` | `5242880` | Largest response an [HTTP Request](nodes/http-request) accepts, and the largest request it builds. Always applies |
 | `HTTP_TIMEOUT_SECONDS` | `30` | Longest an HTTP Request call may take. Always applies |
 | `MAX_VERSIONS_PER_FLOW` | `0` (off) | Keep only the newest N published versions of a flow; publishing deletes the older ones. `0` keeps all |
@@ -54,7 +55,7 @@ RATE_LIMIT_NEW_WORKSPACES_PER_IP_PER_HOUR=5
 
 - **Too many runs at once:** `POST /flows/{id}/runs` answers `429` with code `run_limit` and a `Retry-After` header (seconds, never more than 5 and never more than the run timeout). `details.scope` is `app` or `workspace`. Nothing is queued: wait and send the request again. A refused request creates no run.
 - **Run too long:** the run stops and is recorded as `failed` with the message `Run timed out after N seconds`. The response is `200`, like any other failure inside a flow.
-- **Flow too big:** a draft over `MAX_NODES` or `MAX_EDGES` still saves, but validating or running it answers `422` with code `invalid_flow`. `details.errors` names `too_many_nodes` or `too_many_edges` and says how many there are. The editor shows the same error.
+- **Flow too big:** a draft over `MAX_NODES` or `MAX_EDGES` still saves, but validating or running it answers `422` with code `invalid_flow`. `details.errors` names `too_many_nodes` or `too_many_edges` and says how many there are. The editor shows the same error. It also reads the limits from `GET /config`, so it stops adding nodes and connections at the cap, shows how close a flow is once it passes 80% of a cap (with the notice below), and leaves out node types turned off with `DISABLED_NODE_TYPES`.
 - **Too many flows:** `POST /flows` answers `409` with code `flow_limit_reached` and `details.limit` and `details.count`. Two requests sent at the same moment can both pass the check, so the count can go slightly over.
 - **Old versions:** with `MAX_VERSIONS_PER_FLOW` set, publishing deletes the oldest versions beyond N. Version numbers keep counting up, and reading a deleted version answers `404`. With `DELETE_MODE=soft` they are marked deleted instead of removed ([data deletion](data-deletion)).
 - **Too many requests:** any route can answer `429` with code `rate_limited`, a `Retry-After` header (seconds) and `details.scope`: `ip`, `ready`, `failed_auth`, `user`, `runs` or `new_workspaces`. Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` for the last limit that applied. Failed sign-ins count too: after `RATE_LIMIT_FAILED_AUTH_PER_MINUTE` of them, every request from that IP is refused until the minute passes.

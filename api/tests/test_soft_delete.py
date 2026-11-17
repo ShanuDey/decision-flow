@@ -27,13 +27,13 @@ def test_deleting_is_soft_by_default() -> None:
 async def test_config_reports_the_mode(client: httpx.AsyncClient) -> None:
     app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, delete_mode="hard")
     try:
-        assert (await client.get("/config")).json() == {"delete_mode": "hard"}
+        assert (await client.get("/config")).json()["delete_mode"] == "hard"
     finally:
         app.dependency_overrides.pop(get_settings, None)
 
 
 async def test_config_reports_soft(client: httpx.AsyncClient) -> None:
-    assert (await client.get("/config")).json() == {"delete_mode": "soft"}
+    assert (await client.get("/config")).json()["delete_mode"] == "soft"
 
 
 @pytest.fixture

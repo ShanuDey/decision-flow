@@ -328,6 +328,7 @@ export function SettingsPanel() {
   const renameNode = useEditor((s) => s.renameNode);
   const issues = useEditor((s) => s.issues);
   const general = flowIssues(issues);
+  const limits = useEditor((s) => s.limits);
   const storedWidth = useLayout((s) => s.width);
   const collapsed = useLayout((s) => s.collapsed);
   const toggleCollapsed = useLayout((s) => s.toggleCollapsed);
@@ -422,6 +423,16 @@ export function SettingsPanel() {
                       <FieldError key={i} issue={issue} />
                     ))}
                 </section>
+                {limits.disabledNodeTypes.includes(node.type) && (
+                  <FieldError
+                    issue={{
+                      code: "node_disabled",
+                      message: `'${node.type}' nodes are turned off on this server`,
+                      node_id: node.id,
+                      field: "type",
+                    }}
+                  />
+                )}
                 {node.type === "start" && <StartForm node={node} />}
                 {node.type === "end" && <EndForm node={node} />}
                 {node.type === "assign" && <AssignForm node={node} />}
