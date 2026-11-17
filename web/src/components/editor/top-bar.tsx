@@ -7,6 +7,7 @@ import {
   CircleDot,
   Download,
   ListChecks,
+  MoreHorizontal,
   Play,
   Variable,
   Rocket,
@@ -20,6 +21,13 @@ import { UserMenu } from "@/app/(app)/user-menu";
 import { FlowRenameDialog } from "@/components/flow-rename-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { exportFlow, publish, type RunOutcome, save, validate } from "./actions";
@@ -178,23 +186,6 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
         )}
       </p>
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <Button variant="outline" className="h-9" onClick={() => openVariables()}>
-          <Variable aria-hidden /> Variables
-          <span className="rounded-full bg-muted px-1.5 text-[11px] text-muted-foreground">
-            {variableCount}
-          </span>
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-9"
-          aria-label="Export flow as a file"
-          title="Export flow as a file"
-          onClick={exportFlow}
-        >
-          <Download aria-hidden />
-        </Button>
-        <div aria-hidden className="mx-1 h-6 w-px bg-border" />
         <Popover open={issuesOpen} onOpenChange={(open) => !open && setIssuesOpen(false)}>
           <PopoverTrigger
             render={
@@ -215,13 +206,8 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
             <ValidateIssues onPick={() => setIssuesOpen(false)} />
           </PopoverContent>
         </Popover>
-        <Button
-          variant="outline"
-          className="h-9"
-          disabled={busy !== null || !dirty}
-          onClick={() => void doSave()}
-        >
-          <Save aria-hidden /> {busy === "save" ? "Saving…" : "Save"}
+        <Button className="h-9" disabled={busy !== null} onClick={() => void doRun()}>
+          <Play aria-hidden /> {busy === "run" ? "Checking…" : "Run"}
         </Button>
         <Button
           variant="outline"
@@ -231,10 +217,25 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
         >
           <Rocket aria-hidden /> {busy === "publish" ? "Publishing…" : "Publish"}
         </Button>
-        <Button className="h-9" disabled={busy !== null} onClick={() => void doRun()}>
-          <Play aria-hidden /> {busy === "run" ? "Checking…" : "Run"}
-        </Button>
         <TestDialog open={runOpen} onOpenChange={setRunOpen} onOutcome={onOutcome} />
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" className="h-9" />}>
+            <MoreHorizontal aria-hidden /> More actions
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem disabled={busy !== null || !dirty} onClick={() => void doSave()}>
+              <Save aria-hidden /> {busy === "save" ? "Saving…" : "Save"}
+              <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openVariables()}>
+              <Variable aria-hidden /> Variables
+              <DropdownMenuShortcut>{variableCount}</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportFlow}>
+              <Download aria-hidden /> Export as file
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {user && (
           <>
             <div aria-hidden className="mx-1 h-6 w-px bg-border" />
