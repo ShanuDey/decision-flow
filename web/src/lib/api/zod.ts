@@ -286,6 +286,36 @@ export const CreateRunResponse = zod.object({
 
 
 /**
+ * Takes the flow offline: runs and the gateway answer `not_published` until you publish again.
+ *
+ * Versions and the draft are kept, and the next publish continues the numbering. 409
+ * `flow_in_use` lists the flows that call this one; `force=true` unpublishes it anyway. 409
+ * `not_published` if it is not published.
+ * @summary Unpublish Flow
+ */
+export const UnpublishFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const unpublishFlowQueryForceDefault = false;
+
+export const UnpublishFlowQueryParams = zod.object({
+  "force": zod.boolean().default(unpublishFlowQueryForceDefault)
+})
+
+export const UnpublishFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
  * Checks the saved draft without publishing it.
  *
  * Returns `valid: true`, or 422 `invalid_flow` listing each problem with its `node_id`

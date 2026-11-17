@@ -120,8 +120,8 @@ async def list_callers(store: FlowStore, member: Member, flow_id: uuid.UUID) -> 
     return await store.list_callers(member, flow_id)
 
 
-async def delete_flow(
-    store: FlowStore, member: Member, flow_id: uuid.UUID, *, soft: bool, force: bool = False
+async def refuse_if_called(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, force: bool
 ) -> None:
     callers = [] if force else await store.list_callers(member, flow_id)
     if callers:
@@ -131,6 +131,26 @@ async def delete_flow(
             "Other flows call this one; they will fail until you update them",
             {"callers": [{"id": str(c.id), "name": c.name} for c in callers]},
         )
+
+
+async def unpublish_flow(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, *, force: bool = False
+) -> Flow:
+    not_published = ApiError(409, "not_published", "The flow is not published")
+    flow = await require_flow(store, member, flow_id)
+    if flow.published_version is None:
+        raise not_published
+    await refuse_if_called(store, member, flow_id, force)
+    unpublished = await store.unpublish(member, flow_id)
+    if unpublished is None:
+        raise not_published
+    return unpublished
+
+
+async def delete_flow(
+    store: FlowStore, member: Member, flow_id: uuid.UUID, *, soft: bool, force: bool = False
+) -> None:
+    await refuse_if_called(store, member, flow_id, force)
     if not await store.delete_flow(member, flow_id, soft=soft):
         raise not_found("Flow")
 

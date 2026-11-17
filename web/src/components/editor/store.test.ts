@@ -383,6 +383,12 @@ describe("publishing", () => {
     expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([3, 4]);
   });
 
+  it("goes back to unpublished", () => {
+    state().load({ id: "f1", name: "Demo", draftVersion: 3, graph, published: { version: 2, draftVersion: 3 } });
+    state().markUnpublished();
+    expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([null, null]);
+  });
+
   it("starts unpublished when the flow was never published", () => {
     state().load({ id: "f1", name: "Demo", draftVersion: 1, graph });
     expect(state().publishedVersion).toBeNull();

@@ -114,6 +114,7 @@ interface EditorState {
   setLimits: (limits: EditorLimits) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
   markPublished: (version: number, draftVersion: number) => void;
+  markUnpublished: () => void;
 }
 
 // A change only makes the draft dirty if it alters the graph, not the selection or measuring.
@@ -411,6 +412,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   markPublished: (publishedVersion, publishedDraftVersion) =>
     set({ publishedVersion, publishedDraftVersion }),
+
+  markUnpublished: () => set({ publishedVersion: null, publishedDraftVersion: null }),
 }));
 
 export const selectedNode = (s: EditorState): FlowNode | undefined =>

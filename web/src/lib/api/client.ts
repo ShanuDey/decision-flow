@@ -34,6 +34,7 @@ import type {
   SecretPut,
   SecretSummary,
   TemplateList,
+  UnpublishFlowParams,
   ValidateResponse,
   VersionDetail,
   VersionList
@@ -905,6 +906,88 @@ return apiFetch<createRunResponse>(getCreateRunUrl(flowId),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(runRequest)
+  }
+);}
+
+
+
+export type unpublishFlowResponse200 = {
+  data: FlowSummary
+  status: 200
+}
+
+export type unpublishFlowResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type unpublishFlowResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type unpublishFlowResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type unpublishFlowResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type unpublishFlowResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type unpublishFlowResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type unpublishFlowResponseSuccess = (unpublishFlowResponse200) & {
+  headers: Headers;
+};
+export type unpublishFlowResponseError = (unpublishFlowResponse401 | unpublishFlowResponse403 | unpublishFlowResponse404 | unpublishFlowResponse409 | unpublishFlowResponse422 | unpublishFlowResponse429) & {
+  headers: Headers;
+};
+
+export type unpublishFlowResponse = (unpublishFlowResponseSuccess | unpublishFlowResponseError)
+
+export const getUnpublishFlowUrl = (flowId: string,
+    params?: UnpublishFlowParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/flows/${flowId}/unpublish?${stringifiedParams}` : `/flows/${flowId}/unpublish`
+}
+
+/**
+ * Takes the flow offline: runs and the gateway answer `not_published` until you publish again.
+ *
+ * Versions and the draft are kept, and the next publish continues the numbering. 409
+ * `flow_in_use` lists the flows that call this one; `force=true` unpublishes it anyway. 409
+ * `not_published` if it is not published.
+ * @summary Unpublish Flow
+ */
+export const unpublishFlow = async (flowId: string,
+    params?: UnpublishFlowParams, options?: Parameters<typeof apiFetch>[1]): Promise<unpublishFlowResponse> => {
+
+  return apiFetch<unpublishFlowResponse>(getUnpublishFlowUrl(flowId,params),
+  {
+    ...options,
+    method: 'POST'
+
+
   }
 );}
 

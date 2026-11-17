@@ -181,9 +181,12 @@ class FlowStore:
         if refusal is not None or flow is None:
             await self.session.rollback()
             raise refusal or FlowMissing()
+        latest = await self.session.scalar(
+            select(func.max(FlowVersion.version)).where(FlowVersion.flow_id == flow.id)
+        )
         version = FlowVersion(
             flow_id=flow.id,
-            version=(flow.published_version or 0) + 1,
+            version=(latest or 0) + 1,
             graph=flow.draft,
             source_draft_version=flow.draft_version,
             created_by=member.user_id,
@@ -210,6 +213,24 @@ class FlowStore:
         await self.session.refresh(version)
         await self.session.refresh(flow)
         return version
+
+    async def unpublish(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        """None when the flow is missing or not published."""
+        result = await self.session.execute(
+            update(Flow)
+            .where(
+                Flow.id == flow_id,
+                Flow.workspace_id == member.workspace_id,
+                Flow.published_version.is_not(None),
+                LIVE,
+            )
+            .values(published_version=None, published_draft_version=None, published_at=None)
+            .returning(Flow)
+            .execution_options(populate_existing=True)
+        )
+        flow = result.scalar_one_or_none()
+        await self.session.commit()
+        return flow
 
     async def list_versions(self, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
         rows = await self.session.scalars(

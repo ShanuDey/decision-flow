@@ -72,3 +72,29 @@ async def test_deleting_a_flow_nobody_calls_needs_no_force(client: httpx.AsyncCl
 
 async def test_deleting_an_unknown_flow_is_still_404(client: httpx.AsyncClient) -> None:
     assert (await client.delete(f"/flows/{uuid.uuid4()}")).status_code == 404
+
+
+async def test_unpublishing_a_called_flow_is_refused_with_the_callers(
+    client: httpx.AsyncClient,
+) -> None:
+    child, parent = await published_child_and_parent(client)
+    response = await client.post(f"/flows/{child['id']}/unpublish")
+    assert response.status_code == 409
+    body = response.json()
+    assert body["code"] == "flow_in_use"
+    assert body["details"]["callers"] == [{"id": parent["id"], "name": "Demo"}]
+    assert (await client.get(f"/flows/{child['id']}")).json()["published_version"] == 1
+
+
+async def test_force_unpublishes_a_called_flow_and_the_caller_then_fails_clearly(
+    client: httpx.AsyncClient,
+) -> None:
+    child, parent = await published_child_and_parent(client)
+    assert (await client.post(f"/flows/{child['id']}/unpublish?force=true")).status_code == 200
+    run = await client.post(f"/flows/{parent['id']}/runs", json={"input": {"amount": 1}})
+    assert run.json()["status"] == "failed"
+
+
+async def test_unpublishing_a_flow_nobody_calls_needs_no_force(client: httpx.AsyncClient) -> None:
+    _, parent = await published_child_and_parent(client)
+    assert (await client.post(f"/flows/{parent['id']}/unpublish")).status_code == 200

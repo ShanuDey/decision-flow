@@ -115,6 +115,15 @@ class FakeFlowStore:
     async def get_flow(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         return self._visible(member, flow_id)
 
+    async def unpublish(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        flow = self._visible(member, flow_id)
+        if flow is None or flow.published_version is None:
+            return None
+        flow.published_version = None
+        flow.published_draft_version = None
+        flow.published_at = None
+        return flow
+
     async def list_callers(self, member: Member, flow_id: uuid.UUID) -> list[Flow]:
         found = []
         for flow in self.flows.values():
@@ -177,7 +186,7 @@ class FakeFlowStore:
         version = FlowVersion(
             id=uuid.uuid4(),
             flow_id=flow.id,
-            version=(flow.published_version or 0) + 1,
+            version=max((v.version for v in self.versions if v.flow_id == flow.id), default=0) + 1,
             graph=copy.deepcopy(flow.draft),
             source_draft_version=flow.draft_version,
             created_by=member.user_id,

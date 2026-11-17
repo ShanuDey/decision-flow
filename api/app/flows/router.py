@@ -205,6 +205,20 @@ async def publish_flow(
     return VersionDetail.model_validate(version, from_attributes=True)
 
 
+@router.post("/flows/{flow_id}/unpublish", responses={**NOT_FOUND, **CONFLICT})
+async def unpublish_flow(
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, force: bool = False
+) -> FlowSummary:
+    """Takes the flow offline: runs and the gateway answer `not_published` until you publish again.
+
+    Versions and the draft are kept, and the next publish continues the numbering. 409
+    `flow_in_use` lists the flows that call this one; `force=true` unpublishes it anyway. 409
+    `not_published` if it is not published.
+    """
+    flow = await service.unpublish_flow(store, member, flow_id, force=force)
+    return FlowSummary.model_validate(flow, from_attributes=True)
+
+
 @router.get("/flows/{flow_id}/versions", responses=NOT_FOUND)
 async def list_versions(
     flow_id: uuid.UUID, store: Store, member: CurrentMember, limits: Lim

@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CircleCheck,
   CircleDot,
+  CircleOff,
   Download,
   ListChecks,
   MoreHorizontal,
@@ -25,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -34,6 +36,7 @@ import { exportFlow, publish, type RunOutcome, save, validate } from "./actions"
 import { guardedLeave, useGuardedNavigate } from "./leave-store";
 import { useEditor } from "./store";
 import { TestDialog } from "./test-dialog";
+import { UnpublishDialog } from "./unpublish-dialog";
 import { ValidateIssues } from "./validate-popover";
 import { VersionsList } from "./versions-popover";
 
@@ -58,6 +61,7 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
   const [busy, setBusy] = useState<Busy>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
+  const [unpublishOpen, setUnpublishOpen] = useState(false);
 
   async function doSave() {
     setBusy("save");
@@ -234,8 +238,18 @@ export function TopBar({ onOutcome }: { onOutcome: (outcome: RunOutcome) => void
             <DropdownMenuItem onClick={exportFlow}>
               <Download aria-hidden /> Export as file
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={busy !== null || publishedVersion === null}
+              onClick={() => setUnpublishOpen(true)}
+            >
+              <CircleOff aria-hidden /> Unpublish
+              {publishedVersion === null && <DropdownMenuShortcut>Not published</DropdownMenuShortcut>}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <UnpublishDialog open={unpublishOpen} onOpenChange={setUnpublishOpen} />
         {user && (
           <>
             <div aria-hidden className="mx-1 h-6 w-px bg-border" />

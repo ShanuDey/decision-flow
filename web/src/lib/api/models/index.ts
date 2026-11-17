@@ -62,6 +62,7 @@ export * from './secretSummary';
 export * from './template';
 export * from './templateDraft';
 export * from './templateList';
+export * from './unpublishFlowParams';
 export * from './validateResponse';
 export * from './validationError';
 export * from './validationErrorCtx';

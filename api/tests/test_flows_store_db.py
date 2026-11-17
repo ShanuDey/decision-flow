@@ -399,3 +399,38 @@ async def test_a_caller_that_stopped_calling_is_no_longer_listed(
     await publish_flow(sessions, member, saved)
     async with sessions() as session:
         assert await FlowStore(session).list_callers(member, child.id) == []
+
+
+async def test_unpublish_clears_the_pointer_and_the_next_publish_continues_numbering(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(member, flow.id, 1, soft=False)
+
+    async with sessions() as session:
+        unpublished = await FlowStore(session).unpublish(member, flow.id)
+    assert unpublished is not None and unpublished.published_version is None
+    async with sessions() as session:
+        assert await FlowStore(session).unpublish(member, flow.id) is None
+
+    async with sessions() as session:
+        again = await FlowStore(session).publish(member, flow.id, 1, soft=False)
+    assert again.version == 2
+    async with sessions() as session:
+        versions = await FlowStore(session).list_versions(member, flow.id)
+    assert [v.version for v in versions] == [2, 1]
+
+
+async def test_unpublish_is_scoped_to_the_workspace(sessions: SessionFactory) -> None:
+    owner = await make_member(sessions)
+    other = await make_member(sessions, "user-2")
+    (flow,) = await make(sessions, owner, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(owner, flow.id, 1, soft=False)
+    async with sessions() as session:
+        assert await FlowStore(session).unpublish(other, flow.id) is None
+    async with sessions() as session:
+        loaded = await FlowStore(session).get_flow(owner, flow.id)
+    assert loaded is not None and loaded.published_version == 1
