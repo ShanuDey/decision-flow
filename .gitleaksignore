@@ -6,3 +6,6 @@
 73fbcb094959a5244b407927aac24eefeec9e8fa:api/tests/test_runs_router.py:stripe-access-token:257
 73fbcb094959a5244b407927aac24eefeec9e8fa:api/tests/test_runs_router.py:stripe-access-token:265
 5a134844dbe3f54ae0dfad8b34a64ba77a273cd9:api/tests/test_secrets_router.py:stripe-access-token:16
+d1a8de58300c61bdb1dbaaad78a516054ceb3597:api/tests/test_connections_router.py:generic-api-key:21
+d1a8de58300c61bdb1dbaaad78a516054ceb3597:web/src/lib/connections.test.ts:generic-api-key:136
+d1a8de58300c61bdb1dbaaad78a516054ceb3597:web/src/lib/connections.test.ts:generic-api-key:137
