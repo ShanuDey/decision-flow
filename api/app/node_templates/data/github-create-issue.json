@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "github_create_issue",
+  "name": "GitHub: create issue",
+  "description": "Opens an issue in a repository. Replace OWNER and REPO in the URL.",
+  "icon": "plug",
+  "docs_url": "https://docs.github.com/rest/issues/issues#create-an-issue",
+  "tags": [
+    "github",
+    "issues"
+  ],
+  "node_type": "http_request",
+  "connection": {
+    "type": "bearer",
+    "values": {
+      "hosts": "api.github.com"
+    }
+  },
+  "inputs": [
+    {
+      "name": "title",
+      "type": "string",
+      "description": "The issue title"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "description": "The issue text"
+    }
+  ],
+  "data": {
+    "method": "POST",
+    "url": "https://api.github.com/repos/OWNER/REPO/issues",
+    "headers": {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    },
+    "body_type": "json",
+    "body": {
+      "title": "{{ input.title }}",
+      "body": "{{ input.body }}"
+    }
+  }
+}

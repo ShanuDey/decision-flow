@@ -28,7 +28,9 @@ import type {
   HTTPValidationError,
   HealthResponse,
   ListFlowsParams,
+  ListNodeTemplatesParams,
   ListRunsParams,
+  NodeTemplateList,
   Principal,
   ReadyResponse,
   RunDetail,
@@ -1715,6 +1717,76 @@ export const getMeUrl = () => {
 export const me = async ( options?: Parameters<typeof apiFetch>[1]): Promise<meResponse> => {
 
   return apiFetch<meResponse>(getMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listNodeTemplatesResponse200 = {
+  data: NodeTemplateList
+  status: 200
+}
+
+export type listNodeTemplatesResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listNodeTemplatesResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listNodeTemplatesResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listNodeTemplatesResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listNodeTemplatesResponseSuccess = (listNodeTemplatesResponse200) & {
+  headers: Headers;
+};
+export type listNodeTemplatesResponseError = (listNodeTemplatesResponse401 | listNodeTemplatesResponse403 | listNodeTemplatesResponse422 | listNodeTemplatesResponse429) & {
+  headers: Headers;
+};
+
+export type listNodeTemplatesResponse = (listNodeTemplatesResponseSuccess | listNodeTemplatesResponseError)
+
+export const getListNodeTemplatesUrl = (params?: ListNodeTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/node-templates?${stringifiedParams}` : `/node-templates`
+}
+
+/**
+ * Lists the ready-made settings for a node, such as an HTTP Request.
+ *
+ * A template this server could not run is left out: its node type is turned off, or its URL
+ * points at a host the server does not allow. Applying one copies its settings into the node;
+ * nothing stays linked to it.
+ * @summary List Node Templates
+ */
+export const listNodeTemplates = async (params?: ListNodeTemplatesParams, options?: Parameters<typeof apiFetch>[1]): Promise<listNodeTemplatesResponse> => {
+
+  return apiFetch<listNodeTemplatesResponse>(getListNodeTemplatesUrl(params),
   {
     ...options,
     method: 'GET'

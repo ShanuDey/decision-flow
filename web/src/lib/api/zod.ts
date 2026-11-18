@@ -529,6 +529,68 @@ export const MeResponse = zod.object({
 
 
 /**
+ * Lists the ready-made settings for a node, such as an HTTP Request.
+ *
+ * A template this server could not run is left out: its node type is turned off, or its URL
+ * points at a host the server does not allow. Applying one copies its settings into the node;
+ * nothing stays linked to it.
+ * @summary List Node Templates
+ */
+export const ListNodeTemplatesQueryParams = zod.object({
+  "node_type": zod.union([zod.literal("http_request"),zod.null()]).optional()
+})
+
+export const listNodeTemplatesResponseItemsItemDataBodyTypeDefault = `none`;
+export const listNodeTemplatesResponseItemsItemDataConnectionIdDefault = ``;
+export const listNodeTemplatesResponseItemsItemDataFailOnErrorStatusDefault = false;
+export const listNodeTemplatesResponseItemsItemDataMethodDefault = `GET`;
+export const listNodeTemplatesResponseItemsItemDataUrlDefault = ``;
+export const listNodeTemplatesResponseItemsItemDocsUrlDefault = ``;
+export const listNodeTemplatesResponseItemsItemIconDefault = `plug`;
+export const listNodeTemplatesResponseItemsItemInputsItemDescriptionDefault = ``;
+export const listNodeTemplatesResponseItemsItemInputsItemTypeDefault = `string`;
+export const listNodeTemplatesResponseItemsItemSchemaVersionDefault = 1;
+export const listNodeTemplatesResponseItemsItemVersionDefault = `1.0.0`;
+export const listNodeTemplatesResponseItemsItemVersionRegExp = new RegExp('^\\d+\\.\\d+\\.\\d+$');
+
+
+export const ListNodeTemplatesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "connection": zod.union([zod.object({
+  "type": zod.string(),
+  "values": zod.record(zod.string(), zod.string()).optional()
+}),zod.null()]).optional(),
+  "data": zod.object({
+  "body": zod.unknown().optional(),
+  "body_type": zod.enum(['none', 'json', 'form', 'text']).default(listNodeTemplatesResponseItemsItemDataBodyTypeDefault),
+  "connection_id": zod.string().default(listNodeTemplatesResponseItemsItemDataConnectionIdDefault),
+  "fail_on_error_status": zod.boolean().default(listNodeTemplatesResponseItemsItemDataFailOnErrorStatusDefault),
+  "headers": zod.record(zod.string(), zod.string()).optional(),
+  "method": zod.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default(listNodeTemplatesResponseItemsItemDataMethodDefault),
+  "query": zod.record(zod.string(), zod.string()).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "url": zod.string().default(listNodeTemplatesResponseItemsItemDataUrlDefault)
+}),
+  "description": zod.string(),
+  "docs_url": zod.string().default(listNodeTemplatesResponseItemsItemDocsUrlDefault),
+  "icon": zod.string().default(listNodeTemplatesResponseItemsItemIconDefault),
+  "id": zod.string(),
+  "inputs": zod.array(zod.object({
+  "description": zod.string().default(listNodeTemplatesResponseItemsItemInputsItemDescriptionDefault),
+  "name": zod.string(),
+  "type": zod.enum(['string', 'number', 'boolean', 'object', 'array']).default(listNodeTemplatesResponseItemsItemInputsItemTypeDefault)
+})).optional(),
+  "name": zod.string(),
+  "node_type": zod.literal("http_request").meta({ title: 'Node Type' }),
+  "schema_version": zod.literal(1).default(listNodeTemplatesResponseItemsItemSchemaVersionDefault).meta({ title: 'Schema Version' }),
+  "secrets": zod.array(zod.string()).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "version": zod.string().regex(listNodeTemplatesResponseItemsItemVersionRegExp).default(listNodeTemplatesResponseItemsItemVersionDefault)
+}))
+})
+
+
+/**
  * Dependencies reachable (Postgres, MLflow).
  * @summary Ready
  */

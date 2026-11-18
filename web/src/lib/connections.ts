@@ -7,6 +7,7 @@ export const SECRET_MIN = 8;
 export interface ConnectionOption {
   id: string;
   name: string;
+  typeId: string;
   typeName: string;
   hosts: string;
 }
@@ -76,20 +77,40 @@ export function hostsLabel(connection: ConnectionSummary, type: ConnectionTypeIn
   return connection.config.hosts ?? "";
 }
 
-export interface TypeGroups {
-  builtin: ConnectionTypeInfo[];
-  custom: ConnectionTypeInfo[];
+// Mirrors the API: exact host, or `*.example.com` for subdomains; patterns are comma separated.
+export function hostAllowed(host: string, patterns: string): boolean {
+  const name = host.toLowerCase().replace(/\.$/, "");
+  return patterns
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean)
+    .some((p) => (p.startsWith("*.") ? name.endsWith(p.slice(1)) && name !== p.slice(2) : name === p));
 }
 
-export function groupTypes(types: ConnectionTypeInfo[], query: string): TypeGroups {
-  const needle = query.trim().toLowerCase();
-  const shown = needle
-    ? types.filter((t) => `${t.name} ${t.description}`.toLowerCase().includes(needle))
-    : types;
-  return {
-    builtin: shown.filter((t) => t.category !== "custom"),
-    custom: shown.filter((t) => t.category === "custom"),
-  };
+// Opens the Add dialog on a type, with plain fields filled in.
+export function prefillHref(typeId: string, values: Record<string, string>): string {
+  return `/connections?${new URLSearchParams({ add: typeId, ...values })}`;
+}
+
+export interface Prefill {
+  typeId: string;
+  values: Record<string, string>;
+}
+
+export function parsePrefill(
+  params: Record<string, string | string[] | undefined>,
+  types: ConnectionTypeInfo[],
+): Prefill | null {
+  const raw = params.add;
+  const type = types.find((t) => t.id === (Array.isArray(raw) ? raw[0] : raw));
+  if (!type) return null;
+  const values: Record<string, string> = {};
+  for (const field of type.fields) {
+    const given = params[field.name];
+    const value = Array.isArray(given) ? given[0] : given;
+    if (!field.secret && value) values[field.name] = value.slice(0, VALUE_MAX);
+  }
+  return { typeId: type.id, values };
 }
 
 // Suggested name: the base URL's host once typed, else the type's name.
@@ -113,6 +134,12 @@ export function connectionOptions(
   const byId = new Map(types.map((t) => [t.id, t]));
   return connections.map((c) => {
     const type = byId.get(c.type);
-    return { id: c.id, name: c.name, typeName: type?.name ?? c.type, hosts: hostsLabel(c, type) };
+    return {
+      id: c.id,
+      name: c.name,
+      typeId: c.type,
+      typeName: type?.name ?? c.type,
+      hosts: hostsLabel(c, type),
+    };
   });
 }

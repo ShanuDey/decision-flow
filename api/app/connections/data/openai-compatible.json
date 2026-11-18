@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "version": "1.0.0",
   "id": "openai_compatible",
   "name": "OpenAI-compatible",
   "description": "OpenAI or any provider with an OpenAI-style API. Set the base URL to the provider's.",

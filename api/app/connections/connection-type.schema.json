@@ -234,6 +234,12 @@
       ],
       "default": null,
       "title": "Test Url"
+    },
+    "version": {
+      "default": "1.0.0",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
     }
   },
   "required": [

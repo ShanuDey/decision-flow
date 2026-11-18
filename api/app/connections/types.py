@@ -50,6 +50,7 @@ TYPE_ID = re.compile(r"[a-z][a-z0-9_]{0,63}")
 
 class ConnectionType(FrozenBaseModel):
     schema_version: Literal[1] = 1
+    version: str = Field("1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     id: str
     name: str
     description: str

@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "version": "1.0.0",
   "id": "basic",
   "name": "Basic auth",
   "description": "Sends a username and password as HTTP Basic auth to the hosts you list.",

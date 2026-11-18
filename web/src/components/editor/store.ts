@@ -66,6 +66,8 @@ interface EditorState {
   secretNames: string[];
   // The workspace's connections a node can pick; never their credentials.
   connections: ConnectionOption[];
+  // Connection type id to display name.
+  connectionTypeNames: Record<string, string>;
   // Flows a Subflow node can call, and what each declares; loaded on demand, never saved.
   publishedFlows: PublishedFlow[];
   // True when more published flows exist than were loaded.
@@ -111,7 +113,7 @@ interface EditorState {
   renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
-  setConnections: (connections: ConnectionOption[]) => void;
+  setConnections: (connections: ConnectionOption[], typeNames?: Record<string, string>) => void;
   setPublishedFlows: (flows: PublishedFlow[], more: boolean) => void;
   addPublishedFlow: (flow: PublishedFlow) => void;
   setContract: (flowId: string, contract: FlowContract | null) => void;
@@ -178,6 +180,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   issues: [],
   secretNames: [],
   connections: [],
+  connectionTypeNames: {},
   publishedFlows: [],
   publishedFlowsMore: false,
   contracts: {},
@@ -403,7 +406,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setIssues: (issues) => set({ issues }),
   setSecretNames: (secretNames) => set({ secretNames }),
 
-  setConnections: (connections) => set({ connections }),
+  setConnections: (connections, typeNames = {}) => set({ connections, connectionTypeNames: typeNames }),
   setPublishedFlows: (publishedFlows, publishedFlowsMore) => set({ publishedFlows, publishedFlowsMore }),
   addPublishedFlow: (flow) =>
     set((s) =>

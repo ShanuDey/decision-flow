@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { LayoutTemplate } from "lucide-react";
+import { Fragment, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,10 +11,8 @@ import { SelectField } from "@/components/ui/select-field";
 import { Textarea } from "@/components/ui/textarea";
 import type { FlowNode } from "@/lib/graph/convert";
 import {
-  apiKeyHeader,
   BODY_TYPES,
   type BodyType,
-  bearerHeader,
   bodyOnTypeChange,
   headerNameCheck,
   jsonText,
@@ -26,7 +25,6 @@ import {
   type Row,
   rowProblem,
   rowsOf,
-  withHeader,
 } from "@/lib/graph/http-request";
 import type { HttpRequestData } from "@/lib/graph/types";
 
@@ -35,6 +33,7 @@ import { ExpressionInput } from "./expression-input";
 import { FieldError, Labeled, ListEditor } from "./fields";
 import { fieldIssue } from "./issues";
 import { useEditor } from "./store";
+import { TemplateDialog } from "./template-dialog";
 
 type Update = (patch: Partial<HttpRequestData>) => void;
 
@@ -173,51 +172,7 @@ function ConnectionPicker({ node, config, update }: { node: FlowNode; config: Ht
   );
 }
 
-function AuthPresets({ onAdd, flowId }: { onAdd: (row: Row) => void; flowId: string }) {
-  const names = useEditor((s) => s.secretNames);
-  const [secret, setSecret] = useState("");
-  const chosen = names.includes(secret) ? secret : (names[0] ?? "");
-
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
-      <p className="text-xs font-medium">Quick setup</p>
-      {names.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No secrets yet.{" "}
-          <a
-            href={`/settings/secrets?from=/flows/${flowId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            Add one in Settings
-          </a>{" "}
-          to fill in an Authorization header.
-        </p>
-      ) : (
-        <>
-          <SelectField
-            value={chosen}
-            onValueChange={setSecret}
-            options={names.map((name) => ({ value: name, label: name }))}
-            placeholder="Secret to use"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => onAdd(bearerHeader(chosen))}>
-              Add bearer token
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => onAdd(apiKeyHeader(chosen))}>
-              Add API key header
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function HeadersEditor({ node, config, update }: { node: FlowNode; config: HttpRequestData; update: Update }) {
-  const flowId = useEditor((s) => s.flowId);
   const [rows, setRows] = useState(() => rowsOf(config.headers));
   const change = (next: Row[]) => {
     setRows(next);
@@ -238,9 +193,8 @@ function HeadersEditor({ node, config, update }: { node: FlowNode; config: HttpR
         namePlaceholder="Authorization"
         valuePlaceholder="Bearer {{ secrets.API_KEY }}"
         addLabel="Add header"
-        emptyText="No headers. Add one, or use quick setup for a credential."
+        emptyText="No headers. Add one, or pick a connection above for a credential."
       />
-      <AuthPresets flowId={flowId} onAdd={(header) => change(withHeader(rows, header))} />
       <p className="text-xs text-muted-foreground">{SECRETS_HELP}</p>
     </section>
   );
@@ -387,82 +341,100 @@ export function HttpRequestForm({ node }: { node: FlowNode }) {
   const update: Update = (patch) => setConfig(node.id, { ...config, ...patch });
   const prefix = `${node.id}-http`;
   const sendsBody = config.method !== "GET";
+  const [picking, setPicking] = useState(false);
+  // The fields below keep their own row state, so applying a template remounts them.
+  const [revision, setRevision] = useState(0);
 
   return (
     <>
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Request</h3>
-        <Labeled id={`${prefix}-method`} label="Method">
-          <SelectField
-            id={`${prefix}-method`}
-            value={config.method}
-            options={METHODS.map((m) => ({ value: m, label: m }))}
-            onValueChange={(method) => update({ method: method as Method })}
-          />
-        </Labeled>
-        <Labeled id={`${prefix}-url`} label="URL" issue={fieldIssue(issues, node.id, "data.url")}>
-          <ExpandableInput
-            id={`${prefix}-url`}
-            nodeId={node.id}
-            title="URL"
-            value={config.url}
-            placeholder="https://api.example.com/score"
-            onChange={(url) => update({ url })}
-          />
-        </Labeled>
-        <p className="text-xs text-muted-foreground">
-          A secret cannot be used in the URL. Put credentials in a header or the body.
-        </p>
-      </section>
-      <ConnectionPicker node={node} config={config} update={update} />
-      <HeadersEditor key={`${node.id}-h`} node={node} config={config} update={update} />
-      <QueryEditor key={`${node.id}-q`} node={node} config={config} update={update} />
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Body</h3>
-        <Labeled id={`${prefix}-body-type`} label="Body type">
-          <SelectField
-            id={`${prefix}-body-type`}
-            value={config.body_type}
-            options={BODY_TYPES}
-            onValueChange={(next) =>
-              update({
-                body_type: next as BodyType,
-                body: bodyOnTypeChange(config.body_type, next as BodyType, config.body),
-              })
-            }
-          />
-        </Labeled>
-        {!sendsBody && config.body_type !== "none" && (
-          <p role="alert" className="text-xs text-red-700 dark:text-red-400">
-            A GET request cannot have a body. Pick another method or remove the body.
+      <Button type="button" variant="outline" className="h-9 w-fit" onClick={() => setPicking(true)}>
+        <LayoutTemplate aria-hidden /> Use a template
+      </Button>
+      {picking && (
+        <TemplateDialog
+          onClose={() => setPicking(false)}
+          current={config}
+          onApply={(next) => {
+            setConfig(node.id, next);
+            setRevision((r) => r + 1);
+          }}
+        />
+      )}
+      <Fragment key={revision}>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Request</h3>
+          <Labeled id={`${prefix}-method`} label="Method">
+            <SelectField
+              id={`${prefix}-method`}
+              value={config.method}
+              options={METHODS.map((m) => ({ value: m, label: m }))}
+              onValueChange={(method) => update({ method: method as Method })}
+            />
+          </Labeled>
+          <Labeled id={`${prefix}-url`} label="URL" issue={fieldIssue(issues, node.id, "data.url")}>
+            <ExpandableInput
+              id={`${prefix}-url`}
+              nodeId={node.id}
+              title="URL"
+              value={config.url}
+              placeholder="https://api.example.com/score"
+              onChange={(url) => update({ url })}
+            />
+          </Labeled>
+          <p className="text-xs text-muted-foreground">
+            A secret cannot be used in the URL. Put credentials in a header or the body.
           </p>
-        )}
-        {config.body_type === "json" && (
-          <JsonBody key={`${node.id}-json`} node={node} config={config} update={update} />
-        )}
-        {config.body_type === "form" && (
-          <FormBody key={`${node.id}-form`} node={node} config={config} update={update} />
-        )}
-        {config.body_type === "text" && <TextBody node={node} config={config} update={update} />}
-      </section>
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Options</h3>
-        <Timeout key={`${node.id}-t`} config={config} update={update} />
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id={`${prefix}-fail`}
-            checked={config.fail_on_error_status}
-            onCheckedChange={(on) => update({ fail_on_error_status: on === true })}
-            className="mt-0.5"
-          />
-          <div className="flex flex-col">
-            <Label htmlFor={`${prefix}-fail`}>Fail the run on an error status</Label>
-            <span className="text-xs text-muted-foreground">
-              Off keeps a 4xx or 5xx answer as data you can branch on.
-            </span>
+        </section>
+        <ConnectionPicker node={node} config={config} update={update} />
+        <HeadersEditor key={`${node.id}-h`} node={node} config={config} update={update} />
+        <QueryEditor key={`${node.id}-q`} node={node} config={config} update={update} />
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Body</h3>
+          <Labeled id={`${prefix}-body-type`} label="Body type">
+            <SelectField
+              id={`${prefix}-body-type`}
+              value={config.body_type}
+              options={BODY_TYPES}
+              onValueChange={(next) =>
+                update({
+                  body_type: next as BodyType,
+                  body: bodyOnTypeChange(config.body_type, next as BodyType, config.body),
+                })
+              }
+            />
+          </Labeled>
+          {!sendsBody && config.body_type !== "none" && (
+            <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+              A GET request cannot have a body. Pick another method or remove the body.
+            </p>
+          )}
+          {config.body_type === "json" && (
+            <JsonBody key={`${node.id}-json`} node={node} config={config} update={update} />
+          )}
+          {config.body_type === "form" && (
+            <FormBody key={`${node.id}-form`} node={node} config={config} update={update} />
+          )}
+          {config.body_type === "text" && <TextBody node={node} config={config} update={update} />}
+        </section>
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium">Options</h3>
+          <Timeout key={`${node.id}-t`} config={config} update={update} />
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id={`${prefix}-fail`}
+              checked={config.fail_on_error_status}
+              onCheckedChange={(on) => update({ fail_on_error_status: on === true })}
+              className="mt-0.5"
+            />
+            <div className="flex flex-col">
+              <Label htmlFor={`${prefix}-fail`}>Fail the run on an error status</Label>
+              <span className="text-xs text-muted-foreground">
+                Off keeps a 4xx or 5xx answer as data you can branch on.
+              </span>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </Fragment>
     </>
   );
 }

@@ -1,0 +1,118 @@
+{
+  "entries": [
+    {
+      "description": "OpenAI or any provider with an OpenAI-style API. Set the base URL to the provider's.",
+      "hash": "sha256-78a59b698955da3237cfc98bbd6db529585dda78a3304984139b22cb3f3e53e5",
+      "id": "openai_compatible",
+      "kind": "connection-type",
+      "name": "OpenAI-compatible",
+      "path": "connection-types/openai_compatible/1.0.0.json",
+      "tags": [
+        "builtin"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends your key in a header you name, to the hosts you list.",
+      "hash": "sha256-6528cf7b9e63741856ac9d3c6162baf1418830030968c26d6dae1cd4a6be0876",
+      "id": "api_key_header",
+      "kind": "connection-type",
+      "name": "API key in a header",
+      "path": "connection-types/api_key_header/1.0.0.json",
+      "tags": [
+        "custom"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends a username and password as HTTP Basic auth to the hosts you list.",
+      "hash": "sha256-5b3ea300719c1202d2acb8ce576deeee0ba17bc9c80821194426a654b406a8f2",
+      "id": "basic",
+      "kind": "connection-type",
+      "name": "Basic auth",
+      "path": "connection-types/basic/1.0.0.json",
+      "tags": [
+        "custom"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends Authorization: Bearer <token> to the hosts you list.",
+      "hash": "sha256-31e3e3a5adce441e8fff3c77a54e2d1b5487c01bbf907aab9692ea352aaacc11",
+      "id": "bearer",
+      "kind": "connection-type",
+      "name": "Bearer token",
+      "path": "connection-types/bearer/1.0.0.json",
+      "tags": [
+        "custom"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Opens an issue in a repository. Replace OWNER and REPO in the URL.",
+      "hash": "sha256-5608b62ab7b47aab6be325931038b32071ec3de42ef8a3cf6b18975e5d5c6071",
+      "id": "github_create_issue",
+      "kind": "node-template",
+      "name": "GitHub: create issue",
+      "path": "node-templates/github_create_issue/1.0.0.json",
+      "tags": [
+        "github",
+        "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Fetches one record by id and reads the JSON answer. Replace the URL.",
+      "hash": "sha256-6c40b38cae709249f3b1a86f181b76dec292f2861657e16b9a9d374a758f4c77",
+      "id": "http_get_json",
+      "kind": "node-template",
+      "name": "HTTP: get JSON",
+      "path": "node-templates/http_get_json/1.0.0.json",
+      "tags": [
+        "http",
+        "lookup"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends one prompt to a chat model. Change the URL for another provider.",
+      "hash": "sha256-a93d6d669fd5fcfc22e644a2de648395433c05aa38e7105fe93cee963addff1b",
+      "id": "openai_chat_completion",
+      "kind": "node-template",
+      "name": "OpenAI-compatible: chat completion",
+      "path": "node-templates/openai_chat_completion/1.0.0.json",
+      "tags": [
+        "ai",
+        "llm",
+        "openai"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Posts a message to a channel with a bot token.",
+      "hash": "sha256-bfba09bf827c22bd000d34d6c6e7395ee9dec80f484fff8dc3c9bfe0962ade03",
+      "id": "slack_post_message",
+      "kind": "node-template",
+      "name": "Slack: post message",
+      "path": "node-templates/slack_post_message/1.0.0.json",
+      "tags": [
+        "slack",
+        "messaging"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends an event and a payload to a webhook URL. Replace the URL.",
+      "hash": "sha256-3c024c61b0aa679fa80af8790204aa0e363660e532df5ac2c6267dd656b7e26f",
+      "id": "webhook_post_json",
+      "kind": "node-template",
+      "name": "Webhook: post JSON",
+      "path": "node-templates/webhook_post_json/1.0.0.json",
+      "tags": [
+        "webhook"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema_version": 1
+}

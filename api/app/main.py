@@ -18,6 +18,7 @@ from app.deployment import router as deployment
 from app.errors import ErrorResponse, install_error_handlers
 from app.flows import router as flows
 from app.limits import get_limits, install_body_limit
+from app.node_templates import router as node_templates
 from app.ops import router as ops
 from app.ratelimit import RateLimiters, RateLimitMiddleware, limit_visitor, limit_writes
 from app.retention import runner as retention
@@ -115,6 +116,11 @@ def create_app() -> FastAPI:
     app.include_router(runs.router, **protected)
     app.include_router(secrets.router, **protected)
     app.include_router(connections.router, **protected)
+    app.include_router(
+        node_templates.router,
+        dependencies=[Depends(current_principal), Depends(limit_visitor)],
+        responses=protected["responses"],
+    )
     app.include_router(
         templates.router,
         dependencies=[Depends(current_principal), Depends(limit_visitor)],

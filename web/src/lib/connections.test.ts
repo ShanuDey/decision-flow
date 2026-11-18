@@ -6,10 +6,12 @@ import {
   connectionOptions,
   fieldProblem,
   formProblem,
-  groupTypes,
+  hostAllowed,
   hostsLabel,
   isUrl,
+  parsePrefill,
   payloadValues,
+  prefillHref,
   suggestName,
 } from "./connections";
 
@@ -133,8 +135,8 @@ describe("formProblem", () => {
 
 describe("payloadValues", () => {
   it("sends every field when creating, trimming plain ones only", () => {
-    expect(payloadValues(bearer, { token: " tok-12345678 ", hosts: " a.com " }, false)).toEqual({
-      token: " tok-12345678 ",
+    expect(payloadValues(bearer, { token: " test-token ", hosts: " a.com " }, false)).toEqual({
+      token: " test-token ",
       hosts: "a.com",
     });
   });
@@ -172,21 +174,6 @@ describe("hosts", () => {
   });
 });
 
-describe("groupTypes", () => {
-  const all = [openai, fixed, bearer];
-
-  it("splits built-in from custom", () => {
-    const { builtin, custom } = groupTypes(all, "");
-    expect(builtin.map((t) => t.id)).toEqual(["openai", "acme"]);
-    expect(custom.map((t) => t.id)).toEqual(["bearer"]);
-  });
-
-  it("filters by name or description, ignoring case and padding", () => {
-    expect(groupTypes(all, "  OPEN ").builtin.map((t) => t.id)).toEqual(["openai"]);
-    expect(groupTypes(all, "zzz")).toEqual({ builtin: [], custom: [] });
-  });
-});
-
 describe("suggestName", () => {
   it("offers the type's name", () => {
     expect(suggestName(bearer, {}, [])).toBe("Bearer token");
@@ -211,5 +198,47 @@ describe("suggestName", () => {
   it("keeps the result within the name limit", () => {
     const long = { ...bearer, name: "x".repeat(200) };
     expect(suggestName(long, {}, [])).toHaveLength(80);
+  });
+});
+
+describe("hostAllowed", () => {
+  it.each([
+    ["api.github.com", "api.github.com", true],
+    ["API.GitHub.com.", "api.github.com", true],
+    ["api.github.com", "a.com, api.github.com ", true],
+    ["evil-api.github.com", "api.github.com", false],
+    ["a.example.com", "*.example.com", true],
+    ["example.com", "*.example.com", false],
+    ["badexample.com", "*.example.com", false],
+    ["api.github.com", "", false],
+  ])("%s against %j is %s", (host, patterns, expected) => {
+    expect(hostAllowed(host, patterns)).toBe(expected);
+  });
+});
+
+describe("prefill", () => {
+  it("builds a link that opens the Add dialog on a type", () => {
+    expect(prefillHref("bearer", { hosts: "api.github.com" })).toBe("/connections?add=bearer&hosts=api.github.com");
+    expect(prefillHref("bearer", {})).toBe("/connections?add=bearer");
+  });
+
+  it("reads the type and its plain fields back", () => {
+    expect(parsePrefill({ add: "bearer", hosts: "api.github.com" }, [bearer])).toEqual({
+      typeId: "bearer",
+      values: { hosts: "api.github.com" },
+    });
+  });
+
+  it("ignores an unknown type, a missing one, other parameters and secret fields", () => {
+    expect(parsePrefill({ add: "nope" }, [bearer])).toBeNull();
+    expect(parsePrefill({}, [bearer])).toBeNull();
+    expect(parsePrefill({ add: "bearer", token: "x", other: "y" }, [bearer])).toEqual({
+      typeId: "bearer",
+      values: {},
+    });
+    expect(parsePrefill({ add: ["bearer", "basic"], hosts: ["a.com", "b.com"] }, [bearer])).toEqual({
+      typeId: "bearer",
+      values: { hosts: "a.com" },
+    });
   });
 });

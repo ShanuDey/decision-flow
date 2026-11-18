@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "http_get_json",
+  "name": "HTTP: get JSON",
+  "description": "Fetches one record by id and reads the JSON answer. Replace the URL.",
+  "tags": [
+    "http",
+    "lookup"
+  ],
+  "node_type": "http_request",
+  "inputs": [
+    {
+      "name": "id",
+      "type": "string",
+      "description": "The record id"
+    }
+  ],
+  "data": {
+    "method": "GET",
+    "url": "https://api.example.com/items/{{ input.id }}",
+    "headers": {
+      "Accept": "application/json"
+    }
+  }
+}
