@@ -67,3 +67,10 @@ def test_references_are_never_silently_empty_for_expressions_that_read_scopes() 
     # guards the serialized-expression decoder against a library upgrade changing its layout
     for source in ("input.a > 1", "vars.b", "nodes.n.output.c == 1", "input.xs.exists(x, x > 1)"):
         assert references(compile(source)), source
+
+
+def test_chained_loops_are_allowed_but_deep_nesting_is_not() -> None:
+    compile("input.l.map(a, a + 1).filter(a, a > 1).exists(a, a == 2)")
+    compile("input.l.map(a, input.l.map(b, a + b))")
+    with pytest.raises(ExpressionError, match="nest deeper"):
+        compile("input.l.map(a, input.l.map(b, input.l.map(c, a + b + c)))")

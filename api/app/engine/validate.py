@@ -123,7 +123,7 @@ def check_settings(
                         issues.append(_issue(*problem, node.id, field))
                     continue
                 known = inputs if ref.scope == "input" else variables
-                if ref.path[0] not in known:
+                if ref.path and ref.path[0] not in known:
                     issues.append(
                         _issue("unknown_reference", f"{ref} is not declared", node.id, field)
                     )

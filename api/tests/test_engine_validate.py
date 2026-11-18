@@ -154,7 +154,7 @@ def test_end_output_referencing_undeclared_input_or_variable(raw: dict) -> None:
 
 
 def test_unsupported_expression_is_reported_with_node_and_field(raw: dict) -> None:
-    raw["nodes"][1]["data"]["outputs"][0]["value"] = "{{ input.amount > 1 }}"
+    raw["nodes"][1]["data"]["outputs"][0]["value"] = "{{ input.amount > }}"
     issue = parse_graph(raw)[1][0]
     assert (issue.code, issue.node_id) == ("unsupported_expression", "end")
 
@@ -162,3 +162,8 @@ def test_unsupported_expression_is_reported_with_node_and_field(raw: dict) -> No
 def test_enum_output_needs_values(raw: dict) -> None:
     del raw["nodes"][1]["data"]["outputs"][1]["values"]
     assert codes(raw) == ["schema"]
+
+
+def test_a_bare_scope_reference_does_not_crash_validation(raw: dict) -> None:
+    raw["nodes"][1]["data"]["outputs"][0]["value"] = "{{ input }}"
+    assert "unknown_reference" not in codes(raw)
