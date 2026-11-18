@@ -28,7 +28,7 @@ import {
 } from "@/lib/graph/http-request";
 import type { HttpRequestData } from "@/lib/graph/types";
 
-import { ExpandableInput } from "./expand-field";
+import { ExpandableInput, ExpandButton } from "./expand-field";
 import { ExpressionInput } from "./expression-input";
 import { FieldError, Labeled, ListEditor } from "./fields";
 import { fieldIssue } from "./issues";
@@ -239,16 +239,27 @@ function JsonBody({ node, config, update }: { node: FlowNode; config: HttpReques
       <Label htmlFor={id} className="text-xs text-muted-foreground">
         JSON body
       </Label>
-      <Textarea
-        id={id}
-        rows={8}
-        className="font-mono text-xs"
-        value={text}
-        spellCheck={false}
-        aria-invalid={error !== null}
-        placeholder={'{ "customer": "{{ input.customer_id }}" }'}
-        onChange={(e) => change(e.target.value)}
-      />
+      <div className="relative">
+        <Textarea
+          id={id}
+          rows={8}
+          className="pr-10 font-mono text-xs"
+          value={text}
+          spellCheck={false}
+          aria-invalid={error !== null}
+          placeholder={'{ "customer": "{{ input.customer_id }}" }'}
+          onChange={(e) => change(e.target.value)}
+        />
+        <ExpandButton
+          nodeId={node.id}
+          title="JSON body"
+          kind="json"
+          value={text}
+          onChange={change}
+          secrets
+          className="absolute top-2 right-2"
+        />
+      </div>
       {error && (
         <p role="alert" className="text-xs text-red-700 dark:text-red-400">
           {error}. The last valid body is kept until this is fixed.

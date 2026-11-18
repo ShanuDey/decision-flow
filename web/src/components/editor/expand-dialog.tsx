@@ -9,6 +9,7 @@ import { evaluateExpression } from "@/lib/api/client";
 import type { EvaluateResponse } from "@/lib/api/models";
 import { call } from "@/lib/call";
 import { fromReactFlow } from "@/lib/graph/convert";
+import { parseJson } from "@/lib/graph/http-request";
 import { availableData } from "@/lib/graph/scope";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,8 @@ import { CodeEditor } from "./code-editor";
 import { useEditor } from "./store";
 import { TestPane } from "./test-pane";
 
-export type SourceKind = "expression" | "template";
+// "json" is a whole JSON document whose text values may hold `{{ }}` references.
+export type SourceKind = "expression" | "template" | "json";
 
 interface Props {
   open: boolean;
@@ -44,10 +46,11 @@ function useCheck(kind: SourceKind, source: string) {
   const lastChecked = useRef("");
   useEffect(() => {
     const key = `${kind}\n${source}`;
-    if (!source.trim() || lastChecked.current === key) return;
+    if (kind === "json" || !source.trim() || lastChecked.current === key) return;
+    const checked = kind;
     let stale = false;
     const timer = setTimeout(async () => {
-      const result = await call(evaluateExpression({ kind, source }));
+      const result = await call(evaluateExpression({ kind: checked, source }));
       if (stale) return;
       lastChecked.current = result.ok ? key : "";
       setFailed(!result.ok);
@@ -82,8 +85,22 @@ export default function ExpandDialog({
   const [insert, setInsert] = useState<{ text: string; n: number } | null>(null);
   const { check, failed } = useCheck(kind, value);
 
-  const wrap = (path: string) => (kind === "template" ? `{{ ${path} }}` : path);
-  const invalid = check !== null && !check.valid;
+  const wrap = (path: string) => (kind === "expression" ? path : `{{ ${path} }}`);
+  const json = kind === "json" ? parseJson(value) : null;
+  const invalid = json ? !json.ok : check !== null && !check.valid;
+  const message = json
+    ? json.ok
+      ? "Valid JSON"
+      : json.error
+    : failed
+      ? "Could not check the expression."
+      : !check
+        ? "Checking…"
+        : check.valid
+          ? kind === "template"
+            ? "Valid template"
+            : `Valid expression · returns ${(check.return_type ?? "").toLowerCase()}`
+          : check.error;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,30 +163,24 @@ export default function ExpandDialog({
               data-testid="check-strip"
               className={cn(
                 "shrink-0 border-t px-4 py-1.5 text-xs",
-                failed
+                !json && failed
                   ? "bg-muted text-muted-foreground"
                   : invalid
                     ? "bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300"
                     : "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-300",
               )}
             >
-              {failed
-                ? "Could not check the expression."
-                : !check
-                  ? "Checking…"
-                  : check.valid
-                    ? kind === "template"
-                      ? "Valid template"
-                      : `Valid expression · returns ${(check.return_type ?? "").toLowerCase()}`
-                    : check.error}
+              {message}
             </p>
           </div>
-          <aside
-            aria-label="Test"
-            className="hidden w-[300px] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 lg:flex"
-          >
-            <TestPane nodeId={nodeId} kind={kind} source={value} idPrefix="expand" />
-          </aside>
+          {kind !== "json" && (
+            <aside
+              aria-label="Test"
+              className="hidden w-[300px] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 lg:flex"
+            >
+              <TestPane nodeId={nodeId} kind={kind} source={value} idPrefix="expand" />
+            </aside>
+          )}
         </div>
       </DialogContent>
     </Dialog>
