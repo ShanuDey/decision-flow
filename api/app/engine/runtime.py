@@ -3,11 +3,13 @@ import time
 from typing import Any, Literal
 
 from app.engine.base import FrozenBaseModel
-from app.engine.compiler import CompiledFlow
+from app.engine.compiler import CompiledFlow, compile_graph
 from app.engine.inputs import validate_input
-from app.engine.observer import NodeError, NullObserver, Observer
+from app.engine.nodes.base import NodeContext
+from app.engine.observer import NodeError, NullObserver, Observer, ScopedObserver
 from app.engine.redact import RedactingObserver, Redactor
 from app.engine.run_secrets import RunSecrets
+from app.engine.subflow import SubflowAccess, SubflowRuntime
 from app.security.ssrf import OutboundPolicy
 
 
@@ -37,6 +39,22 @@ async def _failed(
     )
 
 
+async def _run_child(
+    graph: Any, payload: dict[str, Any], ctx: NodeContext, runtime: SubflowRuntime, scope: str
+) -> RunResult:
+    # No timeout of its own: the parent's cancels this too.
+    nested = runtime.model_copy(update={"depth": runtime.depth + 1, "scope": scope})
+    return await _run(
+        compile_graph(graph),
+        payload,
+        ScopedObserver(ctx.observer or NullObserver(), scope),
+        0,
+        ctx.secrets,
+        ctx.outbound,
+        nested,
+    )
+
+
 async def run_flow(
     flow: CompiledFlow,
     payload: dict[str, Any],
@@ -44,8 +62,22 @@ async def run_flow(
     timeout_seconds: float = 0,
     secrets: RunSecrets | None = None,
     outbound: OutboundPolicy | None = None,
+    subflows: SubflowAccess | None = None,
 ) -> RunResult:
     """Raises InputValidationError before anything runs; a failure inside the flow is a result."""
+    runtime = SubflowRuntime(access=subflows, execute=_run_child) if subflows else None
+    return await _run(flow, payload, observer, timeout_seconds, secrets, outbound, runtime)
+
+
+async def _run(
+    flow: CompiledFlow,
+    payload: dict[str, Any],
+    observer: Observer | None,
+    timeout_seconds: float,
+    secrets: RunSecrets | None,
+    outbound: OutboundPolicy | None,
+    subflows: SubflowRuntime | None,
+) -> RunResult:
     inputs = validate_input(flow.start.data.inputs, payload)
     state = {"input": inputs}
     redactor = Redactor(secrets)
@@ -55,6 +87,7 @@ async def run_flow(
             "observer": observer,
             "secrets": secrets or RunSecrets(),
             "outbound": outbound,
+            "subflows": subflows,
         }
     }
     await observer.run_started(inputs)

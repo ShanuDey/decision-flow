@@ -103,7 +103,8 @@ function Detail({ step, ctx }: { step: RunStep; ctx: TraceContext }) {
   );
 }
 
-export function StepRows({ nodes, ctx }: { nodes: StepNode[]; ctx: TraceContext }) {
+// `nested` marks steps of a called flow: their node ids belong to that flow, not this canvas.
+export function StepRows({ nodes, ctx, nested = false }: { nodes: StepNode[]; ctx: TraceContext; nested?: boolean }) {
   return (
     <>
       {nodes.map(({ step, children }) => {
@@ -141,7 +142,7 @@ export function StepRows({ nodes, ctx }: { nodes: StepNode[]; ctx: TraceContext 
                     const opening = !open;
                     ctx.toggleOpen(step.id);
                     const nodeId = nodeIdOf(step);
-                    if (opening && nodeId) ctx.onSelectNode?.(nodeId);
+                    if (opening && nodeId && !nested) ctx.onSelectNode?.(nodeId);
                   }}
                   className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 >
@@ -173,7 +174,7 @@ export function StepRows({ nodes, ctx }: { nodes: StepNode[]; ctx: TraceContext 
             {open && <Detail step={step} ctx={ctx} />}
             {children.length > 0 && !folded && (
               <div className="ml-3 border-l pl-2">
-                <StepRows nodes={children} ctx={ctx} />
+                <StepRows nodes={children} ctx={ctx} nested={nested || step.node_type === "subflow"} />
               </div>
             )}
           </div>

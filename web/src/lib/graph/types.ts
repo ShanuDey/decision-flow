@@ -55,6 +55,12 @@ export interface HttpRequestData {
   body: unknown;
   timeout_seconds: number | null;
   fail_on_error_status: boolean;
+  connection_id: string;
+}
+
+export interface SubflowData {
+  flow_id: string;
+  inputs: Record<string, string>;
 }
 
 export interface NodeDataByType {
@@ -63,6 +69,7 @@ export interface NodeDataByType {
   assign: AssignData;
   condition: ConditionData;
   http_request: HttpRequestData;
+  subflow: SubflowData;
 }
 
 export type NodeType = keyof NodeDataByType;

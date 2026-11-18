@@ -6,6 +6,7 @@ from app.engine.base import FrozenBaseModel, StrictBaseModel
 from app.engine.fields import Variable
 from app.engine.issues import Issue
 from app.engine.run_secrets import RunSecrets
+from app.engine.subflow import FlowContract, SubflowRuntime
 from app.security.ssrf import OutboundPolicy
 
 
@@ -19,6 +20,11 @@ class NodeContext(FrozenBaseModel):
     # Per run: the compiled flow is reused, so the runner swaps this in for each call.
     secrets: RunSecrets = Field(default_factory=RunSecrets)
     outbound: OutboundPolicy | None = None
+    # Validation only: published flows by id; None skips the checks that need them.
+    contracts: dict[str, FlowContract] | None = None
+    # Per run, like `secrets`.
+    subflows: SubflowRuntime | None = None
+    observer: Any = None
 
 
 class NodeModel(StrictBaseModel):
@@ -52,9 +58,17 @@ class NodeModel(StrictBaseModel):
         """Template settings by field path, so the validator can check what they reference."""
         return {}
 
+    def connection_ids(self) -> set[str]:
+        """Connections this node sends, so a run can load them before it starts."""
+        return set()
+
     def secret_fields(self) -> set[str]:
         """Template fields that may use `{{ secrets.NAME }}`; every other field rejects it."""
         return set()
+
+    def output_names(self, ctx: NodeContext) -> set[str] | None:
+        """The fields of `output` when they are known up front, so references to others can fail."""
+        return None
 
     def expressions(self) -> dict[str, str]:
         """CEL settings by field path, so the validator can check what they reference."""

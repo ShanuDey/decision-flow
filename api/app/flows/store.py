@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import and_, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -80,6 +80,26 @@ class FlowStore:
         return await self.session.scalar(
             select(Flow).where(Flow.id == flow_id, Flow.workspace_id == member.workspace_id, LIVE)
         )
+
+    async def list_callers(self, member: Member, flow_id: uuid.UUID) -> list[Flow]:
+        """Live flows whose latest published version has a Subflow node that calls this one."""
+        calls = {"nodes": [{"type": "subflow", "data": {"flow_id": str(flow_id)}}]}
+        rows = await self.session.scalars(
+            select(Flow)
+            .join(
+                FlowVersion,
+                and_(FlowVersion.flow_id == Flow.id, FlowVersion.version == Flow.published_version),
+            )
+            .where(
+                Flow.workspace_id == member.workspace_id,
+                Flow.id != flow_id,
+                LIVE,
+                FlowVersion.deleted_at.is_(None),
+                FlowVersion.graph.contains(calls),
+            )
+            .order_by(Flow.name, Flow.id)
+        )
+        return list(rows)
 
     async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
         result = await self.session.execute(
@@ -161,9 +181,12 @@ class FlowStore:
         if refusal is not None or flow is None:
             await self.session.rollback()
             raise refusal or FlowMissing()
+        latest = await self.session.scalar(
+            select(func.max(FlowVersion.version)).where(FlowVersion.flow_id == flow.id)
+        )
         version = FlowVersion(
             flow_id=flow.id,
-            version=(flow.published_version or 0) + 1,
+            version=(latest or 0) + 1,
             graph=flow.draft,
             source_draft_version=flow.draft_version,
             created_by=member.user_id,
@@ -190,6 +213,24 @@ class FlowStore:
         await self.session.refresh(version)
         await self.session.refresh(flow)
         return version
+
+    async def unpublish(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        """None when the flow is missing or not published."""
+        result = await self.session.execute(
+            update(Flow)
+            .where(
+                Flow.id == flow_id,
+                Flow.workspace_id == member.workspace_id,
+                Flow.published_version.is_not(None),
+                LIVE,
+            )
+            .values(published_version=None, published_draft_version=None, published_at=None)
+            .returning(Flow)
+            .execution_options(populate_existing=True)
+        )
+        flow = result.scalar_one_or_none()
+        await self.session.commit()
+        return flow
 
     async def list_versions(self, member: Member, flow_id: uuid.UUID) -> list[FlowVersion]:
         rows = await self.session.scalars(

@@ -1,10 +1,13 @@
 import { toast } from "sonner";
 
 import { errorToast } from "@/lib/api-error";
+import { calledByText } from "@/lib/callers";
 import { type ApiFailure, call, issuesOf } from "@/lib/call";
-import { createRun, getFlow, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
+import { createRun, getFlow, listCallers, publishFlow, saveDraft, validateFlow } from "@/lib/api/client";
 import type { RunResponse } from "@/lib/api/models";
 import { parseDraft } from "@/lib/graph/convert";
+import { tidy } from "@/lib/graph/tidy";
+import { buildFlowFile, flowFileName } from "@/lib/graph/transfer";
 
 import { useLayout } from "./layout";
 import { publishedInfo } from "./published";
@@ -86,7 +89,13 @@ export async function publish(): Promise<PublishResult> {
   if (result.ok) {
     useEditor.getState().setIssues([]);
     useEditor.getState().markPublished(result.data.version, result.data.source_draft_version);
-    toast.success(`Published version ${result.data.version}`);
+    const message = `Published version ${result.data.version}`;
+    const id = toast.success(message);
+    void call(listCallers(useEditor.getState().flowId)).then((callers) => {
+      if (callers.ok && callers.data.items.length > 0) {
+        toast.success(message, { id, description: calledByText(callers.data.items) });
+      }
+    });
     return "published";
   }
   const { code } = result.error;
@@ -144,6 +153,24 @@ export function deleteFromCanvas(nodeIds: string[], edgeIds: string[]): void {
   });
 }
 
+export function tidyCanvas(): void {
+  const { nodes, edges, moveNodes } = useEditor.getState();
+  if (!nodes.length) return;
+  const sizes = Object.fromEntries(
+    nodes.flatMap((n) =>
+      n.measured?.width && n.measured?.height
+        ? [[n.id, { width: n.measured.width, height: n.measured.height }]]
+        : [],
+    ),
+  );
+  const before = Object.fromEntries(nodes.map((n) => [n.id, n.position]));
+  moveNodes(tidy(nodes, edges, sizes));
+  toast("Tidied up the layout", {
+    action: { label: "Undo", onClick: () => useEditor.getState().moveNodes(before) },
+    duration: 8000,
+  });
+}
+
 // `select` also highlights the name text (used by Rename).
 export function configureNode(id: string, { select = false }: { select?: boolean } = {}): void {
   useEditor.getState().selectOnly(id);
@@ -151,4 +178,16 @@ export function configureNode(id: string, { select = false }: { select?: boolean
   layout.expand();
   // SettingsPanel focuses the field once it has rendered this node.
   layout.requestFocus({ select });
+}
+
+export function exportFlow(): void {
+  const { name, toGraph } = useEditor.getState();
+  const file = buildFlowFile(name, toGraph());
+  const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = flowFileName(name);
+  link.click();
+  URL.revokeObjectURL(url);
+  toast.success("Exported the flow");
 }

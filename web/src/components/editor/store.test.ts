@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { NO_LIMITS } from "@/lib/graph/limits";
 import type { Graph } from "@/lib/graph/types";
 
 import { useEditor } from "./store";
@@ -28,6 +29,21 @@ const state = () => useEditor.getState();
 
 beforeEach(() => {
   state().load({ id: "f1", name: "Demo", draftVersion: 1, graph });
+  state().setLimits(NO_LIMITS);
+});
+
+describe("moveNodes", () => {
+  it("moves listed nodes, ignores unknown ids, and dirties the draft", () => {
+    state().moveNodes({ start: { x: 9, y: 9 }, nope: { x: 1, y: 1 } });
+    expect(state().nodes.find((n) => n.id === "start")?.position).toEqual({ x: 9, y: 9 });
+    expect(state().nodes).toHaveLength(3);
+    expect(state().dirty).toBe(true);
+  });
+
+  it("stays clean when nothing matches", () => {
+    state().moveNodes({ nope: { x: 1, y: 1 } });
+    expect(state().dirty).toBe(false);
+  });
 });
 
 describe("dirty tracking", () => {
@@ -162,6 +178,54 @@ describe("node rules", () => {
     state().addNode("condition");
     const added = state().toGraph().nodes.find((n) => n.type === "condition");
     expect(added?.data).toEqual({ expression: "" });
+  });
+});
+
+describe("server limits", () => {
+  const limit = (maxNodes: number, maxEdges: number) =>
+    state().setLimits({ disabledNodeTypes: [], maxNodes, maxEdges, notice: null });
+
+  it("refuses new and duplicated nodes at the node limit", () => {
+    limit(3, 0);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(3);
+    expect(state().duplicateNode("assign_values")).toBeNull();
+    expect(state().nodes).toHaveLength(3);
+  });
+
+  it("refuses new connections at the edge limit, and a node added from a handle", () => {
+    limit(0, 2);
+    expect(state().isValidConnection({ source: "start", target: "end", sourceHandle: null, targetHandle: null })).toBe(false);
+    state().onConnect({ source: "start", target: "end", sourceHandle: null, targetHandle: null });
+    state().addNode("assign", undefined, { id: "assign_values", handle: null });
+    expect(state().edges).toHaveLength(2);
+    expect(state().nodes).toHaveLength(3);
+  });
+
+  it("allows a node without a connection while only the edge limit is reached", () => {
+    limit(0, 2);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(4);
+  });
+
+  it("does not limit anything while a limit is 0", () => {
+    limit(0, 0);
+    state().addNode("assign");
+    expect(state().nodes).toHaveLength(4);
+  });
+});
+
+describe("published flows", () => {
+  it("remembers whether more exist than were loaded", () => {
+    state().setPublishedFlows([{ id: "a", name: "A", version: 1 }], true);
+    expect(state().publishedFlowsMore).toBe(true);
+  });
+
+  it("adds a flow from outside the loaded page once, and never twice", () => {
+    state().setPublishedFlows([{ id: "a", name: "A", version: 1 }], true);
+    state().addPublishedFlow({ id: "z", name: "Z", version: 3 });
+    state().addPublishedFlow({ id: "z", name: "Z", version: 3 });
+    expect(state().publishedFlows.map((f) => f.id)).toEqual(["a", "z"]);
   });
 });
 
@@ -317,6 +381,12 @@ describe("publishing", () => {
     expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([2, 3]);
     state().markPublished(3, 4);
     expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([3, 4]);
+  });
+
+  it("goes back to unpublished", () => {
+    state().load({ id: "f1", name: "Demo", draftVersion: 3, graph, published: { version: 2, draftVersion: 3 } });
+    state().markUnpublished();
+    expect([state().publishedVersion, state().publishedDraftVersion]).toEqual([null, null]);
   });
 
   it("starts unpublished when the flow was never published", () => {

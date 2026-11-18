@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { canAdd, canConnect, freeSpot, NODE_SPECS } from "@/lib/graph/nodes";
+import { atLimit } from "@/lib/graph/limits";
 import { flatTypes, ioSummary, pickerGroups, type SourceFilter } from "@/lib/graph/picker";
 import type { NodeType } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
@@ -42,16 +43,28 @@ export function AddNodePicker({ trigger, from, side = "bottom", placeAtViewCente
   const search = useRef<HTMLInputElement>(null);
   const nodes = useEditor((s) => s.nodes);
   const addNode = useEditor((s) => s.addNode);
+  const limits = useEditor((s) => s.limits);
+  const edgeCount = useEditor((s) => s.edges.length);
   const { getViewport } = useReactFlow();
   const view = useStore((s) => ({ width: s.width, height: s.height }), shallowSize);
 
   const refs = nodes.map((n) => ({ id: n.id, name: n.data.name, type: n.type as NodeType }));
   const fromType = from ? (nodes.find((n) => n.id === from.id)?.type as NodeType | undefined) : undefined;
   const fits = (t: NodeType) => !fromType || canConnect(fromType, t);
-  const available = (t: NodeType) => canAdd(t, refs) && fits(t);
+  const nodesFull = atLimit(nodes.length, limits.maxNodes);
+  const edgesFull = !!from && atLimit(edgeCount, limits.maxEdges);
+  const available = (t: NodeType) => canAdd(t, refs) && fits(t) && !nodesFull && !edgesFull;
   const reason = (t: NodeType) =>
-    !canAdd(t, refs) ? "Already in the flow" : !fits(t) ? "Cannot follow this node" : undefined;
-  const groups = pickerGroups(query, source);
+    !canAdd(t, refs)
+      ? "Already in the flow"
+      : !fits(t)
+        ? "Cannot follow this node"
+        : nodesFull
+          ? "This flow has reached the node limit"
+          : edgesFull
+            ? "This flow has reached the connection limit"
+            : undefined;
+  const groups = pickerGroups(query, source, limits.disabledNodeTypes);
   const flat = flatTypes(groups);
   const current =
     active && flat.includes(active)

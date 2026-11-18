@@ -345,3 +345,92 @@ async def test_runs_of_a_soft_deleted_flow_still_report_the_flow(sessions: Sessi
         runs = await RunStore(session).list_runs(member, None, None, None, None, None, None, 10)
     assert (after[flow.id].name, after[flow.id].deleted) == ("Loan check", True)
     assert len(runs) == 1
+
+
+def calling(flow_id: uuid.UUID) -> dict:
+    node = {"id": "sub", "type": "subflow", "data": {"flow_id": str(flow_id), "inputs": {}}}
+    return {"nodes": [{"id": "start", "type": "start"}, node]}
+
+
+async def publish_flow(sessions: SessionFactory, member: Member, flow: Flow) -> None:
+    async with sessions() as session:
+        await FlowStore(session).publish(member, flow.id, flow.draft_version, soft=False)
+
+
+async def test_callers_are_the_live_flows_whose_latest_version_calls_it(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    stranger = await make_member(sessions, "user-2")
+    async with sessions() as session:
+        store = FlowStore(session)
+        child = await store.create_flow(member, "Child", {"nodes": []})
+        caller = await store.create_flow(member, "A caller", calling(child.id))
+        draft_only = await store.create_flow(member, "Draft only", calling(child.id))
+        gone = await store.create_flow(member, "Deleted", calling(child.id))
+        other = await store.create_flow(stranger, "Other workspace", calling(child.id))
+        await store.create_flow(member, "Unrelated", calling(uuid.uuid4()))
+    for flow, owner in ((child, member), (caller, member), (gone, member), (other, stranger)):
+        await publish_flow(sessions, owner, flow)
+    async with sessions() as session:
+        await FlowStore(session).delete_flow(member, gone.id, soft=True)
+    assert draft_only.published_version is None
+
+    async with sessions() as session:
+        found = await FlowStore(session).list_callers(member, child.id)
+    assert [f.name for f in found] == ["A caller"]
+
+
+async def test_a_caller_that_stopped_calling_is_no_longer_listed(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    async with sessions() as session:
+        store = FlowStore(session)
+        child = await store.create_flow(member, "Child", {"nodes": []})
+        caller = await store.create_flow(member, "Caller", calling(child.id))
+    await publish_flow(sessions, member, child)
+    await publish_flow(sessions, member, caller)
+    async with sessions() as session:
+        store = FlowStore(session)
+        assert [f.name for f in await store.list_callers(member, child.id)] == ["Caller"]
+        saved = await store.save_draft(member, caller.id, {"nodes": []}, 1)
+        assert saved is not None
+    await publish_flow(sessions, member, saved)
+    async with sessions() as session:
+        assert await FlowStore(session).list_callers(member, child.id) == []
+
+
+async def test_unpublish_clears_the_pointer_and_the_next_publish_continues_numbering(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    (flow,) = await make(sessions, member, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(member, flow.id, 1, soft=False)
+
+    async with sessions() as session:
+        unpublished = await FlowStore(session).unpublish(member, flow.id)
+    assert unpublished is not None and unpublished.published_version is None
+    async with sessions() as session:
+        assert await FlowStore(session).unpublish(member, flow.id) is None
+
+    async with sessions() as session:
+        again = await FlowStore(session).publish(member, flow.id, 1, soft=False)
+    assert again.version == 2
+    async with sessions() as session:
+        versions = await FlowStore(session).list_versions(member, flow.id)
+    assert [v.version for v in versions] == [2, 1]
+
+
+async def test_unpublish_is_scoped_to_the_workspace(sessions: SessionFactory) -> None:
+    owner = await make_member(sessions)
+    other = await make_member(sessions, "user-2")
+    (flow,) = await make(sessions, owner, "Demo")
+    async with sessions() as session:
+        await FlowStore(session).publish(owner, flow.id, 1, soft=False)
+    async with sessions() as session:
+        assert await FlowStore(session).unpublish(other, flow.id) is None
+    async with sessions() as session:
+        loaded = await FlowStore(session).get_flow(owner, flow.id)
+    assert loaded is not None and loaded.published_version == 1

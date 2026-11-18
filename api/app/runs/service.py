@@ -9,18 +9,19 @@ from typing import Any, Protocol
 from app.engine.compiler import compile_graph
 from app.engine.inputs import InputValidationError
 from app.engine.observer import Observer
-from app.engine.run_secrets import RunSecrets, referenced_secret_names
+from app.engine.run_secrets import RunSecrets, referenced_connection_ids, referenced_secret_names
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
 from app.errors import ApiError
 from app.flows.models import Flow, FlowVersion
 from app.flows.service import invalid_flow, not_found
+from app.flows.subflows import SubflowSource
 from app.runs.models import Run
 from app.runs.schemas import RunSteps
 from app.runs.steps import build_steps
 from app.runs.store import FlowGone, RunStore
 from app.security.ssrf import OutboundPolicy
-from app.tracing import TraceSpan, TraceUnavailable
+from app.tracing import TraceIncomplete, TraceSpan, TraceUnavailable
 from app.workspaces.schemas import Member
 
 
@@ -28,7 +29,8 @@ class TracingObserver(Observer, Protocol):
     trace_id: str | None
 
 
-SecretLoader = Callable[[set[str]], Awaitable[RunSecrets]]
+# Loads the secrets (by name) and connections (by id) a run needs.
+SecretLoader = Callable[[set[str], set[str]], Awaitable[RunSecrets]]
 ObserverFactory = Callable[[str], TracingObserver]
 TraceReader = Callable[[str], Awaitable[list[TraceSpan] | None]]
 
@@ -47,6 +49,7 @@ async def run_draft(
     max_edges: int = 0,
     disabled_types: Collection[str] = (),
     outbound: OutboundPolicy | None = None,
+    subflows: SubflowSource | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -62,6 +65,7 @@ async def run_draft(
         max_edges,
         disabled_types,
         outbound,
+        subflows,
     )
 
 
@@ -78,6 +82,7 @@ async def run_published(
     max_edges: int = 0,
     disabled_types: Collection[str] = (),
     outbound: OutboundPolicy | None = None,
+    subflows: SubflowSource | None = None,
 ) -> Run:
     return await _run(
         store,
@@ -93,6 +98,7 @@ async def run_published(
         max_edges,
         disabled_types,
         outbound,
+        subflows,
     )
 
 
@@ -110,16 +116,27 @@ async def _run(
     max_edges: int,
     disabled_types: Collection[str],
     outbound: OutboundPolicy | None,
+    subflows: SubflowSource | None,
 ) -> Run:
     graph, issues = parse_graph(raw_graph, max_nodes, max_edges, disabled_types, outbound)
     if graph is None:
         raise invalid_flow(issues)
     names = referenced_secret_names(graph)
-    secrets = await load_secrets(names) if names else RunSecrets()
+    connection_ids = referenced_connection_ids(graph)
+    if subflows is not None:
+        names |= await subflows.secret_names(graph)
+        connection_ids |= await subflows.connection_ids(graph)
+    secrets = await load_secrets(names, connection_ids) if names or connection_ids else RunSecrets()
     observer = new_observer(flow.name)
     try:
         result = await run_flow(
-            compile_graph(graph), payload, observer, timeout_seconds, secrets, outbound
+            compile_graph(graph),
+            payload,
+            observer,
+            timeout_seconds,
+            secrets,
+            outbound,
+            subflows.access if subflows else None,
         )
     except InputValidationError as exc:
         first = exc.issues[0]
@@ -183,6 +200,16 @@ async def list_runs(
     return page, encode_cursor(page[-1]) if len(rows) > limit else None
 
 
+def _within_grace(run: Run) -> bool:
+    return datetime.now(UTC).replace(tzinfo=None) - run.started_at < TRACE_GRACE
+
+
+def _trace_unavailable() -> ApiError:
+    return ApiError(
+        503, "trace_unavailable", "Step history is unavailable right now. Try again shortly."
+    )
+
+
 async def run_steps(
     store: RunStore, member: Member, run_id: uuid.UUID, read: TraceReader
 ) -> RunSteps:
@@ -193,11 +220,12 @@ async def run_steps(
         return RunSteps(items=[], pending=False)
     try:
         spans = await read(run.mlflow_trace_id)
+    except TraceIncomplete:
+        if _within_grace(run):
+            return RunSteps(items=[], pending=True)
+        raise _trace_unavailable() from None
     except TraceUnavailable:
-        raise ApiError(
-            503, "trace_unavailable", "Step history is unavailable right now. Try again shortly."
-        ) from None
+        raise _trace_unavailable() from None
     if spans is None:
-        age = datetime.now(UTC).replace(tzinfo=None) - run.started_at
-        return RunSteps(items=[], pending=age < TRACE_GRACE)
+        return RunSteps(items=[], pending=_within_grace(run))
     return RunSteps(items=build_steps(spans), pending=False)

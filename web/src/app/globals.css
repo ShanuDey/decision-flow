@@ -159,3 +159,40 @@
     animation-duration: 1ms;
   }
 }
+
+.react-flow__controls {
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+.react-flow__controls .react-flow__controls-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  transition: background-color 120ms, color 120ms;
+}
+
+.react-flow__controls .react-flow__controls-button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.react-flow__controls .react-flow__controls-button:disabled {
+  opacity: 0.4;
+}
+
+.react-flow__controls .react-flow__controls-button svg {
+  width: 16px;
+  height: 16px;
+  max-width: none;
+  max-height: none;
+  fill: none;
+}

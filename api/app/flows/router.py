@@ -12,6 +12,8 @@ from app.flows.schemas import (
     DraftSaved,
     EvaluateRequest,
     EvaluateResponse,
+    FlowCaller,
+    FlowCallers,
     FlowCreate,
     FlowDetail,
     FlowFormat,
@@ -104,12 +106,32 @@ async def rename_flow(
     return FlowSummary.model_validate(flow, from_attributes=True)
 
 
-@router.delete("/flows/{flow_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.get("/flows/{flow_id}/callers", responses=NOT_FOUND)
+async def list_callers(flow_id: uuid.UUID, store: Store, member: CurrentMember) -> FlowCallers:
+    """Lists the flows whose latest published version runs this one in a Subflow node."""
+    callers = await service.list_callers(store, member, flow_id)
+    return FlowCallers(items=[FlowCaller(id=c.id, name=c.name) for c in callers])
+
+
+@router.delete(
+    "/flows/{flow_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={**NOT_FOUND, **CONFLICT},
+)
 async def delete_flow(
-    flow_id: uuid.UUID, store: Store, member: CurrentMember, settings: AppSettings
+    flow_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    settings: AppSettings,
+    force: bool = False,
 ) -> None:
-    """Hard mode removes the flow and its runs for good; soft mode only hides the flow."""
-    await service.delete_flow(store, member, flow_id, soft=settings.delete_mode == "soft")
+    """Hard mode removes the flow and its runs for good; soft mode only hides the flow.
+
+    409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.
+    """
+    await service.delete_flow(
+        store, member, flow_id, soft=settings.delete_mode == "soft", force=force
+    )
 
 
 @router.put(
@@ -156,7 +178,7 @@ async def validate_flow(
     and `field`.
     """
     flow = await service.require_flow(store, member, flow_id)
-    service.validate_draft(flow, limits, outbound_policy(settings, limits))
+    await service.validate_draft(store, member, flow, limits, outbound_policy(settings, limits))
     return ValidateResponse(valid=True)
 
 
@@ -181,6 +203,20 @@ async def publish_flow(
         outbound=outbound_policy(settings, limits),
     )
     return VersionDetail.model_validate(version, from_attributes=True)
+
+
+@router.post("/flows/{flow_id}/unpublish", responses={**NOT_FOUND, **CONFLICT})
+async def unpublish_flow(
+    flow_id: uuid.UUID, store: Store, member: CurrentMember, force: bool = False
+) -> FlowSummary:
+    """Takes the flow offline: runs and the gateway answer `not_published` until you publish again.
+
+    Versions and the draft are kept, and the next publish continues the numbering. 409
+    `flow_in_use` lists the flows that call this one; `force=true` unpublishes it anyway. 409
+    `not_published` if it is not published.
+    """
+    flow = await service.unpublish_flow(store, member, flow_id, force=force)
+    return FlowSummary.model_validate(flow, from_attributes=True)
 
 
 @router.get("/flows/{flow_id}/versions", responses=NOT_FOUND)

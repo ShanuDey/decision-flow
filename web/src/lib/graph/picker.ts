@@ -10,11 +10,15 @@ export interface PickerGroup {
 
 const GROUP_ORDER: NodeGroup[] = ["Flow", "Logic", "Data"];
 
-export function pickerGroups(query: string, source: SourceFilter): PickerGroup[] {
+export function pickerGroups(
+  query: string,
+  source: SourceFilter,
+  hidden: readonly string[] = [],
+): PickerGroup[] {
   const needle = query.trim().toLowerCase();
   const matches = (type: NodeType) => {
     const spec = NODE_SPECS[type];
-    if (!spec.pickable) return false;
+    if (!spec.pickable || hidden.includes(type)) return false;
     if (source !== "all" && spec.source !== source) return false;
     return !needle || `${spec.label} ${spec.description} ${spec.group}`.toLowerCase().includes(needle);
   };

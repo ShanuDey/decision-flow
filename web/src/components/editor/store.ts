@@ -9,6 +9,7 @@ import {
 import { create } from "zustand";
 
 import type { FieldIssue } from "@/lib/call";
+import type { ConnectionOption } from "@/lib/connections";
 import {
   type EditorGraph,
   type FlowEdge,
@@ -24,6 +25,12 @@ import {
   uniqueId,
   uniqueName,
 } from "@/lib/graph/nodes";
+import { atLimit, type EditorLimits, NO_LIMITS } from "@/lib/graph/limits";
+import {
+  type Contracts,
+  type FlowContract,
+  type PublishedFlow,
+} from "@/lib/graph/subflow";
 import type {
   AssignData,
   Graph,
@@ -57,6 +64,15 @@ interface EditorState {
   issues: FieldIssue[];
   // Names of the workspace's saved secrets, for fields that accept them. Never the values.
   secretNames: string[];
+  // The workspace's connections a node can pick; never their credentials.
+  connections: ConnectionOption[];
+  // Flows a Subflow node can call, and what each declares; loaded on demand, never saved.
+  publishedFlows: PublishedFlow[];
+  // True when more published flows exist than were loaded.
+  publishedFlowsMore: boolean;
+  contracts: Contracts;
+  // What this server allows; the server enforces it too.
+  limits: EditorLimits;
   // UI only: the top bar button and the Assign dropdown both open the variables dialog.
   variablesOpen: boolean;
   variablesSelected: number;
@@ -88,14 +104,21 @@ interface EditorState {
   deleteItems: (nodeIds: string[], edgeIds: string[]) => Removed;
   restore: (removed: Removed) => void;
   setNodeConfig: (id: string, config: NodeData) => void;
+  moveNodes: (positions: Record<string, Position>) => void;
   renameNode: (id: string, name: string) => void;
   setVariables: (variables: Variable[]) => void;
   // Also repoints Assign targets that used the old name; skipped when it would merge two variables.
   renameVariable: (index: number, name: string) => void;
   setIssues: (issues: FieldIssue[]) => void;
   setSecretNames: (names: string[]) => void;
+  setConnections: (connections: ConnectionOption[]) => void;
+  setPublishedFlows: (flows: PublishedFlow[], more: boolean) => void;
+  addPublishedFlow: (flow: PublishedFlow) => void;
+  setContract: (flowId: string, contract: FlowContract | null) => void;
+  setLimits: (limits: EditorLimits) => void;
   markSaved: (draftVersion: number, savedRevision: number) => void;
   markPublished: (version: number, draftVersion: number) => void;
+  markUnpublished: () => void;
 }
 
 // A change only makes the draft dirty if it alters the graph, not the selection or measuring.
@@ -120,6 +143,7 @@ function countByType(nodes: FlowNode[]): Record<NodeType, number> {
     assign: 0,
     condition: 0,
     http_request: 0,
+    subflow: 0,
     end: 0,
   };
   for (const n of nodes) counts[n.type as NodeType] += 1;
@@ -153,6 +177,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   savedAt: null,
   issues: [],
   secretNames: [],
+  connections: [],
+  publishedFlows: [],
+  publishedFlowsMore: false,
+  contracts: {},
+  limits: NO_LIMITS,
   variablesOpen: false,
   variablesSelected: 0,
   setVariablesOpen: (variablesOpen) => set({ variablesOpen }),
@@ -208,6 +237,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const source = typeOf(nodes, c.source);
     const target = typeOf(nodes, c.target);
     if (!source || !target || c.source === c.target) return false;
+    if (atLimit(edges.length, get().limits.maxEdges)) return false;
     if (!canConnect(source, target)) return false;
     if (NODE_SPECS[source].handles.length > 0) {
       // a branch node takes one edge per handle
@@ -219,11 +249,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
     return !edges.some((e) => e.source === c.source && e.target === c.target);
   },
 
-  onConnect: (connection) => set((s) => ({ edges: addEdge(connection, s.edges), ...touch(s) })),
+  onConnect: (connection) =>
+    set((s) =>
+      atLimit(s.edges.length, s.limits.maxEdges)
+        ? s
+        : { edges: addEdge(connection, s.edges), ...touch(s) },
+    ),
 
   addNode: (type, position, from) =>
     set((s) => {
       if (!canAdd(type, s.nodes.map(refOf))) return s;
+      if (atLimit(s.nodes.length, s.limits.maxNodes)) return s;
+      if (from && atLimit(s.edges.length, s.limits.maxEdges)) return s;
       const source = from ? s.nodes.find((n) => n.id === from.id) : undefined;
       if (from && (!source || !canConnect(source.type as NodeType, type))) return s;
       const x = s.nodes.length ? Math.max(...s.nodes.map((n) => n.position.x)) + 280 : 0;
@@ -257,6 +294,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { nodes } = get();
     const source = nodes.find((n) => n.id === id);
     if (!source || !canAdd(source.type as NodeType, nodes.map(refOf))) return null;
+    if (atLimit(nodes.length, get().limits.maxNodes)) return null;
     const name = uniqueName(
       source.data.name,
       nodes.map((n) => n.data.name),
@@ -330,6 +368,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
       ...touch(s),
     })),
 
+  moveNodes: (positions) =>
+    set((s) => ({
+      nodes: s.nodes.map((n) => (positions[n.id] ? { ...n, position: positions[n.id] } : n)),
+      ...touch(s, s.nodes.some((n) => positions[n.id])),
+    })),
+
   renameVariable: (index, name) =>
     set((s) => {
       const old = s.variables[index]?.name;
@@ -359,11 +403,24 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setIssues: (issues) => set({ issues }),
   setSecretNames: (secretNames) => set({ secretNames }),
 
+  setConnections: (connections) => set({ connections }),
+  setPublishedFlows: (publishedFlows, publishedFlowsMore) => set({ publishedFlows, publishedFlowsMore }),
+  addPublishedFlow: (flow) =>
+    set((s) =>
+      s.publishedFlows.some((f) => f.id === flow.id)
+        ? s
+        : { publishedFlows: [...s.publishedFlows, flow] },
+    ),
+  setLimits: (limits) => set({ limits }),
+  setContract: (flowId, contract) => set((s) => ({ contracts: { ...s.contracts, [flowId]: contract } })),
+
   markSaved: (draftVersion, savedRevision) =>
     set((s) => ({ draftVersion, dirty: s.revision !== savedRevision, savedAt: new Date() })),
 
   markPublished: (publishedVersion, publishedDraftVersion) =>
     set({ publishedVersion, publishedDraftVersion }),
+
+  markUnpublished: () => set({ publishedVersion: null, publishedDraftVersion: null }),
 }));
 
 export const selectedNode = (s: EditorState): FlowNode | undefined =>

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { deleteFromCanvas } from "./actions";
 import { ExpandableInput } from "./expand-field";
 import { HttpRequestForm } from "./http-request-form";
+import { SubflowForm } from "./subflow-form";
 import { ExpressionInput } from "./expression-input";
 import {
   EnumValues,
@@ -327,6 +328,7 @@ export function SettingsPanel() {
   const renameNode = useEditor((s) => s.renameNode);
   const issues = useEditor((s) => s.issues);
   const general = flowIssues(issues);
+  const limits = useEditor((s) => s.limits);
   const storedWidth = useLayout((s) => s.width);
   const collapsed = useLayout((s) => s.collapsed);
   const toggleCollapsed = useLayout((s) => s.toggleCollapsed);
@@ -421,11 +423,22 @@ export function SettingsPanel() {
                       <FieldError key={i} issue={issue} />
                     ))}
                 </section>
+                {limits.disabledNodeTypes.includes(node.type) && (
+                  <FieldError
+                    issue={{
+                      code: "node_disabled",
+                      message: `'${node.type}' nodes are turned off on this server`,
+                      node_id: node.id,
+                      field: "type",
+                    }}
+                  />
+                )}
                 {node.type === "start" && <StartForm node={node} />}
                 {node.type === "end" && <EndForm node={node} />}
                 {node.type === "assign" && <AssignForm node={node} />}
                 {node.type === "condition" && <ConditionForm node={node} />}
                 {node.type === "http_request" && <HttpRequestForm node={node} />}
+                {node.type === "subflow" && <SubflowForm node={node} />}
               </TabsContent>
               <TabsContent value="test" className="overflow-y-auto p-4">
                 {node.type === "condition" ? (

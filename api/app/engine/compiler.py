@@ -78,6 +78,8 @@ def _wrap(node: NodeModel, ctx: NodeContext) -> Callable[..., Awaitable[dict[str
             update={
                 "secrets": configurable.get("secrets") or ctx.secrets,
                 "outbound": configurable.get("outbound") or ctx.outbound,
+                "subflows": configurable.get("subflows"),
+                "observer": observer,
             }
         )
         await observer.node_started(info, {k: state.get(k) for k in ("input", "vars", "nodes")})

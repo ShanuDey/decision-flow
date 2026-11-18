@@ -50,6 +50,15 @@ class VersionList(FrozenBaseModel):
     keep_latest: int
 
 
+class FlowCaller(FrozenBaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class FlowCallers(FrozenBaseModel):
+    items: list[FlowCaller]
+
+
 class FlowList(FrozenBaseModel):
     items: list[FlowSummary]
     total: int

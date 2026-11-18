@@ -116,3 +116,65 @@ async def test_another_workspace_cannot_publish_or_read_versions(
     assert (await client.get(f"{url}/versions", headers=OTHER)).status_code == 404
     assert (await client.get(f"{url}/versions/1", headers=OTHER)).status_code == 404
     assert (await client.get(f"{url}/versions")).status_code == 200
+
+
+async def test_unpublish_clears_the_published_fields_and_keeps_the_versions(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client)
+    await client.post(f"/flows/{flow['id']}/publish")
+    response = await client.post(f"/flows/{flow['id']}/unpublish")
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["published_version"], body["published_draft_version"], body["published_at"]) == (
+        None,
+        None,
+        None,
+    )
+    versions = (await client.get(f"/flows/{flow['id']}/versions")).json()["items"]
+    assert [v["version"] for v in versions] == [1]
+    assert (await client.get(f"/flows/{flow['id']}")).json()["draft"] == flow["draft"]
+
+
+async def test_publishing_again_after_unpublish_continues_the_numbering(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client)
+    await client.post(f"/flows/{flow['id']}/publish")
+    await client.post(f"/flows/{flow['id']}/unpublish")
+    again = await client.post(f"/flows/{flow['id']}/publish")
+    assert again.status_code == 201 and again.json()["version"] == 2
+    detail = (await client.get(f"/flows/{flow['id']}")).json()
+    assert detail["published_version"] == 2
+
+
+async def test_a_flow_that_is_not_published_cannot_be_unpublished(
+    client: httpx.AsyncClient,
+) -> None:
+    flow = await create_flow(client)
+    response = await client.post(f"/flows/{flow['id']}/unpublish")
+    assert response.status_code == 409 and response.json()["code"] == "not_published"
+    await client.post(f"/flows/{flow['id']}/publish")
+    await client.post(f"/flows/{flow['id']}/unpublish")
+    again = await client.post(f"/flows/{flow['id']}/unpublish")
+    assert again.status_code == 409 and again.json()["code"] == "not_published"
+
+
+async def test_a_run_of_an_unpublished_flow_is_refused(client: httpx.AsyncClient) -> None:
+    flow = await create_flow(client)
+    await client.post(f"/flows/{flow['id']}/publish")
+    await client.post(f"/flows/{flow['id']}/unpublish")
+    run = await client.post(f"/flows/{flow['id']}/runs", json={"input": {}})
+    assert run.status_code == 422 and run.json()["code"] == "not_published"
+
+
+async def test_unpublishing_an_unknown_flow_is_404(client: httpx.AsyncClient) -> None:
+    assert (await client.post(f"/flows/{uuid.uuid4()}/unpublish")).status_code == 404
+
+
+async def test_another_user_cannot_unpublish_the_flow(client: httpx.AsyncClient) -> None:
+    flow = await create_flow(client)
+    await client.post(f"/flows/{flow['id']}/publish")
+    other = await client.post(f"/flows/{flow['id']}/unpublish", headers=OTHER)
+    assert other.status_code == 404
+    assert (await client.get(f"/flows/{flow['id']}")).json()["published_version"] == 1

@@ -12,6 +12,7 @@ from app.engine.graph import Edge, Graph
 from app.engine.inputs import check_value
 from app.engine.issues import Issue
 from app.engine.nodes import NODE_TYPES, NodeContext, NodeModel, StartNode
+from app.engine.subflow import FlowContract
 from app.engine.templates import Ref, TemplateError, references
 from app.security.ssrf import OutboundPolicy
 
@@ -47,6 +48,7 @@ def parse_graph(
     max_edges: int = 0,
     disabled_types: Collection[str] = (),
     outbound: OutboundPolicy | None = None,
+    contracts: dict[str, FlowContract] | None = None,
 ) -> tuple[Graph | None, list[Issue]]:
     """Stages 0 (size), 1 (schema), 2 (structure), 3 (settings); each needs the last to pass."""
     if size_issues := check_size(raw, max_nodes, max_edges):
@@ -58,7 +60,7 @@ def parse_graph(
     issues = (
         _disabled(graph, disabled_types)
         or check_structure(graph)
-        or check_settings(graph, outbound)
+        or check_settings(graph, outbound, contracts)
     )
     return (None if issues else graph), issues
 
@@ -82,9 +84,14 @@ def _schema_issue(raw: Any, err: Any) -> Issue:
     return _issue("schema", err["msg"], node_id, ".".join(str(p) for p in loc))
 
 
-def check_settings(graph: Graph, outbound: OutboundPolicy | None = None) -> list[Issue]:
+def check_settings(
+    graph: Graph,
+    outbound: OutboundPolicy | None = None,
+    contracts: dict[str, FlowContract] | None = None,
+) -> list[Issue]:
     issues: list[Issue] = []
-    ctx = NodeContext(variables=graph.variables, outbound=outbound)
+    ctx = NodeContext(variables=graph.variables, outbound=outbound, contracts=contracts)
+    outputs = {n.id: names for n in graph.nodes if (names := n.output_names(ctx)) is not None}
     inputs = {f.name for n in graph.nodes if isinstance(n, StartNode) for f in n.data.inputs}
     variables = {v.name for v in graph.variables}
     ids = {n.id for n in graph.nodes}
@@ -109,7 +116,9 @@ def check_settings(graph: Graph, outbound: OutboundPolicy | None = None) -> list
                         issues.append(problem)
                     continue
                 if ref.scope == "nodes":
-                    problem = _reference_problem(ref, inputs, variables, ids, upstream_of(node.id))
+                    problem = _reference_problem(
+                        ref, inputs, variables, ids, upstream_of(node.id), outputs
+                    )
                     if problem:
                         issues.append(_issue(*problem, node.id, field))
                     continue
@@ -127,7 +136,7 @@ def check_settings(graph: Graph, outbound: OutboundPolicy | None = None) -> list
                 issues.append(_issue("invalid_expression", str(exc), node.id, field))
                 continue
             for ref in refs:
-                problem = _reference_problem(ref, inputs, variables, ids, upstream)
+                problem = _reference_problem(ref, inputs, variables, ids, upstream, outputs)
                 if problem:
                     issues.append(_issue(*problem, node.id, field))
     return issues
@@ -143,7 +152,12 @@ def _secret_problem(node: NodeModel, field: str, ref: Ref) -> Issue | None:
 
 
 def _reference_problem(
-    ref: Ref, inputs: set[str], variables: set[str], ids: set[str], upstream: set[str]
+    ref: Ref,
+    inputs: set[str],
+    variables: set[str],
+    ids: set[str],
+    upstream: set[str],
+    outputs: dict[str, set[str]] | None = None,
 ) -> tuple[str, str] | None:
     if not ref.path:
         return None
@@ -155,6 +169,9 @@ def _reference_problem(
         return "unknown_reference", f"{ref} is not declared"
     if ref.scope == "nodes" and len(ref.path) > 1 and ref.path[1] != "output":
         return "unknown_reference", f"{ref}: a node only has 'output'"
+    if ref.scope == "nodes" and len(ref.path) > 2 and outputs and head in outputs:
+        if ref.path[2] not in outputs[head]:
+            return "unknown_reference", f"{ref}: '{head}' has no output '{ref.path[2]}'"
     return None
 
 

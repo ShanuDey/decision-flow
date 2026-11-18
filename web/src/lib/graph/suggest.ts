@@ -1,3 +1,4 @@
+import type { Contracts } from "./subflow";
 import type { Graph, GraphNode } from "./types";
 
 export interface Suggestion {
@@ -38,7 +39,11 @@ export function ancestors(graph: Graph, nodeId: string): Set<string> {
   return seen;
 }
 
-export function outputKeys(node: GraphNode, graph: Graph): { name: string; type: string }[] {
+export function outputKeys(
+  node: GraphNode,
+  graph: Graph,
+  contracts: Contracts = {},
+): { name: string; type: string }[] {
   switch (node.type) {
     case "start":
       return node.data.inputs.map((i) => ({ name: i.name, type: i.type }));
@@ -61,6 +66,8 @@ export function outputKeys(node: GraphNode, graph: Graph): { name: string; type:
         { name: "body", type: "unknown" },
         { name: "duration_ms", type: "number" },
       ];
+    case "subflow":
+      return contracts[node.data.flow_id]?.outputs ?? [];
     case "end":
       return [];
   }
@@ -71,6 +78,7 @@ function candidates(
   nodeId: string,
   head: string[],
   secrets: string[] | undefined,
+  contracts: Contracts,
 ): Suggestion[] {
   const [scope, id, output] = head;
   if (head.length === 0) return secrets ? [...ROOTS, SECRETS_ROOT] : ROOTS;
@@ -105,7 +113,7 @@ function candidates(
     return [{ insert: `nodes.${node.id}.output`, label: "output", detail: node.name }];
   }
   if (head.length === 3 && output === "output") {
-    return outputKeys(node, graph).map((k) => ({
+    return outputKeys(node, graph, contracts).map((k) => ({
       insert: `nodes.${node.id}.output.${k.name}`,
       label: k.name,
       detail: k.type,
@@ -133,6 +141,7 @@ export function suggest(
   text: string,
   cursor: number,
   secrets?: string[],
+  contracts: Contracts = {},
 ): Suggestions {
   const before = text.slice(0, cursor);
   if (insideString(before)) return { from: cursor, items: [] };
@@ -142,7 +151,7 @@ export function suggest(
   if (token.startsWith(".") || (prev && /[\w.]/.test(prev))) return { from, items: [] };
   const parts = token.split(".");
   const partial = parts[parts.length - 1].toLowerCase();
-  const items = candidates(graph, nodeId, parts.slice(0, -1), secrets).filter(
+  const items = candidates(graph, nodeId, parts.slice(0, -1), secrets, contracts).filter(
     (c) => c.label.toLowerCase().startsWith(partial) && c.insert !== token,
   );
   return { from, items };

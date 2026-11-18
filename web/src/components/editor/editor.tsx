@@ -3,8 +3,11 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useState } from "react";
 
-import { listSecrets } from "@/lib/api/client";
+import { config as getConfig, listConnections, listConnectionTypes, listSecrets } from "@/lib/api/client";
 import { call } from "@/lib/call";
+import { connectionOptions } from "@/lib/connections";
+import { limitsOf } from "@/lib/graph/limits";
+import { calledFlowIds } from "@/lib/graph/subflow";
 import type { Graph } from "@/lib/graph/types";
 
 import type { RunOutcome } from "./actions";
@@ -14,6 +17,7 @@ import { RunPanel } from "./run-panel";
 import { SettingsPanel } from "./settings-panel";
 import type { PublishedInfo } from "./published";
 import { useEditor } from "./store";
+import { ensureContracts, loadPublishedFlows } from "./subflows";
 import { TopBar } from "./top-bar";
 import { VariablesDialog } from "./variables-dialog";
 
@@ -37,9 +41,31 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
       if (stale || !result.ok) return;
       useEditor.getState().setSecretNames(result.data.items.map((item) => item.name));
     });
+    Promise.all([call(listConnections()), call(listConnectionTypes())]).then(([list, types]) => {
+      if (stale || !list.ok || !types.ok) return;
+      useEditor.getState().setConnections(connectionOptions(list.data.items, types.data.items));
+    });
+    call(getConfig()).then((result) => {
+      if (stale || !result.ok) return;
+      useEditor.getState().setLimits(limitsOf(result.data));
+    });
     return () => {
       stale = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let stale = false;
+    loadPublishedFlows().then((page) => {
+      if (stale || !page) return;
+      useEditor.getState().setPublishedFlows(page.flows, page.more);
+    });
+    void ensureContracts(calledFlowIds(graph));
+    return () => {
+      stale = true;
+    };
+    // the flow is loaded once; later picks load their own contracts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

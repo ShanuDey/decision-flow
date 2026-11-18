@@ -26,6 +26,16 @@ class Redactor:
             # The same value also shows up JSON-escaped in error text and URL-encoded in URLs.
             for text in {value, json.dumps(value)[1:-1], quote(value, safe=""), quote_plus(value)}:
                 forms.add((text, f"[REDACTED:{name}]"))
+        for connection in secrets.connections.values() if secrets else ():
+            for secret in connection.secret_values:
+                if value := secret.get_secret_value():
+                    for text in {
+                        value,
+                        json.dumps(value)[1:-1],
+                        quote(value, safe=""),
+                        quote_plus(value),
+                    }:
+                        forms.add((text, f"[REDACTED:{connection.name}]"))
         self._forms = sorted(forms, key=lambda form: len(form[0]), reverse=True)
 
     def text(self, value: str) -> str:

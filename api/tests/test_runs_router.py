@@ -390,3 +390,57 @@ def test_disabled_node_types_come_from_a_comma_separated_setting(
     monkeypatch.setenv("DISABLED_NODE_TYPES", "http_request, assign ,")
 
     assert Limits(_env_file=None).disabled_node_types == ["http_request", "assign"]
+
+
+@pytest.mark.anyio
+async def test_a_called_flow_can_use_a_secret_that_stays_out_of_every_record(
+    client: httpx.AsyncClient, private_policy: OutboundPolicy
+) -> None:
+    box = new_box()
+    app.dependency_overrides[get_box_factory] = lambda: lambda: box
+    try:
+        await client.put("/secrets/API_KEY", json={"value": "test-secret-value-123456"})
+        async with serve() as (port, received):
+            child_draft = http_flow(
+                {
+                    "url": f"http://127.0.0.1:{port}/echo",
+                    "headers": {"Authorization": "Bearer {{ secrets.API_KEY }}"},
+                },
+                [NO_OUTPUT],
+            )
+            child = await create_flow(client, child_draft)
+            assert (await client.post(f"/flows/{child['id']}/publish")).status_code == 201
+            parent_draft = {
+                "schema_version": 1,
+                "variables": [],
+                "nodes": [
+                    {"id": "start", "type": "start", "data": {"inputs": []}},
+                    {"id": "sub", "type": "subflow", "data": {"flow_id": child["id"]}},
+                    {
+                        "id": "end",
+                        "type": "end",
+                        "data": {
+                            "outputs": [
+                                {
+                                    "name": "status",
+                                    "type": "number",
+                                    "value": "{{ nodes.sub.output.status }}",
+                                }
+                            ]
+                        },
+                    },
+                ],
+                "edges": [
+                    {"id": "e1", "source": "start", "target": "sub"},
+                    {"id": "e2", "source": "sub", "target": "end"},
+                ],
+            }
+            parent = await create_flow(client, parent_draft)
+            response = await client.post(f"/flows/{parent['id']}/runs", json={"test": True})
+            run = (await client.get(f"/runs/{response.json()['run_id']}")).json()
+    finally:
+        app.dependency_overrides.pop(get_box_factory, None)
+
+    assert response.status_code == 200 and response.json()["output"] == {"status": 200}
+    assert received[0]["headers"]["authorization"] == "Bearer test-secret-value-123456"
+    assert "test-secret-value-123456" not in response.text + str(run)

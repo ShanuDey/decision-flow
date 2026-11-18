@@ -125,6 +125,54 @@ function KeyValueRows({
   );
 }
 
+function ConnectionPicker({ node, config, update }: { node: FlowNode; config: HttpRequestData; update: Update }) {
+  const connections = useEditor((s) => s.connections);
+  const issues = useEditor((s) => s.issues);
+  const id = `${node.id}-connection`;
+  const chosen = connections.find((c) => c.id === config.connection_id);
+  const missing = config.connection_id !== "" && !chosen;
+  const server = fieldIssue(issues, node.id, "data.connection_id");
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h3 className="text-sm font-medium">Connection</h3>
+      <Labeled id={id} label="Sign requests with" issue={server}>
+        <SelectField
+          id={id}
+          value={chosen ? chosen.id : ""}
+          onValueChange={(next) => update({ connection_id: next })}
+          options={[
+            { value: "", label: "None" },
+            ...connections.map((c) => ({ value: c.id, label: `${c.name} (${c.typeName})` })),
+          ]}
+        />
+      </Labeled>
+      {chosen && (
+        <p className="text-xs text-muted-foreground">
+          Adds its credentials to the request, and only for {chosen.hosts || "its allowed hosts"}. A header you set
+          below wins over it.
+        </p>
+      )}
+      {missing && (
+        <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+          The saved connection no longer exists. Pick another, or the run will fail.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {connections.length === 0 ? "No connections yet. " : ""}
+        <a
+          href="/connections"
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Manage connections
+        </a>
+      </p>
+    </section>
+  );
+}
+
 function AuthPresets({ onAdd, flowId }: { onAdd: (row: Row) => void; flowId: string }) {
   const names = useEditor((s) => s.secretNames);
   const [secret, setSecret] = useState("");
@@ -366,6 +414,7 @@ export function HttpRequestForm({ node }: { node: FlowNode }) {
           A secret cannot be used in the URL. Put credentials in a header or the body.
         </p>
       </section>
+      <ConnectionPicker node={node} config={config} update={update} />
       <HeadersEditor key={`${node.id}-h`} node={node} config={config} update={update} />
       <QueryEditor key={`${node.id}-q`} node={node} config={config} update={update} />
       <section className="flex flex-col gap-3">

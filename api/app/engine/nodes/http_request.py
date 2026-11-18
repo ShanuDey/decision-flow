@@ -3,6 +3,7 @@
 import json
 import re
 import time
+import uuid
 from collections.abc import Iterator
 from typing import Any, Literal
 from urllib.parse import urlencode
@@ -11,6 +12,7 @@ import httpx
 from pydantic import Field
 
 from app.engine.base import StrictBaseModel
+from app.engine.connections import host_allowed
 from app.engine.issues import Issue
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.templates import TemplateError, render
@@ -45,6 +47,7 @@ class HttpRequestData(StrictBaseModel):
     body: Any = None
     timeout_seconds: int | None = Field(default=None, ge=1)
     fail_on_error_status: bool = False
+    connection_id: str = ""
 
 
 def _leaves(value: Any, path: str) -> Iterator[tuple[str, str]]:
@@ -127,6 +130,9 @@ class HttpRequestNode(NodeModel):
     def secret_fields(self) -> set[str]:
         return set(self.templates()) - {"data.url"}
 
+    def connection_ids(self) -> set[str]:
+        return {self.data.connection_id} if self.data.connection_id else set()
+
     def check(self, ctx: NodeContext) -> list[Issue]:
         d = self.data
         found: list[tuple[str, str, str]] = []
@@ -156,6 +162,13 @@ class HttpRequestNode(NodeModel):
             if not name.strip()
         ]
         found += self._body_problems()
+        if d.connection_id:
+            try:
+                uuid.UUID(d.connection_id)
+            except ValueError:
+                found.append(
+                    ("invalid_connection", "pick a connection again", "data.connection_id")
+                )
         return [Issue(code=c, message=m, node_id=self.id, field=f) for c, m, f in found]
 
     def _body_problems(self) -> list[tuple[str, str, str]]:
@@ -190,6 +203,7 @@ class HttpRequestNode(NodeModel):
         query = {k: _as_text(renderer.one(v, f"query.{k}")) for k, v in d.query.items()}
         headers = {k: _as_text(renderer.one(v, f"headers.{k}")) for k, v in d.headers.items()}
         content = self._body(renderer)
+        self._apply_connection(headers, ctx)
         if content is not None and not any(k.lower() == "content-type" for k in headers):
             headers["Content-Type"] = CONTENT_TYPES[d.body_type]
         try:
@@ -197,6 +211,7 @@ class HttpRequestNode(NodeModel):
         except httpx.InvalidURL:
             raise ValueError("url: the rendered URL is not valid") from None
 
+        self._check_host(target, ctx)
         policy = ctx.outbound
         if d.timeout_seconds:
             policy = policy.model_copy(
@@ -227,6 +242,26 @@ class HttpRequestNode(NodeModel):
             "duration_ms": int((time.perf_counter() - started) * 1000),
         }
         return {"nodes": {self.id: {"output": output}}}
+
+    def _apply_connection(self, headers: dict[str, str], ctx: NodeContext) -> None:
+        if not self.data.connection_id:
+            return
+        connection = ctx.secrets.connections.get(self.data.connection_id)
+        if connection is None:
+            raise ValueError("the connection is not available; pick it again in the node")
+        own = {name.lower() for name in headers}
+        for name, value in connection.headers.items():
+            if name.lower() not in own:
+                headers[name] = value.get_secret_value()
+
+    def _check_host(self, target: str, ctx: NodeContext) -> None:
+        connection = ctx.secrets.connections.get(self.data.connection_id)
+        if connection is None:
+            return
+        host = httpx.URL(target).host
+        if not host_allowed(host, connection.hosts):
+            allowed = ", ".join(connection.hosts)
+            raise ValueError(f"connection '{connection.name}' may only call {allowed}, not {host}")
 
     def _body(self, renderer: _Renderer) -> bytes | None:
         d = self.data

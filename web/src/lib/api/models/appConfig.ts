@@ -8,4 +8,9 @@ import type { AppConfigDeleteMode } from './appConfigDeleteMode';
 
 export interface AppConfig {
   delete_mode: AppConfigDeleteMode;
+  disabled_node_types: string[];
+  limit_notice: string;
+  limit_notice_url: string;
+  max_edges: number;
+  max_nodes: number;
 }

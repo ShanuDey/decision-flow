@@ -11,7 +11,151 @@ import * as zod from 'zod';
  * @summary Config
  */
 export const ConfigResponse = zod.object({
-  "delete_mode": zod.enum(['hard', 'soft'])
+  "delete_mode": zod.enum(['hard', 'soft']),
+  "disabled_node_types": zod.array(zod.string()),
+  "limit_notice": zod.string(),
+  "limit_notice_url": zod.string(),
+  "max_edges": zod.int(),
+  "max_nodes": zod.int()
+})
+
+
+/**
+ * Lists the connection types you can create, with the fields each one asks for.
+ * @summary List Connection Types
+ */
+export const ListConnectionTypesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "category": zod.string(),
+  "description": zod.string(),
+  "docs_url": zod.string(),
+  "fields": zod.array(zod.object({
+  "default": zod.string(),
+  "format": zod.string(),
+  "help": zod.string(),
+  "label": zod.string(),
+  "name": zod.string(),
+  "placeholder": zod.string(),
+  "required": zod.boolean(),
+  "secret": zod.boolean()
+})),
+  "hosts": zod.array(zod.string()),
+  "hosts_from": zod.string(),
+  "icon": zod.string(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "testable": zod.boolean()
+}))
+})
+
+
+/**
+ * Lists the workspace's connections. Secret values are never returned.
+ * @summary List Connections
+ */
+export const ListConnectionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "config": zod.record(zod.string(), zod.string()),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "secrets_set": zod.array(zod.string()),
+  "type": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Creates a connection of a given type.
+ *
+ * Its secret fields are encrypted and cannot be read back. It can only be used for the hosts
+ * it allows.
+ * @summary Create Connection
+ */
+export const createConnectionBodyNameMax = 80;
+
+
+
+export const CreateConnectionBody = zod.object({
+  "name": zod.string().min(1).max(createConnectionBodyNameMax),
+  "type": zod.string(),
+  "values": zod.record(zod.string(), zod.string())
+})
+
+export const CreateConnectionResponse = zod.object({
+  "config": zod.record(zod.string(), zod.string()),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "secrets_set": zod.array(zod.string()),
+  "type": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Removes a connection for good.
+ *
+ * 409 `connection_in_use` lists the flows that use it; `force=true` deletes it anyway.
+ * @summary Delete Connection
+ */
+export const DeleteConnectionParams = zod.object({
+  "connection_id": zod.uuid()
+})
+
+export const deleteConnectionQueryForceDefault = false;
+
+export const DeleteConnectionQueryParams = zod.object({
+  "force": zod.boolean().default(deleteConnectionQueryForceDefault)
+})
+
+export const DeleteConnectionResponse = zod.void()
+
+
+/**
+ * Renames a connection or changes fields. A secret field you leave out keeps its value.
+ * @summary Update Connection
+ */
+export const UpdateConnectionParams = zod.object({
+  "connection_id": zod.uuid()
+})
+
+export const updateConnectionBodyNameOneMax = 80;
+
+export const updateConnectionBodyValuesDefault = {};
+
+export const UpdateConnectionBody = zod.object({
+  "name": zod.union([zod.string().min(1).max(updateConnectionBodyNameOneMax),zod.null()]).optional(),
+  "values": zod.record(zod.string(), zod.string()).default(updateConnectionBodyValuesDefault)
+})
+
+export const UpdateConnectionResponse = zod.object({
+  "config": zod.record(zod.string(), zod.string()),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "secrets_set": zod.array(zod.string()),
+  "type": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Calls the service's check endpoint with the saved credentials.
+ *
+ * Only types that have one can be tested, otherwise 422 `no_test_available`. The answer says
+ * whether the service accepted the credentials, and never includes what it sent back.
+ * @summary Test Connection
+ */
+export const TestConnectionParams = zod.object({
+  "connection_id": zod.uuid()
+})
+
+export const TestConnectionResponse = zod.object({
+  "message": zod.string(),
+  "ok": zod.boolean(),
+  "status": zod.union([zod.int(),zod.null()])
 })
 
 
@@ -125,10 +269,18 @@ export const CreateFlowResponse = zod.object({
 
 /**
  * Hard mode removes the flow and its runs for good; soft mode only hides the flow.
+ *
+ * 409 `flow_in_use` lists the flows that call this one; `force=true` deletes it anyway.
  * @summary Delete Flow
  */
 export const DeleteFlowParams = zod.object({
   "flow_id": zod.uuid()
+})
+
+export const deleteFlowQueryForceDefault = false;
+
+export const DeleteFlowQueryParams = zod.object({
+  "force": zod.boolean().default(deleteFlowQueryForceDefault)
 })
 
 export const DeleteFlowResponse = zod.void()
@@ -182,6 +334,22 @@ export const RenameFlowResponse = zod.object({
   "published_draft_version": zod.union([zod.int(),zod.null()]),
   "published_version": zod.union([zod.int(),zod.null()]),
   "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Lists the flows whose latest published version runs this one in a Subflow node.
+ * @summary List Callers
+ */
+export const ListCallersParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const ListCallersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.uuid(),
+  "name": zod.string()
+}))
 })
 
 
@@ -253,6 +421,36 @@ export const CreateRunResponse = zod.object({
   "output": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
   "run_id": zod.uuid(),
   "status": zod.enum(['succeeded', 'failed'])
+})
+
+
+/**
+ * Takes the flow offline: runs and the gateway answer `not_published` until you publish again.
+ *
+ * Versions and the draft are kept, and the next publish continues the numbering. 409
+ * `flow_in_use` lists the flows that call this one; `force=true` unpublishes it anyway. 409
+ * `not_published` if it is not published.
+ * @summary Unpublish Flow
+ */
+export const UnpublishFlowParams = zod.object({
+  "flow_id": zod.uuid()
+})
+
+export const unpublishFlowQueryForceDefault = false;
+
+export const UnpublishFlowQueryParams = zod.object({
+  "force": zod.boolean().default(unpublishFlowQueryForceDefault)
+})
+
+export const UnpublishFlowResponse = zod.object({
+  "created_at": zod.iso.datetime({"offset":true}),
+  "draft_version": zod.int(),
+  "id": zod.uuid(),
+  "name": zod.string(),
+  "published_at": zod.union([zod.iso.datetime({"offset":true}),zod.null()]),
+  "published_draft_version": zod.union([zod.int(),zod.null()]),
+  "published_version": zod.union([zod.int(),zod.null()]),
+  "updated_at": zod.iso.datetime({"offset":true})
 })
 
 

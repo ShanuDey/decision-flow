@@ -121,8 +121,10 @@ export interface LimitNotice {
 
 // The deployment's optional LIMIT_NOTICE; the link is only kept if it is a plain http(s) URL.
 export function noticeOf(error: ApiFailure): LimitNotice | null {
-  const text = error.details.notice;
+  return noticeFrom(error.details.notice, error.details.notice_url);
+}
+
+export function noticeFrom(text: unknown, url: unknown): LimitNotice | null {
   if (typeof text !== "string" || !text) return null;
-  const url = error.details.notice_url;
   return typeof url === "string" && /^https?:\/\//.test(url) ? { text, url } : { text };
 }

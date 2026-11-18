@@ -152,6 +152,10 @@ class TraceUnavailable(Exception):
     pass
 
 
+class TraceIncomplete(TraceUnavailable):
+    pass
+
+
 class TraceSpan(FrozenBaseModel):
     """One recorded span, free of MLflow types."""
 
@@ -197,6 +201,9 @@ def _read_spans_sync(settings: Settings, trace_id: str) -> list[TraceSpan] | Non
     except MlflowException as exc:
         if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
             return None
+        # MLflow writes spans after the run ends; until then a read fails with BAD_REQUEST
+        if exc.error_code == "BAD_REQUEST":
+            raise TraceIncomplete(str(exc)) from exc
         raise TraceUnavailable(str(exc)) from exc
     except Exception as exc:
         raise TraceUnavailable(f"{type(exc).__name__}: {exc}") from exc
@@ -279,10 +286,10 @@ class MlflowObserver:
     async def node_started(self, node: NodeInfo, inputs: dict[str, Any]) -> None:
         if self._root is None:
             return
-        self._spans[node.id] = mlflow.start_span_no_context(
+        self._spans[node.key] = mlflow.start_span_no_context(
             node.name,
             span_type=SpanType.TASK,
-            parent_span=self._root,
+            parent_span=self._spans.get(node.parent or "", self._root),
             inputs=_io(inputs),
             attributes={"node_id": node.id, "node_type": node.type, "node_name": node.name},
         )
@@ -296,7 +303,7 @@ class MlflowObserver:
         error: str | None,
         outputs: Any = None,
     ) -> None:
-        span = self._spans.pop(node.id, None)
+        span = self._spans.pop(node.key, None)
         if span is not None:
             span.end(
                 outputs=_io(outputs),

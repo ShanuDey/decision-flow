@@ -74,9 +74,10 @@ export default function ExpandDialog({
 }: Props) {
   const name = useEditor((s) => s.nodes.find((n) => n.id === nodeId)?.data.name ?? nodeId);
   const secretNames = useEditor((s) => s.secretNames);
+  const contracts = useEditor((s) => s.contracts);
   const sections = useMemo(
-    () => availableData(liveGraph(), nodeId, secrets ? secretNames : undefined),
-    [nodeId, secrets, secretNames],
+    () => availableData(liveGraph(), nodeId, secrets ? secretNames : undefined, contracts),
+    [nodeId, secrets, secretNames, contracts],
   );
   const [insert, setInsert] = useState<{ text: string; n: number } | null>(null);
   const { check, failed } = useCheck(kind, value);
@@ -134,6 +135,7 @@ export default function ExpandDialog({
                 onChange={onChange}
                 getGraph={liveGraph}
                 getSecrets={secrets ? () => useEditor.getState().secretNames : undefined}
+                getContracts={() => useEditor.getState().contracts}
                 nodeId={nodeId}
                 label={title}
                 insertRequest={insert}

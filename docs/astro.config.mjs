@@ -61,6 +61,7 @@ export default defineConfig({
             "nodes/assign",
             "nodes/condition",
             "nodes/http-request",
+            "nodes/subflow",
             "nodes/end",
           ],
         },

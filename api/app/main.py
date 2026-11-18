@@ -12,6 +12,7 @@ from app import tracing
 from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
+from app.connections import router as connections
 from app.db import get_engine
 from app.deployment import router as deployment
 from app.errors import ErrorResponse, install_error_handlers
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(runs.router, **protected)
     app.include_router(secrets.router, **protected)
+    app.include_router(connections.router, **protected)
     app.include_router(
         templates.router,
         dependencies=[Depends(current_principal), Depends(limit_visitor)],

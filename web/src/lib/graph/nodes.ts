@@ -67,6 +67,18 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     handles: [],
     pickable: true,
   },
+  subflow: {
+    label: "Subflow",
+    group: "Data",
+    source: "builtin",
+    description: "Run another published flow and use its outputs",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
   end: {
     label: "End",
     group: "Flow",
@@ -163,7 +175,10 @@ export function defaultData(type: NodeType): NodeData {
         body: null,
         timeout_seconds: null,
         fail_on_error_status: false,
+        connection_id: "",
       };
+    case "subflow":
+      return { flow_id: "", inputs: {} };
   }
 }
 

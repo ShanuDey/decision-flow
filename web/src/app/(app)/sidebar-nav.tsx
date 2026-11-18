@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   Play,
+  Plug,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +25,7 @@ const ITEMS: Item[] = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play },
+  { href: "/connections", label: "Connections", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

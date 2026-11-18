@@ -9,6 +9,9 @@ import httpx
 import pytest
 
 from app.auth.models import Principal
+from app.connections.models import Connection
+from app.connections.store import NameTaken, get_connection_store
+from app.connections.types import Bearer, ConnectionType, FieldSpec
 from app.flows.models import Flow, FlowVersion
 from app.flows.store import (
     AlreadyPublished,
@@ -115,6 +118,38 @@ class FakeFlowStore:
     async def get_flow(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
         return self._visible(member, flow_id)
 
+    async def unpublish(self, member: Member, flow_id: uuid.UUID) -> Flow | None:
+        flow = self._visible(member, flow_id)
+        if flow is None or flow.published_version is None:
+            return None
+        flow.published_version = None
+        flow.published_draft_version = None
+        flow.published_at = None
+        return flow
+
+    async def list_callers(self, member: Member, flow_id: uuid.UUID) -> list[Flow]:
+        found = []
+        for flow in self.flows.values():
+            if flow.id == flow_id or self._visible(member, flow.id) is None:
+                continue
+            version = next(
+                (
+                    v
+                    for v in self.versions
+                    if v.flow_id == flow.id
+                    and v.version == flow.published_version
+                    and v.deleted_at is None
+                ),
+                None,
+            )
+            nodes = version.graph.get("nodes", []) if version else []
+            if any(
+                n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == str(flow_id)
+                for n in nodes
+            ):
+                found.append(flow)
+        return sorted(found, key=lambda f: (f.name, f.id))
+
     async def rename_flow(self, member: Member, flow_id: uuid.UUID, name: str) -> Flow | None:
         flow = self._visible(member, flow_id)
         if flow is not None:
@@ -154,7 +189,7 @@ class FakeFlowStore:
         version = FlowVersion(
             id=uuid.uuid4(),
             flow_id=flow.id,
-            version=(flow.published_version or 0) + 1,
+            version=max((v.version for v in self.versions if v.flow_id == flow.id), default=0) + 1,
             graph=copy.deepcopy(flow.draft),
             source_draft_version=flow.draft_version,
             created_by=member.user_id,
@@ -287,6 +322,114 @@ class FakeSecretStore:
         return self.secrets.pop((member.workspace_id, name), None) is not None
 
 
+def service_type(**changes: Any) -> ConnectionType:
+    """A made-up service with fixed hosts and a test call, like a catalog type would be."""
+    base = ConnectionType(
+        id="acme",
+        name="Acme",
+        description="An Acme API key, sent only to the Acme host.",
+        fields=[FieldSpec(name="api_key", label="API key", secret=True)],
+        auth=Bearer(token="api_key"),
+        fixed_hosts=["127.0.0.1"],
+        test_url="https://api.acme.test/v1/ping",
+    )
+    return base.model_copy(update=changes)
+
+
+class FakeConnectionStore:
+    def __init__(self, flows: "FakeFlowStore") -> None:
+        self.flows = flows
+        self.rows: dict[uuid.UUID, Connection] = {}
+
+    def _mine(self, member: Member) -> list[Connection]:
+        return [c for c in self.rows.values() if c.workspace_id == member.workspace_id]
+
+    async def list_connections(self, member: Member) -> list[Connection]:
+        return sorted(self._mine(member), key=lambda c: c.name)
+
+    async def count(self, member: Member) -> int:
+        return len(self._mine(member))
+
+    async def get(self, member: Member, connection_id: uuid.UUID) -> Connection | None:
+        found = self.rows.get(connection_id)
+        return found if found and found.workspace_id == member.workspace_id else None
+
+    async def get_many(self, member: Member, ids: set[uuid.UUID]) -> list[Connection]:
+        return [c for c in self._mine(member) if c.id in ids]
+
+    def _taken(self, member: Member, name: str, keep: uuid.UUID | None = None) -> bool:
+        return any(c.name == name and c.id != keep for c in self._mine(member))
+
+    async def add(
+        self, member: Member, type_id: str, name: str, config: dict[str, Any], encrypted: str
+    ) -> Connection:
+        if self._taken(member, name):
+            raise NameTaken
+        now = datetime.now(UTC)
+        connection = Connection(
+            id=uuid.uuid4(),
+            workspace_id=member.workspace_id,
+            type=type_id,
+            name=name,
+            config=config,
+            secrets_encrypted=encrypted,
+            created_by=member.user_id,
+            updated_by=member.user_id,
+            created_at=now,
+            updated_at=now,
+        )
+        self.rows[connection.id] = connection
+        return connection
+
+    async def replace(
+        self,
+        member: Member,
+        connection_id: uuid.UUID,
+        name: str,
+        config: dict[str, Any],
+        encrypted: str,
+    ) -> Connection | None:
+        connection = await self.get(member, connection_id)
+        if connection is None:
+            return None
+        if self._taken(member, name, keep=connection_id):
+            raise NameTaken
+        connection.name, connection.config, connection.secrets_encrypted = name, config, encrypted
+        connection.updated_at = datetime.now(UTC)
+        return connection
+
+    async def delete(self, member: Member, connection_id: uuid.UUID) -> bool:
+        if await self.get(member, connection_id) is None:
+            return False
+        del self.rows[connection_id]
+        return True
+
+    async def flows_using(self, member: Member, connection_id: uuid.UUID) -> list[Flow]:
+        wanted = str(connection_id)
+
+        def uses(graph: dict[str, Any]) -> bool:
+            return any(
+                isinstance(n.get("data"), dict) and n["data"].get("connection_id") == wanted
+                for n in graph.get("nodes", [])
+            )
+
+        found = []
+        for flow in self.flows.flows.values():
+            if flow.workspace_id != member.workspace_id or flow.deleted_at is not None:
+                continue
+            published = next(
+                (
+                    v.graph
+                    for v in self.flows.versions
+                    if v.flow_id == flow.id and v.version == flow.published_version
+                ),
+                {},
+            )
+            if uses(flow.draft) or uses(published):
+                found.append(flow)
+        return sorted(found, key=lambda f: (f.name, f.id))
+
+
 class StubObserver:
     """Records nothing; exposes a fixed trace id like MlflowObserver after a run starts."""
 
@@ -331,6 +474,11 @@ def secret_store() -> FakeSecretStore:
 
 
 @pytest.fixture
+def connection_store(flow_store: FakeFlowStore) -> FakeConnectionStore:
+    return FakeConnectionStore(flow_store)
+
+
+@pytest.fixture
 def workspace_store() -> FakeWorkspaceStore:
     return FakeWorkspaceStore()
 
@@ -341,9 +489,11 @@ async def client(
     run_store: FakeRunStore,
     workspace_store: FakeWorkspaceStore,
     secret_store: FakeSecretStore,
+    connection_store: FakeConnectionStore,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
+    app.dependency_overrides[get_connection_store] = lambda: connection_store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
@@ -355,6 +505,7 @@ async def client(
     for dep in (
         get_store,
         get_secret_store,
+        get_connection_store,
         get_run_store,
         get_workspace_store,
         get_observer_factory,
@@ -368,15 +519,23 @@ async def anon_client(
     run_store: FakeRunStore,
     workspace_store: FakeWorkspaceStore,
     secret_store: FakeSecretStore,
+    connection_store: FakeConnectionStore,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
+    app.dependency_overrides[get_connection_store] = lambda: connection_store
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-    for dep in (get_store, get_secret_store, get_run_store, get_workspace_store):
+    for dep in (
+        get_store,
+        get_secret_store,
+        get_connection_store,
+        get_run_store,
+        get_workspace_store,
+    ):
         app.dependency_overrides.pop(dep, None)
 
 

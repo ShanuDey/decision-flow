@@ -6,16 +6,17 @@ import { CircleAlert, Plus } from "lucide-react";
 import type { FlowNode } from "@/lib/graph/convert";
 import { NODE_ICONS } from "@/lib/graph/node-icons";
 import { NODE_SPECS } from "@/lib/graph/nodes";
-import type { NodeType } from "@/lib/graph/types";
+import type { NodeType, SubflowData } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
 import { AddNodePicker } from "./add-node-picker";
 import { issuesForNode } from "./issues";
 import { useEditor } from "./store";
 
-function summary(node: FlowNode): string {
+function summary(node: FlowNode, flowName?: string): string {
   const config = node.data.config;
   const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  if ("flow_id" in config) return config.flow_id ? (flowName ?? "Flow not found") : "No flow yet";
   if ("inputs" in config) return count(config.inputs.length, "input");
   if ("outputs" in config) return count(config.outputs.length, "output");
   if ("expression" in config) return config.expression.trim() || "No expression yet";
@@ -50,8 +51,13 @@ export function NodeView({ id, type, data, selected }: NodeProps<FlowNode>) {
   const spec = NODE_SPECS[nodeType];
   const Icon = NODE_ICONS[nodeType];
   const problems = useEditor((s) => issuesForNode(s.issues, id).length);
+  const flowName = useEditor((s) =>
+    nodeType === "subflow"
+      ? s.publishedFlows.find((f) => f.id === (data.config as SubflowData).flow_id)?.name
+      : undefined,
+  );
   const node = { data } as FlowNode;
-  const text = summary(node);
+  const text = summary(node, flowName);
 
   return (
     <div
@@ -121,5 +127,6 @@ export const nodeTypes = {
   assign: NodeView,
   condition: NodeView,
   http_request: NodeView,
+  subflow: NodeView,
   end: NodeView,
 };

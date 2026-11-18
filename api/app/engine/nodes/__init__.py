@@ -10,18 +10,20 @@ from app.engine.nodes.condition import ConditionNode
 from app.engine.nodes.end import EndNode
 from app.engine.nodes.http_request import HttpRequestNode
 from app.engine.nodes.start import StartNode
+from app.engine.nodes.subflow import SubflowNode
 
 NODE_TYPES: tuple[type[NodeModel], ...] = (
     StartNode,
     AssignNode,
     ConditionNode,
     HttpRequestNode,
+    SubflowNode,
     EndNode,
 )
 
 # keep in step with NODE_TYPES (tested); this union parses the graph JSON
 Node = Annotated[
-    StartNode | AssignNode | ConditionNode | HttpRequestNode | EndNode,
+    StartNode | AssignNode | ConditionNode | HttpRequestNode | SubflowNode | EndNode,
     Field(discriminator="type"),
 ]
 
@@ -35,4 +37,5 @@ __all__ = [
     "NodeContext",
     "NodeModel",
     "StartNode",
+    "SubflowNode",
 ]
