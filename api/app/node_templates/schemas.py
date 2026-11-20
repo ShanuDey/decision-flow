@@ -9,6 +9,7 @@ from app.engine.base import FrozenBaseModel
 from app.engine.nodes.base import NodeContext
 from app.engine.nodes.http_request import HttpRequestData, HttpRequestNode
 from app.engine.templates import TemplateError, references
+from app.security.links import DocsUrl
 
 TEMPLATE_ID = re.compile(r"[a-z][a-z0-9_]{0,63}")
 INPUT_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
@@ -34,7 +35,7 @@ class NodeTemplate(FrozenBaseModel):
     name: str
     description: str
     icon: str = "plug"
-    docs_url: str = ""
+    docs_url: DocsUrl = ""
     tags: list[str] = Field(default_factory=list)
     node_type: Literal["http_request"]
     connection: TemplateConnection | None = None
@@ -104,5 +105,11 @@ class NodeTemplate(FrozenBaseModel):
         return problems
 
 
+class NodeTemplateItem(FrozenBaseModel):
+    # "builtin" ships with the app; "installed" came from the Marketplace.
+    source: Literal["builtin", "installed"]
+    template: NodeTemplate
+
+
 class NodeTemplateList(FrozenBaseModel):
-    items: list[NodeTemplate]
+    items: list[NodeTemplateItem]

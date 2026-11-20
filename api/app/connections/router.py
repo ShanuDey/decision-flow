@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from app.connections import service
+from app.connections.deps import Types
 from app.connections.schemas import (
     ConnectionCreate,
     ConnectionList,
@@ -33,16 +34,16 @@ UNAVAILABLE = {503: {"model": ErrorResponse}}
 
 
 @router.get("/connection-types")
-async def list_connection_types() -> ConnectionTypeList:
+async def list_connection_types(types: Types) -> ConnectionTypeList:
     """Lists the connection types you can create, with the fields each one asks for."""
-    return ConnectionTypeList(items=service.type_infos())
+    return ConnectionTypeList(items=service.type_infos(types))
 
 
 @router.get("/connections")
-async def list_connections(store: Store, member: CurrentMember) -> ConnectionList:
+async def list_connections(store: Store, member: CurrentMember, types: Types) -> ConnectionList:
     """Lists the workspace's connections. Secret values are never returned."""
     rows = await store.list_connections(member)
-    return ConnectionList(items=[service.summarize(r) for r in rows])
+    return ConnectionList(items=[service.summarize(r, types) for r in rows])
 
 
 @router.post(
@@ -56,13 +57,15 @@ async def create_connection(
     box: Box,
     member: CurrentMember,
     limits: Annotated[Limits, Depends(get_limits)],
+    types: Types,
 ) -> ConnectionSummary:
     """Creates a connection of a given type.
 
     Its secret fields are encrypted and cannot be read back. It can only be used for the hosts
     it allows.
     """
-    return service.summarize(await service.create_connection(store, box, member, body, limits))
+    created = await service.create_connection(store, box, member, body, limits, types)
+    return service.summarize(created, types)
 
 
 @router.patch(
@@ -75,10 +78,11 @@ async def update_connection(
     store: Store,
     box: Box,
     member: CurrentMember,
+    types: Types,
 ) -> ConnectionSummary:
     """Renames a connection or changes fields. A secret field you leave out keeps its value."""
-    updated = await service.update_connection(store, box, member, connection_id, body)
-    return service.summarize(updated)
+    updated = await service.update_connection(store, box, member, connection_id, body, types)
+    return service.summarize(updated, types)
 
 
 @router.delete(
@@ -107,6 +111,7 @@ async def test_connection(
     member: CurrentMember,
     limits: Annotated[Limits, Depends(get_limits)],
     settings: Annotated[Settings, Depends(get_settings)],
+    types: Types,
 ) -> ConnectionTest:
     """Calls the service's check endpoint with the saved credentials.
 
@@ -114,5 +119,5 @@ async def test_connection(
     whether the service accepted the credentials, and never includes what it sent back.
     """
     return await service.test_connection(
-        store, make_box, member, connection_id, outbound_policy(settings, limits)
+        store, make_box, member, connection_id, outbound_policy(settings, limits), types
     )

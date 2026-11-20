@@ -1,0 +1,67 @@
+{
+  "entries": [
+    {
+      "description": "A GitHub token, sent only to api.github.com.",
+      "has_readme": true,
+      "hash": "sha256-3f375462e4bc8a604d3ea7b65b1acd043cf1e647c405a941f1041b3ce2882f59",
+      "icon": "plug",
+      "id": "github",
+      "kind": "connection-type",
+      "name": "GitHub",
+      "path": "connection-types/github/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
+      "description": "A Slack bot token, sent only to slack.com.",
+      "has_readme": true,
+      "hash": "sha256-13963b8e81c3b3e005044eacf3845690445fddc67dfc59eca290fcafe9565031",
+      "icon": "plug",
+      "id": "slack",
+      "kind": "connection-type",
+      "name": "Slack",
+      "path": "connection-types/slack/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Opens an issue in a repository. Replace OWNER and REPO in the URL.",
+      "has_readme": true,
+      "hash": "sha256-729da332cab30e11ae2d2c0c3f097fb093aa54835a6f7921ff63cd4f1e44a902",
+      "icon": "plug",
+      "id": "github_create_issue",
+      "kind": "node-template",
+      "name": "GitHub: create issue",
+      "path": "node-templates/github_create_issue/1.0.0.json",
+      "requires": [
+        "connection-type/github"
+      ],
+      "tags": [
+        "github",
+        "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Posts a message to a channel with a bot token.",
+      "has_readme": true,
+      "hash": "sha256-1ff380e9f14f42c0643b44822a7d5e0d95b80bc5c459844802bcf3b9d3aab934",
+      "icon": "plug",
+      "id": "slack_post_message",
+      "kind": "node-template",
+      "name": "Slack: post message",
+      "path": "node-templates/slack_post_message/1.0.0.json",
+      "requires": [
+        "connection-type/slack"
+      ],
+      "tags": [
+        "slack",
+        "messaging"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema_version": 1
+}

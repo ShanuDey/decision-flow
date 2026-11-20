@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { NodeTemplate } from "@/lib/api/models";
+import type { NodeTemplate, NodeTemplateItem } from "@/lib/api/models";
 import type { ConnectionOption } from "@/lib/connections";
 
-import { applyTemplate, BUILT_IN, connectionNeed, isBlank, templateItems } from "./node-templates";
+import { applyTemplate, BUILT_IN, connectionNeed, INSTALLED, isBlank, templateItems } from "./node-templates";
 import { defaultData } from "./nodes";
 import type { HttpRequestData } from "./types";
 
@@ -36,8 +36,18 @@ const option = (id: string, typeId: string, hosts = "api.github.com"): Connectio
 const blank = (): HttpRequestData => defaultData("http_request");
 
 describe("templateItems", () => {
+  const item = (source: NodeTemplateItem["source"], over: Partial<NodeTemplate> = {}): NodeTemplateItem => ({
+    source,
+    template: template(over),
+  });
+
+  it("puts installed templates in their own group", () => {
+    const groups = templateItems([item("builtin"), item("installed", { id: "x" })]).map((i) => i.group);
+    expect(groups).toEqual([BUILT_IN, INSTALLED]);
+  });
+
   it("turns templates into gallery items, with defaults for the optional parts", () => {
-    const [item] = templateItems([template()]);
+    const [item] = templateItems([{ source: "builtin", template: template() }]);
     expect(item).toEqual({
       id: "github_create_issue",
       name: "GitHub: create issue",

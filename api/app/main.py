@@ -12,6 +12,8 @@ from app import tracing
 from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
+from app.catalog import router as catalog
+from app.catalog.remote import get_catalog_source
 from app.connections import router as connections
 from app.db import get_engine
 from app.deployment import router as deployment
@@ -55,6 +57,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
         with suppress(asyncio.CancelledError):
             await retention_task
     await tracing.shutdown()
+    await get_catalog_source(get_settings()).aclose()
     await app.state.authenticator.aclose()
 
 
@@ -116,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router, **protected)
     app.include_router(secrets.router, **protected)
     app.include_router(connections.router, **protected)
+    app.include_router(catalog.router, **protected)
     app.include_router(
         node_templates.router,
         dependencies=[Depends(current_principal), Depends(limit_visitor)],

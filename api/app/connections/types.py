@@ -9,6 +9,7 @@ from pydantic import Field, SecretStr, model_validator
 
 from app.engine.base import FrozenBaseModel
 from app.engine.connections import HOST, ResolvedConnection
+from app.security.links import DocsUrl
 
 HOSTS_FIELD = "hosts"
 MAX_HOSTS = 10
@@ -57,7 +58,7 @@ class ConnectionType(FrozenBaseModel):
     fields: list[FieldSpec]
     auth: Auth
     icon: str = "plug"
-    docs_url: str = ""
+    docs_url: DocsUrl = ""
     category: Literal["builtin", "custom"] = "builtin"
     # Allowed hosts: fixed, the host of the `hosts_from` URL field, or listed in `hosts`.
     fixed_hosts: list[str] = Field(default_factory=list)

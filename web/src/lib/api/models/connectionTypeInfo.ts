@@ -16,5 +16,6 @@ export interface ConnectionTypeInfo {
   icon: string;
   id: string;
   name: string;
+  source: string;
   testable: boolean;
 }

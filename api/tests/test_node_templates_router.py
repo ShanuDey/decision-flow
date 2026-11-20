@@ -26,16 +26,17 @@ async def test_the_list_returns_every_template_with_its_full_settings(
     response = await client.get("/node-templates")
     assert response.status_code == 200
     items = response.json()["items"]
-    assert [i["id"] for i in items] == [t.id for t in TEMPLATES]
-    issue = next(i for i in items if i["id"] == "github_create_issue")
-    assert issue["connection"] == {"type": "bearer", "values": {"hosts": "api.github.com"}}
-    assert issue["data"]["method"] == "POST" and issue["data"]["connection_id"] == ""
-    assert issue["data"]["headers"]["Accept"] == "application/vnd.github+json"
+    assert [i["template"]["id"] for i in items] == [t.id for t in TEMPLATES]
+    assert {i["source"] for i in items} == {"builtin"}
+    chat = next(i["template"] for i in items if i["template"]["id"] == "openai_chat_completion")
+    assert chat["connection"] == {"type": "openai_compatible", "values": {}}
+    assert chat["data"]["method"] == "POST" and chat["data"]["connection_id"] == ""
+    assert chat["data"]["url"] == "https://api.openai.com/v1/chat/completions"
 
 
 async def test_it_can_be_filtered_by_node_type(client: httpx.AsyncClient) -> None:
-    both = (await client.get("/node-templates?node_type=http_request")).json()["items"]
-    assert len(both) == len(TEMPLATES)
+    listed = (await client.get("/node-templates?node_type=http_request")).json()["items"]
+    assert len(listed) == len(TEMPLATES)
     assert (await client.get("/node-templates?node_type=subflow")).status_code == 422
 
 
@@ -51,20 +52,20 @@ async def test_it_needs_a_sign_in(anon_client: httpx.AsyncClient) -> None:
 
 
 @pytest.fixture
-def only_github() -> Iterator[None]:
+def only_openai() -> Iterator[None]:
     app.dependency_overrides[get_settings] = lambda: Settings(
-        _env_file=None, http_allowed_hosts=["api.github.com"]
+        _env_file=None, http_allowed_hosts=["api.openai.com"]
     )
     yield
     app.dependency_overrides.pop(get_settings, None)
 
 
-@pytest.mark.usefixtures("only_github")
+@pytest.mark.usefixtures("only_openai")
 async def test_a_server_with_an_allowed_host_list_offers_only_templates_it_could_run(
     client: httpx.AsyncClient,
 ) -> None:
     items = (await client.get("/node-templates")).json()["items"]
-    assert [i["id"] for i in items] == ["github_create_issue"]
+    assert [i["template"]["id"] for i in items] == ["openai_chat_completion"]
 
 
 async def test_a_server_that_requires_https_keeps_templates_that_already_use_it(
@@ -77,4 +78,4 @@ async def test_a_server_that_requires_https_keeps_templates_that_already_use_it(
         items = (await client.get("/node-templates")).json()["items"]
     finally:
         app.dependency_overrides.pop(get_settings, None)
-    assert [i["id"] for i in items] == [t.id for t in TEMPLATES]
+    assert [i["template"]["id"] for i in items] == [t.id for t in TEMPLATES]

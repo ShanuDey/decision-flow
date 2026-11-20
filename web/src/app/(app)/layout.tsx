@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/logo";
+import { MarketplaceHost } from "@/components/marketplace/marketplace-host";
 import { requireSession } from "@/lib/auth/session";
 
 import { SidebarNav } from "./sidebar-nav";
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-8">{children}</main>
+      <MarketplaceHost />
     </div>
   );
 }

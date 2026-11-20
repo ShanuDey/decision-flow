@@ -31,6 +31,7 @@ const type = (over: Partial<ConnectionTypeInfo> & Pick<ConnectionTypeInfo, "id" 
     icon: "plug",
     docs_url: "",
     category: "custom",
+    source: "builtin",
     hosts: [],
     hosts_from: "",
     testable: false,

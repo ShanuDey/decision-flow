@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CatalogGallery, CatalogIcon } from "@/components/catalog/catalog-gallery";
+import { openMarketplace } from "@/components/marketplace/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,10 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { listNodeTemplates } from "@/lib/api/client";
-import type { NodeTemplate } from "@/lib/api/models";
+import type { NodeTemplate, NodeTemplateItem } from "@/lib/api/models";
 import { call, errorText } from "@/lib/call";
 import { prefillHref } from "@/lib/connections";
-import { applyTemplate, BUILT_IN, connectionNeed, isBlank, templateItems } from "@/lib/graph/node-templates";
+import { applyTemplate, connectionNeed, GROUPS, isBlank, templateItems } from "@/lib/graph/node-templates";
 import type { HttpRequestData } from "@/lib/graph/types";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +28,9 @@ import { useEditor } from "./store";
 type Loaded =
   | { state: "loading" }
   | { state: "error"; message: string }
-  | { state: "ready"; items: NodeTemplate[] };
+  | { state: "ready"; items: NodeTemplateItem[] };
 
-let cached: NodeTemplate[] | null = null;
+let cached: NodeTemplateItem[] | null = null;
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -193,11 +194,17 @@ export function TemplateDialog({
   }, [attempt]);
 
   const items = loaded.state === "ready" ? loaded.items : [];
-  const picked = items.find((t) => t.id === pickedId);
+  const picked = items.find((i) => i.template.id === pickedId)?.template;
 
   function retry() {
     setLoaded({ state: "loading" });
     setAttempt((n) => n + 1);
+  }
+
+  // Something was installed or removed, so the cached list is stale.
+  function reload() {
+    cached = null;
+    retry();
   }
 
   function apply(template: NodeTemplate) {
@@ -238,7 +245,16 @@ export function TemplateDialog({
             title="Use a template"
             description="Fills in this request. You can change everything afterwards."
             items={templateItems(items)}
-            order={[BUILT_IN]}
+            order={GROUPS}
+            footer={
+              <button
+                type="button"
+                onClick={() => openMarketplace({ kinds: ["node-template"], onChanged: reload })}
+                className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Browse the Marketplace for more
+              </button>
+            }
             onPick={setPickedId}
           />
         )}

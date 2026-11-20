@@ -5,7 +5,9 @@ from pathlib import Path
 
 from app.connections.types import ConnectionType
 
-OUTPUT = Path(__file__).resolve().parents[1] / "app" / "connections" / "connection-type.schema.json"
+OUTPUT = (
+    Path(__file__).resolve().parents[2] / "marketplace" / "schemas" / "connection-type.schema.json"
+)
 
 
 def schema_text() -> str:
@@ -13,4 +15,4 @@ def schema_text() -> str:
 
 
 if __name__ == "__main__":
-    OUTPUT.write_text(schema_text(), encoding="utf-8")
+    OUTPUT.write_text(schema_text(), encoding="utf-8", newline="\n")

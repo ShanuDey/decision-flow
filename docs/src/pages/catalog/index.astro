@@ -1,0 +1,230 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
+import { itemPath, KINDS, loadCatalog } from "../../lib/catalog";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const items = loadCatalog();
+const groups = [
+  { id: "builtin", title: "Included with the app", items: items.filter((i) => i.source === "builtin") },
+  { id: "marketplace", title: "In the Marketplace", items: items.filter((i) => i.source === "marketplace") },
+];
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Catalog",
+    description: "Connection types and request templates you can use in a workspace.",
+    tableOfContents: false,
+    editUrl: false,
+    lastUpdated: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <p>
+    Everything you can use in a workspace: connection types and request templates. Items marked
+    <span class="badge ok">Built-in</span> come with the app. Items marked
+    <span class="badge mk">Marketplace</span> are installed from the Marketplace page in the app.
+  </p>
+
+  <div class="tools not-content">
+    <input id="catalog-search" type="search" placeholder="Search the catalog" aria-label="Search the catalog" />
+    <div class="tabs" role="group" aria-label="Kind">
+      <button type="button" data-kind="all" aria-pressed="true">All</button>
+      <button type="button" data-kind="connection-type" aria-pressed="false">Connections</button>
+      <button type="button" data-kind="node-template" aria-pressed="false">Templates</button>
+    </div>
+  </div>
+
+  {
+    groups.map((group) => (
+      <section class="group" data-group>
+        <h2 id={group.id}>{group.title}</h2>
+        <ul class="grid">
+          {group.items.map((entry) => (
+            <li
+              class="card"
+              data-kind={entry.kind}
+              data-text={`${entry.name} ${entry.description} ${entry.tags.join(" ")}`.toLowerCase()}
+            >
+              <span class="ico" aria-hidden="true">
+                {entry.name.charAt(0).toUpperCase()}
+              </span>
+              <div>
+                <a class="title" href={`${base}/${itemPath(entry)}`}>
+                  {entry.name}
+                </a>
+                <span class="desc">{entry.description}</span>
+                <span class="badges">
+                  <span class="badge">{KINDS[entry.kind].label}</span>
+                  <span class={entry.source === "builtin" ? "badge ok" : "badge mk"}>
+                    {entry.source === "builtin" ? "Built-in" : "Marketplace"}
+                  </span>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+  <p id="catalog-none" class="none" hidden>Nothing matches your search.</p>
+</StarlightPage>
+
+<script>
+  const search = document.querySelector<HTMLInputElement>("#catalog-search")!;
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>(".tabs button")];
+  const none = document.querySelector<HTMLElement>("#catalog-none")!;
+  let kind = "all";
+
+  function apply() {
+    const needle = search.value.trim().toLowerCase();
+    let shown = 0;
+    for (const card of document.querySelectorAll<HTMLElement>(".card")) {
+      const match =
+        (kind === "all" || card.dataset.kind === kind) && (!needle || (card.dataset.text ?? "").includes(needle));
+      card.hidden = !match;
+      if (match) shown++;
+    }
+    for (const group of document.querySelectorAll<HTMLElement>("[data-group]")) {
+      group.hidden = ![...group.querySelectorAll<HTMLElement>(".card")].some((c) => !c.hidden);
+    }
+    none.hidden = shown > 0;
+  }
+
+  search.addEventListener("input", apply);
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => {
+      kind = tab.dataset.kind ?? "all";
+      for (const other of tabs) other.setAttribute("aria-pressed", String(other === tab));
+      apply();
+    });
+  }
+</script>
+
+<style>
+  .badge {
+    display: inline-block;
+    font-size: var(--sl-text-xs);
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+  }
+  .badge.ok {
+    border-color: transparent;
+    background: var(--sl-color-green-low);
+    color: var(--sl-color-green-high);
+  }
+  .badge.mk {
+    border-color: transparent;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+  }
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin: 1.25rem 0 0.5rem;
+  }
+  .tools input {
+    flex: 1;
+    min-width: 12rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+  }
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+  }
+  .tabs button {
+    border: 0;
+    background: none;
+    color: var(--sl-color-gray-2);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.375rem;
+    margin: 0;
+    cursor: pointer;
+  }
+  .tabs button[aria-pressed="true"] {
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    font-weight: 600;
+  }
+  .grid {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: 0.75rem;
+  }
+  .card {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    margin: 0;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+  }
+  .card:hover,
+  .card:focus-within {
+    border-color: var(--sl-color-accent);
+  }
+  .card[hidden],
+  .group[hidden],
+  .none[hidden] {
+    display: none;
+  }
+  .ico {
+    flex: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-6);
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+  }
+  .title {
+    display: block;
+    font-weight: 600;
+    color: var(--sl-color-white);
+    text-decoration: none;
+  }
+  .title::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .card {
+    position: relative;
+  }
+  .desc {
+    display: block;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    line-height: 1.45;
+    margin-top: 0.125rem;
+  }
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+  }
+  .none {
+    padding: 1.75rem;
+    text-align: center;
+    color: var(--sl-color-gray-2);
+    border: 1px dashed var(--sl-color-gray-5);
+    border-radius: 0.625rem;
+  }
+</style>

@@ -13,7 +13,7 @@ from app.node_templates.schemas import NodeTemplate
 DATA = Path(__file__).parent / "data"
 
 
-def _connection_problem(template: NodeTemplate, types: Mapping[str, ConnectionType]) -> str | None:
+def connection_problem(template: NodeTemplate, types: Mapping[str, ConnectionType]) -> str | None:
     wanted = template.connection
     if wanted is None:
         return None
@@ -37,7 +37,7 @@ def load_templates(
             template = NodeTemplate.model_validate(json.loads(path.read_text(encoding="utf-8")))
         except (ValueError, ValidationError) as exc:
             raise ValueError(f"{path.name}: {exc}") from None
-        if problem := _connection_problem(template, types):
+        if problem := connection_problem(template, types):
             raise ValueError(f"{path.name}: {problem}")
         if template.id in found:
             raise ValueError(f"{path.name}: the id '{template.id}' is already used")

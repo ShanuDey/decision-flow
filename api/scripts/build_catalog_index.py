@@ -1,15 +1,18 @@
-"""Write the catalog index that the Marketplace will list from."""
+"""Write the catalog index that the Marketplace lists from."""
 
 import json
 from pathlib import Path
 
 from app.catalog.index import build_index
+from app.catalog.source import load_files
 
-OUTPUT = Path(__file__).resolve().parents[1] / "app" / "catalog" / "index.json"
+MARKETPLACE = Path(__file__).resolve().parents[2] / "marketplace"
+OUTPUT = MARKETPLACE / "index.json"
 
 
-def index_text() -> str:
-    return json.dumps(build_index().model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+def index_text(root: Path = MARKETPLACE) -> str:
+    index = build_index(load_files(root / "catalog"))
+    return json.dumps(index.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
 
 
 if __name__ == "__main__":

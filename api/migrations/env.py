@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine
 
-from app import connections, flows, runs, secrets, workspaces  # noqa: F401  (register models on Base.metadata)
+from app import catalog, connections, flows, runs, secrets, workspaces  # noqa: F401  (register models on Base.metadata)
 from app.db import Base
 from app.settings import get_settings
 

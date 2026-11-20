@@ -1,6 +1,7 @@
 import copy
 import json
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,9 @@ import httpx
 import pytest
 
 from app.auth.models import Principal
+from app.catalog.models import InstalledItem
+from app.catalog.remote import CatalogSource, get_catalog_source
+from app.catalog.store import ItemDraft, get_installed_store
 from app.connections.models import Connection
 from app.connections.store import NameTaken, get_connection_store
 from app.connections.types import Bearer, ConnectionType, FieldSpec
@@ -33,6 +37,7 @@ from tests.auth_helpers import bearer
 from tests.db_fixtures import postgres_url, sessions  # noqa: F401  (fixtures for -m db tests)
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "flows"
+MARKETPLACE = Path(__file__).resolve().parents[2] / "marketplace"
 
 
 class FakeWorkspaceStore:
@@ -350,6 +355,9 @@ class FakeConnectionStore:
     async def count(self, member: Member) -> int:
         return len(self._mine(member))
 
+    async def count_by_type(self, member: Member, type_id: str) -> int:
+        return sum(c.type == type_id for c in self._mine(member))
+
     async def get(self, member: Member, connection_id: uuid.UUID) -> Connection | None:
         found = self.rows.get(connection_id)
         return found if found and found.workspace_id == member.workspace_id else None
@@ -430,6 +438,47 @@ class FakeConnectionStore:
         return sorted(found, key=lambda f: (f.name, f.id))
 
 
+class FakeInstalledStore:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[uuid.UUID, str, str], InstalledItem] = {}
+
+    async def list_items(self, member: Member, kind: str | None = None) -> list[InstalledItem]:
+        rows = [
+            r
+            for (ws, k, _), r in self.rows.items()
+            if ws == member.workspace_id and (kind is None or k == kind)
+        ]
+        return sorted(rows, key=lambda r: (r.kind, r.item_id))
+
+    async def get(self, member: Member, kind: str, item_id: str) -> InstalledItem | None:
+        return self.rows.get((member.workspace_id, kind, item_id))
+
+    async def count(self, member: Member) -> int:
+        return len(await self.list_items(member))
+
+    async def put_all(self, member: Member, drafts: Sequence[ItemDraft]) -> list[InstalledItem]:
+        items = [
+            InstalledItem(
+                id=uuid.uuid4(),
+                workspace_id=member.workspace_id,
+                kind=d.kind,
+                item_id=d.item_id,
+                version=d.version,
+                hash=d.hash,
+                definition=copy.deepcopy(d.definition),
+                installed_by=member.user_id,
+                installed_at=datetime.now(UTC),
+            )
+            for d in drafts
+        ]
+        for item in items:
+            self.rows[(member.workspace_id, item.kind, item.item_id)] = item
+        return items
+
+    async def delete(self, member: Member, kind: str, item_id: str) -> bool:
+        return self.rows.pop((member.workspace_id, kind, item_id), None) is not None
+
+
 class StubObserver:
     """Records nothing; exposes a fixed trace id like MlflowObserver after a run starts."""
 
@@ -474,6 +523,16 @@ def secret_store() -> FakeSecretStore:
 
 
 @pytest.fixture
+def installed_store() -> FakeInstalledStore:
+    return FakeInstalledStore()
+
+
+@pytest.fixture
+def catalog_source() -> CatalogSource:
+    return CatalogSource(str(MARKETPLACE))
+
+
+@pytest.fixture
 def connection_store(flow_store: FakeFlowStore) -> FakeConnectionStore:
     return FakeConnectionStore(flow_store)
 
@@ -490,10 +549,14 @@ async def client(
     workspace_store: FakeWorkspaceStore,
     secret_store: FakeSecretStore,
     connection_store: FakeConnectionStore,
+    installed_store: FakeInstalledStore,
+    catalog_source: CatalogSource,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_connection_store] = lambda: connection_store
+    app.dependency_overrides[get_installed_store] = lambda: installed_store
+    app.dependency_overrides[get_catalog_source] = lambda: catalog_source
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
@@ -506,6 +569,8 @@ async def client(
         get_store,
         get_secret_store,
         get_connection_store,
+        get_installed_store,
+        get_catalog_source,
         get_run_store,
         get_workspace_store,
         get_observer_factory,
@@ -520,10 +585,14 @@ async def anon_client(
     workspace_store: FakeWorkspaceStore,
     secret_store: FakeSecretStore,
     connection_store: FakeConnectionStore,
+    installed_store: FakeInstalledStore,
+    catalog_source: CatalogSource,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_connection_store] = lambda: connection_store
+    app.dependency_overrides[get_installed_store] = lambda: installed_store
+    app.dependency_overrides[get_catalog_source] = lambda: catalog_source
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     transport = httpx.ASGITransport(app=app)
@@ -533,6 +602,8 @@ async def anon_client(
         get_store,
         get_secret_store,
         get_connection_store,
+        get_installed_store,
+        get_catalog_source,
         get_run_store,
         get_workspace_store,
     ):

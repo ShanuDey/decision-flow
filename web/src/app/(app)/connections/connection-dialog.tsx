@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CatalogGallery, CatalogIcon } from "@/components/catalog/catalog-gallery";
+import { openMarketplace } from "@/components/marketplace/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -52,7 +53,7 @@ function initialValues(props: Props): Record<string, string> {
   return { ...props.initial?.values };
 }
 
-const GROUPS = ["Built-in", "Custom"];
+const GROUPS = ["Built-in", "Installed", "Custom"];
 
 function typeItems(types: ConnectionTypeInfo[]): CatalogItem[] {
   return types.map((t) => ({
@@ -61,7 +62,7 @@ function typeItems(types: ConnectionTypeInfo[]): CatalogItem[] {
     description: t.description,
     icon: t.icon,
     docsUrl: t.docs_url,
-    group: t.category === "custom" ? "Custom" : "Built-in",
+    group: t.source === "installed" ? "Installed" : t.category === "custom" ? "Custom" : "Built-in",
     tags: [],
   }));
 }
@@ -143,6 +144,15 @@ export function ConnectionDialog(props: Props) {
             items={typeItems(props.types)}
             order={GROUPS}
             onPick={setTypeId}
+            footer={
+              <button
+                type="button"
+                onClick={() => openMarketplace({ kinds: ["connection-type"], onChanged: props.onSaved })}
+                className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Browse the Marketplace for more services
+              </button>
+            }
           />
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-4">

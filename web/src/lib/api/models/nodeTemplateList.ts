@@ -4,8 +4,8 @@
  * decision-flow api
  * OpenAPI spec version: 0.1.0
  */
-import type { NodeTemplate } from './nodeTemplate';
+import type { NodeTemplateItem } from './nodeTemplateItem';
 
 export interface NodeTemplateList {
-  items: NodeTemplate[];
+  items: NodeTemplateItem[];
 }

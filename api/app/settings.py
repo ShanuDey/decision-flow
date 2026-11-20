@@ -11,6 +11,7 @@ from app.auth.config import ProviderConfig
 
 ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 MLFLOW_SCHEMA_OPTION = "-csearch_path=mlflow"
+DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/ShanuDey/decision-flow/main/marketplace"
 
 
 def query_options(url: URL) -> str:
@@ -77,6 +78,9 @@ class Settings(BaseSettings):
 
     # Fernet key(s), comma separated: the first encrypts, all decrypt. Empty turns secrets off.
     encryption_key: SecretStr = SecretStr("")
+
+    # Marketplace catalog: an https URL or a local folder; empty switches the Marketplace off.
+    catalog_url: str = DEFAULT_CATALOG_URL
 
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False

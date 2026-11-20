@@ -6,7 +6,7 @@ from pathlib import Path
 from app.node_templates.schemas import NodeTemplate
 
 OUTPUT = (
-    Path(__file__).resolve().parents[1] / "app" / "node_templates" / "node-template.schema.json"
+    Path(__file__).resolve().parents[2] / "marketplace" / "schemas" / "node-template.schema.json"
 )
 
 

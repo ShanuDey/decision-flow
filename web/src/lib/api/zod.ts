@@ -7,6 +7,115 @@
 import * as zod from 'zod';
 
 /**
+ * Lists what the Marketplace offers: a summary per item, newest version only.
+ *
+ * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
+ * is cached for a few minutes; `stale` is true when the latest refresh failed and this is the
+ * previous copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.
+ * @summary Get Catalog Index
+ */
+export const GetCatalogIndexResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "description": zod.string(),
+  "has_readme": zod.boolean(),
+  "hash": zod.string(),
+  "icon": zod.string(),
+  "id": zod.string(),
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "name": zod.string(),
+  "path": zod.string(),
+  "requires": zod.array(zod.string()),
+  "tags": zod.array(zod.string()),
+  "version": zod.string()
+})),
+  "fetched_at": zod.iso.datetime({"offset":true}),
+  "stale": zod.boolean()
+})
+
+
+/**
+ * Installs a catalog item in this workspace, or updates it to the given version.
+ *
+ * The server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the
+ * entry changed since you loaded the index. Items it requires are installed first.
+ * @summary Install Item
+ */
+export const InstallItemBody = zod.object({
+  "hash": zod.string(),
+  "id": zod.string(),
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "version": zod.string()
+})
+
+export const InstallItemResponse = zod.object({
+  "installed": zod.array(zod.object({
+  "hash": zod.string(),
+  "id": zod.string(),
+  "installed_at": zod.iso.datetime({"offset":true}),
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "name": zod.string(),
+  "version": zod.string()
+}))
+})
+
+
+/**
+ * Lists the Marketplace items installed in this workspace, with their versions.
+ * @summary List Installed
+ */
+export const ListInstalledResponse = zod.object({
+  "items": zod.array(zod.object({
+  "hash": zod.string(),
+  "id": zod.string(),
+  "installed_at": zod.iso.datetime({"offset":true}),
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "name": zod.string(),
+  "version": zod.string()
+}))
+})
+
+
+/**
+ * Removes an installed item. Things already made from it keep their copied settings.
+ *
+ * 409 `type_in_use` if connections still use a connection type, and 409 `required_by` if
+ * another installed item needs it.
+ * @summary Uninstall Item
+ */
+export const UninstallItemParams = zod.object({
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "item_id": zod.string()
+})
+
+export const UninstallItemResponse = zod.void()
+
+
+/**
+ * Fetches the index again now.
+ *
+ * Within 30 seconds of the last attempt the saved copy is returned instead.
+ * @summary Refresh Catalog Index
+ */
+export const RefreshCatalogIndexResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "description": zod.string(),
+  "has_readme": zod.boolean(),
+  "hash": zod.string(),
+  "icon": zod.string(),
+  "id": zod.string(),
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "name": zod.string(),
+  "path": zod.string(),
+  "requires": zod.array(zod.string()),
+  "tags": zod.array(zod.string()),
+  "version": zod.string()
+})),
+  "fetched_at": zod.iso.datetime({"offset":true}),
+  "stale": zod.boolean()
+})
+
+
+/**
  * Deployment settings the web app needs.
  * @summary Config
  */
@@ -44,6 +153,7 @@ export const ListConnectionTypesResponse = zod.object({
   "icon": zod.string(),
   "id": zod.string(),
   "name": zod.string(),
+  "source": zod.string(),
   "testable": zod.boolean()
 }))
 })
@@ -531,61 +641,64 @@ export const MeResponse = zod.object({
 /**
  * Lists the ready-made settings for a node, such as an HTTP Request.
  *
- * A template this server could not run is left out: its node type is turned off, or its URL
- * points at a host the server does not allow. Applying one copies its settings into the node;
- * nothing stays linked to it.
+ * The built-in templates plus the ones installed from the Marketplace. A template this server
+ * could not run is left out: its node type is turned off, or its URL points at a host the
+ * server does not allow. Applying one copies its settings into the node; nothing stays linked.
  * @summary List Node Templates
  */
 export const ListNodeTemplatesQueryParams = zod.object({
   "node_type": zod.union([zod.literal("http_request"),zod.null()]).optional()
 })
 
-export const listNodeTemplatesResponseItemsItemDataBodyTypeDefault = `none`;
-export const listNodeTemplatesResponseItemsItemDataConnectionIdDefault = ``;
-export const listNodeTemplatesResponseItemsItemDataFailOnErrorStatusDefault = false;
-export const listNodeTemplatesResponseItemsItemDataMethodDefault = `GET`;
-export const listNodeTemplatesResponseItemsItemDataUrlDefault = ``;
-export const listNodeTemplatesResponseItemsItemDocsUrlDefault = ``;
-export const listNodeTemplatesResponseItemsItemIconDefault = `plug`;
-export const listNodeTemplatesResponseItemsItemInputsItemDescriptionDefault = ``;
-export const listNodeTemplatesResponseItemsItemInputsItemTypeDefault = `string`;
-export const listNodeTemplatesResponseItemsItemSchemaVersionDefault = 1;
-export const listNodeTemplatesResponseItemsItemVersionDefault = `1.0.0`;
-export const listNodeTemplatesResponseItemsItemVersionRegExp = new RegExp('^\\d+\\.\\d+\\.\\d+$');
+export const listNodeTemplatesResponseItemsItemTemplateDataBodyTypeDefault = `none`;
+export const listNodeTemplatesResponseItemsItemTemplateDataConnectionIdDefault = ``;
+export const listNodeTemplatesResponseItemsItemTemplateDataFailOnErrorStatusDefault = false;
+export const listNodeTemplatesResponseItemsItemTemplateDataMethodDefault = `GET`;
+export const listNodeTemplatesResponseItemsItemTemplateDataUrlDefault = ``;
+export const listNodeTemplatesResponseItemsItemTemplateDocsUrlDefault = ``;
+export const listNodeTemplatesResponseItemsItemTemplateIconDefault = `plug`;
+export const listNodeTemplatesResponseItemsItemTemplateInputsItemDescriptionDefault = ``;
+export const listNodeTemplatesResponseItemsItemTemplateInputsItemTypeDefault = `string`;
+export const listNodeTemplatesResponseItemsItemTemplateSchemaVersionDefault = 1;
+export const listNodeTemplatesResponseItemsItemTemplateVersionDefault = `1.0.0`;
+export const listNodeTemplatesResponseItemsItemTemplateVersionRegExp = new RegExp('^\\d+\\.\\d+\\.\\d+$');
 
 
 export const ListNodeTemplatesResponse = zod.object({
   "items": zod.array(zod.object({
+  "source": zod.enum(['builtin', 'installed']),
+  "template": zod.object({
   "connection": zod.union([zod.object({
   "type": zod.string(),
   "values": zod.record(zod.string(), zod.string()).optional()
 }),zod.null()]).optional(),
   "data": zod.object({
   "body": zod.unknown().optional(),
-  "body_type": zod.enum(['none', 'json', 'form', 'text']).default(listNodeTemplatesResponseItemsItemDataBodyTypeDefault),
-  "connection_id": zod.string().default(listNodeTemplatesResponseItemsItemDataConnectionIdDefault),
-  "fail_on_error_status": zod.boolean().default(listNodeTemplatesResponseItemsItemDataFailOnErrorStatusDefault),
+  "body_type": zod.enum(['none', 'json', 'form', 'text']).default(listNodeTemplatesResponseItemsItemTemplateDataBodyTypeDefault),
+  "connection_id": zod.string().default(listNodeTemplatesResponseItemsItemTemplateDataConnectionIdDefault),
+  "fail_on_error_status": zod.boolean().default(listNodeTemplatesResponseItemsItemTemplateDataFailOnErrorStatusDefault),
   "headers": zod.record(zod.string(), zod.string()).optional(),
-  "method": zod.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default(listNodeTemplatesResponseItemsItemDataMethodDefault),
+  "method": zod.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).default(listNodeTemplatesResponseItemsItemTemplateDataMethodDefault),
   "query": zod.record(zod.string(), zod.string()).optional(),
   "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
-  "url": zod.string().default(listNodeTemplatesResponseItemsItemDataUrlDefault)
+  "url": zod.string().default(listNodeTemplatesResponseItemsItemTemplateDataUrlDefault)
 }),
   "description": zod.string(),
-  "docs_url": zod.string().default(listNodeTemplatesResponseItemsItemDocsUrlDefault),
-  "icon": zod.string().default(listNodeTemplatesResponseItemsItemIconDefault),
+  "docs_url": zod.string().default(listNodeTemplatesResponseItemsItemTemplateDocsUrlDefault),
+  "icon": zod.string().default(listNodeTemplatesResponseItemsItemTemplateIconDefault),
   "id": zod.string(),
   "inputs": zod.array(zod.object({
-  "description": zod.string().default(listNodeTemplatesResponseItemsItemInputsItemDescriptionDefault),
+  "description": zod.string().default(listNodeTemplatesResponseItemsItemTemplateInputsItemDescriptionDefault),
   "name": zod.string(),
-  "type": zod.enum(['string', 'number', 'boolean', 'object', 'array']).default(listNodeTemplatesResponseItemsItemInputsItemTypeDefault)
+  "type": zod.enum(['string', 'number', 'boolean', 'object', 'array']).default(listNodeTemplatesResponseItemsItemTemplateInputsItemTypeDefault)
 })).optional(),
   "name": zod.string(),
   "node_type": zod.literal("http_request").meta({ title: 'Node Type' }),
-  "schema_version": zod.literal(1).default(listNodeTemplatesResponseItemsItemSchemaVersionDefault).meta({ title: 'Schema Version' }),
+  "schema_version": zod.literal(1).default(listNodeTemplatesResponseItemsItemTemplateSchemaVersionDefault).meta({ title: 'Schema Version' }),
   "secrets": zod.array(zod.string()).optional(),
   "tags": zod.array(zod.string()).optional(),
-  "version": zod.string().regex(listNodeTemplatesResponseItemsItemVersionRegExp).default(listNodeTemplatesResponseItemsItemVersionDefault)
+  "version": zod.string().regex(listNodeTemplatesResponseItemsItemTemplateVersionRegExp).default(listNodeTemplatesResponseItemsItemTemplateVersionDefault)
+})
 }))
 })
 

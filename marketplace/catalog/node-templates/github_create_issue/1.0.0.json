@@ -12,10 +12,8 @@
   ],
   "node_type": "http_request",
   "connection": {
-    "type": "bearer",
-    "values": {
-      "hosts": "api.github.com"
-    }
+    "type": "github",
+    "values": {}
   },
   "inputs": [
     {

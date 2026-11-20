@@ -1,4 +1,4 @@
-import type { NodeTemplate } from "@/lib/api/models";
+import type { NodeTemplate, NodeTemplateItem } from "@/lib/api/models";
 import type { CatalogItem } from "@/lib/catalog";
 import { type ConnectionOption, hostAllowed } from "@/lib/connections";
 
@@ -6,15 +6,17 @@ import { defaultData } from "./nodes";
 import type { HttpRequestData } from "./types";
 
 export const BUILT_IN = "Built-in";
+export const INSTALLED = "Installed";
+export const GROUPS = [BUILT_IN, INSTALLED];
 
-export function templateItems(templates: NodeTemplate[]): CatalogItem[] {
-  return templates.map((t) => ({
+export function templateItems(items: NodeTemplateItem[]): CatalogItem[] {
+  return items.map(({ source, template: t }) => ({
     id: t.id,
     name: t.name,
     description: t.description,
     icon: t.icon ?? "plug",
     docsUrl: t.docs_url ?? "",
-    group: BUILT_IN,
+    group: source === "installed" ? INSTALLED : BUILT_IN,
     tags: t.tags ?? [],
   }));
 }

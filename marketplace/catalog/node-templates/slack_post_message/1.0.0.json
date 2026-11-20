@@ -11,10 +11,8 @@
   ],
   "node_type": "http_request",
   "connection": {
-    "type": "bearer",
-    "values": {
-      "hosts": "slack.com"
-    }
+    "type": "slack",
+    "values": {}
   },
   "inputs": [
     {

@@ -40,6 +40,16 @@ class ConnectionStore:
             or 0
         )
 
+    async def count_by_type(self, member: Member, type_id: str) -> int:
+        return (
+            await self.session.scalar(
+                select(func.count())
+                .select_from(Connection)
+                .where(Connection.workspace_id == member.workspace_id, Connection.type == type_id)
+            )
+            or 0
+        )
+
     async def get(self, member: Member, connection_id: uuid.UUID) -> Connection | None:
         return await self.session.scalar(
             select(Connection).where(
