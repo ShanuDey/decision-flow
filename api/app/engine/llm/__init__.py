@@ -1,6 +1,7 @@
 """Model calls for nodes. Only this package imports the chat libraries."""
 
 from app.engine.llm.agent import (
+    MAX_TOOLS,
     TOOL_NAME,
     AgentLimits,
     AgentResult,
@@ -22,6 +23,7 @@ from app.engine.llm.structured import (
 from app.engine.llm.urls import split_base_url
 
 __all__ = [
+    "MAX_TOOLS",
     "SUPPORTED_TYPES",
     "TOOL_NAME",
     "AgentLimits",

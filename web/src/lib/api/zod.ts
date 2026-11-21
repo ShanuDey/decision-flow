@@ -7,6 +7,498 @@
 import * as zod from 'zod';
 
 /**
+ * Lists the workspace's agents by name.
+ * @summary List Agents
+ */
+export const listAgentsResponseItemsItemDescriptionDefault = ``;
+export const listAgentsResponseItemsItemDescriptionMax = 500;
+
+export const listAgentsResponseItemsItemInstructionsDefault = ``;
+export const listAgentsResponseItemsItemInstructionsMax = 20000;
+
+export const listAgentsResponseItemsItemMaxIterationsDefault = 8;
+export const listAgentsResponseItemsItemMaxIterationsMax = 50;
+
+
+
+
+export const listAgentsResponseItemsItemModelDefault = ``;
+export const listAgentsResponseItemsItemModelMax = 200;
+
+export const listAgentsResponseItemsItemTemperatureOneMin = 0;
+export const listAgentsResponseItemsItemTemperatureOneMax = 2;
+
+
+export const listAgentsResponseItemsItemToolsItemDescriptionDefault = ``;
+export const listAgentsResponseItemsItemToolsItemFlowIdDefault = ``;
+export const listAgentsResponseItemsItemToolsItemNameDefault = ``;
+export const listAgentsResponseItemsItemToolsMax = 64;
+
+
+
+export const ListAgentsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "description": zod.string().max(listAgentsResponseItemsItemDescriptionMax).default(listAgentsResponseItemsItemDescriptionDefault),
+  "id": zod.uuid(),
+  "instructions": zod.string().max(listAgentsResponseItemsItemInstructionsMax).default(listAgentsResponseItemsItemInstructionsDefault),
+  "max_iterations": zod.int().min(1).max(listAgentsResponseItemsItemMaxIterationsMax).default(listAgentsResponseItemsItemMaxIterationsDefault),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.string().max(listAgentsResponseItemsItemModelMax).default(listAgentsResponseItemsItemModelDefault),
+  "name": zod.string(),
+  "temperature": zod.union([zod.number().min(listAgentsResponseItemsItemTemperatureOneMin).max(listAgentsResponseItemsItemTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.array(zod.object({
+  "description": zod.string().default(listAgentsResponseItemsItemToolsItemDescriptionDefault),
+  "flow_id": zod.string().default(listAgentsResponseItemsItemToolsItemFlowIdDefault),
+  "name": zod.string().default(listAgentsResponseItemsItemToolsItemNameDefault)
+})).max(listAgentsResponseItemsItemToolsMax).optional(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Creates an agent: a model, instructions and published flows it may run as tools.
+ * @summary Create Agent
+ */
+export const createAgentBodyDescriptionDefault = ``;
+export const createAgentBodyDescriptionMax = 500;
+
+export const createAgentBodyInstructionsDefault = ``;
+export const createAgentBodyInstructionsMax = 20000;
+
+export const createAgentBodyMaxIterationsDefault = 8;
+export const createAgentBodyMaxIterationsMax = 50;
+
+
+
+
+export const createAgentBodyModelDefault = ``;
+export const createAgentBodyModelMax = 200;
+
+export const createAgentBodyNameMax = 80;
+
+export const createAgentBodyTemperatureOneMin = 0;
+export const createAgentBodyTemperatureOneMax = 2;
+
+
+export const createAgentBodyToolsItemDescriptionDefault = ``;
+export const createAgentBodyToolsItemFlowIdDefault = ``;
+export const createAgentBodyToolsItemNameDefault = ``;
+export const createAgentBodyToolsMax = 64;
+
+
+
+export const CreateAgentBody = zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "description": zod.string().max(createAgentBodyDescriptionMax).default(createAgentBodyDescriptionDefault),
+  "instructions": zod.string().max(createAgentBodyInstructionsMax).default(createAgentBodyInstructionsDefault),
+  "max_iterations": zod.int().min(1).max(createAgentBodyMaxIterationsMax).default(createAgentBodyMaxIterationsDefault),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.string().max(createAgentBodyModelMax).default(createAgentBodyModelDefault),
+  "name": zod.string().min(1).max(createAgentBodyNameMax),
+  "temperature": zod.union([zod.number().min(createAgentBodyTemperatureOneMin).max(createAgentBodyTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.array(zod.object({
+  "description": zod.string().default(createAgentBodyToolsItemDescriptionDefault),
+  "flow_id": zod.string().default(createAgentBodyToolsItemFlowIdDefault),
+  "name": zod.string().default(createAgentBodyToolsItemNameDefault)
+})).max(createAgentBodyToolsMax).optional()
+})
+
+export const createAgentResponseDescriptionDefault = ``;
+export const createAgentResponseDescriptionMax = 500;
+
+export const createAgentResponseInstructionsDefault = ``;
+export const createAgentResponseInstructionsMax = 20000;
+
+export const createAgentResponseMaxIterationsDefault = 8;
+export const createAgentResponseMaxIterationsMax = 50;
+
+
+
+
+export const createAgentResponseModelDefault = ``;
+export const createAgentResponseModelMax = 200;
+
+export const createAgentResponseTemperatureOneMin = 0;
+export const createAgentResponseTemperatureOneMax = 2;
+
+
+export const createAgentResponseToolsItemDescriptionDefault = ``;
+export const createAgentResponseToolsItemFlowIdDefault = ``;
+export const createAgentResponseToolsItemNameDefault = ``;
+export const createAgentResponseToolsMax = 64;
+
+
+
+export const CreateAgentResponse = zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "description": zod.string().max(createAgentResponseDescriptionMax).default(createAgentResponseDescriptionDefault),
+  "id": zod.uuid(),
+  "instructions": zod.string().max(createAgentResponseInstructionsMax).default(createAgentResponseInstructionsDefault),
+  "max_iterations": zod.int().min(1).max(createAgentResponseMaxIterationsMax).default(createAgentResponseMaxIterationsDefault),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.string().max(createAgentResponseModelMax).default(createAgentResponseModelDefault),
+  "name": zod.string(),
+  "temperature": zod.union([zod.number().min(createAgentResponseTemperatureOneMin).max(createAgentResponseTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.array(zod.object({
+  "description": zod.string().default(createAgentResponseToolsItemDescriptionDefault),
+  "flow_id": zod.string().default(createAgentResponseToolsItemFlowIdDefault),
+  "name": zod.string().default(createAgentResponseToolsItemNameDefault)
+})).max(createAgentResponseToolsMax).optional(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Deletes the agent and all of its conversations.
+ * @summary Delete Agent
+ */
+export const DeleteAgentParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const DeleteAgentResponse = zod.void()
+
+
+/**
+ * @summary Get Agent
+ */
+export const GetAgentParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const getAgentResponseDescriptionDefault = ``;
+export const getAgentResponseDescriptionMax = 500;
+
+export const getAgentResponseInstructionsDefault = ``;
+export const getAgentResponseInstructionsMax = 20000;
+
+export const getAgentResponseMaxIterationsDefault = 8;
+export const getAgentResponseMaxIterationsMax = 50;
+
+
+
+
+export const getAgentResponseModelDefault = ``;
+export const getAgentResponseModelMax = 200;
+
+export const getAgentResponseTemperatureOneMin = 0;
+export const getAgentResponseTemperatureOneMax = 2;
+
+
+export const getAgentResponseToolsItemDescriptionDefault = ``;
+export const getAgentResponseToolsItemFlowIdDefault = ``;
+export const getAgentResponseToolsItemNameDefault = ``;
+export const getAgentResponseToolsMax = 64;
+
+
+
+export const GetAgentResponse = zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "description": zod.string().max(getAgentResponseDescriptionMax).default(getAgentResponseDescriptionDefault),
+  "id": zod.uuid(),
+  "instructions": zod.string().max(getAgentResponseInstructionsMax).default(getAgentResponseInstructionsDefault),
+  "max_iterations": zod.int().min(1).max(getAgentResponseMaxIterationsMax).default(getAgentResponseMaxIterationsDefault),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.string().max(getAgentResponseModelMax).default(getAgentResponseModelDefault),
+  "name": zod.string(),
+  "temperature": zod.union([zod.number().min(getAgentResponseTemperatureOneMin).max(getAgentResponseTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.array(zod.object({
+  "description": zod.string().default(getAgentResponseToolsItemDescriptionDefault),
+  "flow_id": zod.string().default(getAgentResponseToolsItemFlowIdDefault),
+  "name": zod.string().default(getAgentResponseToolsItemNameDefault)
+})).max(getAgentResponseToolsMax).optional(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Changes the fields you send. Null clears the optional limits and the connection.
+ * @summary Update Agent
+ */
+export const UpdateAgentParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const updateAgentBodyDescriptionOneMax = 500;
+
+export const updateAgentBodyInstructionsOneMax = 20000;
+
+export const updateAgentBodyMaxIterationsOneMax = 50;
+
+
+
+
+export const updateAgentBodyModelOneMax = 200;
+
+export const updateAgentBodyNameOneMax = 80;
+
+export const updateAgentBodyTemperatureOneMin = 0;
+export const updateAgentBodyTemperatureOneMax = 2;
+
+
+export const updateAgentBodyToolsOneItemDescriptionDefault = ``;
+export const updateAgentBodyToolsOneItemFlowIdDefault = ``;
+export const updateAgentBodyToolsOneItemNameDefault = ``;
+export const updateAgentBodyToolsOneMax = 64;
+
+
+
+export const UpdateAgentBody = zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "description": zod.union([zod.string().max(updateAgentBodyDescriptionOneMax),zod.null()]).optional(),
+  "instructions": zod.union([zod.string().max(updateAgentBodyInstructionsOneMax),zod.null()]).optional(),
+  "max_iterations": zod.union([zod.int().min(1).max(updateAgentBodyMaxIterationsOneMax),zod.null()]).optional(),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.union([zod.string().max(updateAgentBodyModelOneMax),zod.null()]).optional(),
+  "name": zod.union([zod.string().min(1).max(updateAgentBodyNameOneMax),zod.null()]).optional(),
+  "temperature": zod.union([zod.number().min(updateAgentBodyTemperatureOneMin).max(updateAgentBodyTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.union([zod.array(zod.object({
+  "description": zod.string().default(updateAgentBodyToolsOneItemDescriptionDefault),
+  "flow_id": zod.string().default(updateAgentBodyToolsOneItemFlowIdDefault),
+  "name": zod.string().default(updateAgentBodyToolsOneItemNameDefault)
+})).max(updateAgentBodyToolsOneMax),zod.null()]).optional()
+}).describe('Only the fields you send change; send null to clear an optional one.')
+
+export const updateAgentResponseDescriptionDefault = ``;
+export const updateAgentResponseDescriptionMax = 500;
+
+export const updateAgentResponseInstructionsDefault = ``;
+export const updateAgentResponseInstructionsMax = 20000;
+
+export const updateAgentResponseMaxIterationsDefault = 8;
+export const updateAgentResponseMaxIterationsMax = 50;
+
+
+
+
+export const updateAgentResponseModelDefault = ``;
+export const updateAgentResponseModelMax = 200;
+
+export const updateAgentResponseTemperatureOneMin = 0;
+export const updateAgentResponseTemperatureOneMax = 2;
+
+
+export const updateAgentResponseToolsItemDescriptionDefault = ``;
+export const updateAgentResponseToolsItemFlowIdDefault = ``;
+export const updateAgentResponseToolsItemNameDefault = ``;
+export const updateAgentResponseToolsMax = 64;
+
+
+
+export const UpdateAgentResponse = zod.object({
+  "connection_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "description": zod.string().max(updateAgentResponseDescriptionMax).default(updateAgentResponseDescriptionDefault),
+  "id": zod.uuid(),
+  "instructions": zod.string().max(updateAgentResponseInstructionsMax).default(updateAgentResponseInstructionsDefault),
+  "max_iterations": zod.int().min(1).max(updateAgentResponseMaxIterationsMax).default(updateAgentResponseMaxIterationsDefault),
+  "max_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "max_total_tokens": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "model": zod.string().max(updateAgentResponseModelMax).default(updateAgentResponseModelDefault),
+  "name": zod.string(),
+  "temperature": zod.union([zod.number().min(updateAgentResponseTemperatureOneMin).max(updateAgentResponseTemperatureOneMax),zod.null()]).optional(),
+  "timeout_seconds": zod.union([zod.int().min(1),zod.null()]).optional(),
+  "tools": zod.array(zod.object({
+  "description": zod.string().default(updateAgentResponseToolsItemDescriptionDefault),
+  "flow_id": zod.string().default(updateAgentResponseToolsItemFlowIdDefault),
+  "name": zod.string().default(updateAgentResponseToolsItemNameDefault)
+})).max(updateAgentResponseToolsMax).optional(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * Your conversations with the agent, most recently active first.
+ * @summary List Threads
+ */
+export const ListThreadsParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const listThreadsQueryLimitDefault = 25;
+export const listThreadsQueryLimitMax = 100;
+
+
+
+export const ListThreadsQueryParams = zod.object({
+  "limit": zod.int().min(1).max(listThreadsQueryLimitMax).default(listThreadsQueryLimitDefault)
+})
+
+export const ListThreadsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "agent_id": zod.uuid(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "title": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}))
+})
+
+
+/**
+ * Starts a conversation with the agent.
+ * @summary Create Thread
+ */
+export const CreateThreadParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const CreateThreadResponse = zod.object({
+  "agent_id": zod.uuid(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "title": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+
+
+/**
+ * @summary Delete Thread
+ */
+export const DeleteThreadParams = zod.object({
+  "agent_id": zod.uuid(),
+  "thread_id": zod.uuid()
+})
+
+export const DeleteThreadResponse = zod.void()
+
+
+/**
+ * A conversation with all of its messages, oldest first.
+ * @summary Get Thread
+ */
+export const GetThreadParams = zod.object({
+  "agent_id": zod.uuid(),
+  "thread_id": zod.uuid()
+})
+
+export const GetThreadResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "content": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "model": zod.union([zod.string(),zod.null()]),
+  "role": zod.enum(['user', 'assistant']),
+  "seq": zod.int(),
+  "steps": zod.union([zod.array(zod.object({
+  "arguments": zod.record(zod.string(), zod.unknown()),
+  "is_error": zod.boolean(),
+  "name": zod.string(),
+  "result": zod.string()
+})),zod.null()]),
+  "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
+})),
+  "thread": zod.object({
+  "agent_id": zod.uuid(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "title": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+})
+})
+
+
+/**
+ * Sends a message and waits for the answer.
+ *
+ * The agent may run its flows first. Nothing is stored if the turn fails: 422 `agent_not_ready`
+ * (no connection, model or usable flow), 422 `agent_stopped` (a limit was reached before an
+ * answer), 502 `model_failed` (the provider refused or could not be reached).
+ * @summary Send Message
+ */
+export const SendMessageParams = zod.object({
+  "agent_id": zod.uuid(),
+  "thread_id": zod.uuid()
+})
+
+export const sendMessageBodyContentMax = 20000;
+
+
+
+export const SendMessageBody = zod.object({
+  "content": zod.string().min(1).max(sendMessageBodyContentMax)
+})
+
+export const SendMessageResponse = zod.object({
+  "reply": zod.object({
+  "content": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "model": zod.union([zod.string(),zod.null()]),
+  "role": zod.enum(['user', 'assistant']),
+  "seq": zod.int(),
+  "steps": zod.union([zod.array(zod.object({
+  "arguments": zod.record(zod.string(), zod.unknown()),
+  "is_error": zod.boolean(),
+  "name": zod.string(),
+  "result": zod.string()
+})),zod.null()]),
+  "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
+}),
+  "user_message": zod.object({
+  "content": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "model": zod.union([zod.string(),zod.null()]),
+  "role": zod.enum(['user', 'assistant']),
+  "seq": zod.int(),
+  "steps": zod.union([zod.array(zod.object({
+  "arguments": zod.record(zod.string(), zod.unknown()),
+  "is_error": zod.boolean(),
+  "name": zod.string(),
+  "result": zod.string()
+})),zod.null()]),
+  "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
+})
+})
+
+
+/**
+ * Like sending a message, but as server-sent events.
+ *
+ * `tool` events arrive as the agent runs each flow (`name`, `arguments`, `result`, `is_error`),
+ * then one `message` event holds the stored answer, or one `error` event holds what the plain
+ * endpoint would have returned as an error. The answer itself is not streamed word by word.
+ * @summary Stream Message
+ */
+export const StreamMessageParams = zod.object({
+  "agent_id": zod.uuid(),
+  "thread_id": zod.uuid()
+})
+
+export const streamMessageBodyContentMax = 20000;
+
+
+
+export const StreamMessageBody = zod.object({
+  "content": zod.string().min(1).max(streamMessageBodyContentMax)
+})
+
+export const StreamMessageResponse = zod.unknown()
+
+
+/**
  * Lists the flows installed from the Marketplace, with their graphs, for starting a new flow.
  *
  * Each flow's `connections` maps the placeholder ids in its request nodes to the connection type

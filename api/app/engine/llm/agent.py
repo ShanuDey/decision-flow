@@ -22,6 +22,7 @@ MAX_TOOLS = 64
 FORMAT_REQUEST = "Now give your final answer again, in the required format."
 Stop = Literal["answer", "max_iterations", "max_tokens", "timeout"]
 ToolRunner = Callable[[str, dict[str, Any]], Awaitable[str]]
+StepListener = Callable[["ToolStep"], Awaitable[None]]
 
 
 class ToolSpec(FrozenBaseModel):
@@ -130,6 +131,7 @@ async def run_agent(
     temperature: float | None = None,
     max_tokens: int | None = None,
     response_format: dict[str, Any] | None = None,
+    on_step: StepListener | None = None,
 ) -> AgentResult:
     """Raises ValueError with a message a flow author can act on. A tool's own failure is not
     raised: the model is told and can try something else. Hitting a limit is a `stop` value.
@@ -199,6 +201,8 @@ async def run_agent(
                             run_tool, names, name, arguments, limits.max_tool_result_chars
                         )
                     steps.append(step)
+                    if on_step:
+                        await on_step(step)
                     thread.append(ToolMessage(content=step.result, tool_call_id=call_id))
     except TimeoutError:
         if not deadline.expired():

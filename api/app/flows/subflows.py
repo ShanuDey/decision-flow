@@ -105,8 +105,11 @@ class SubflowSource:
 
     async def contracts(self, raw: Any) -> dict[str, FlowContract]:
         """Every flow the draft calls, directly or through others; unavailable ones are absent."""
+        return await self.contracts_for([flow_id for _, flow_id, _ in called_flows(raw)])
+
+    async def contracts_for(self, flow_ids: list[str]) -> dict[str, FlowContract]:
         found: dict[str, FlowContract] = {}
-        pending = [flow_id for _, flow_id, _ in called_flows(raw)]
+        pending = list(flow_ids)
         while pending:
             flow_id = pending.pop()
             if flow_id in found:
@@ -117,6 +120,12 @@ class SubflowSource:
             found[flow_id] = contract_of(graph)
             pending.extend(found[flow_id].calls)
         return found
+
+    async def needs(self, flow_ids: list[str]) -> tuple[set[str], set[str]]:
+        """The secret names and connection ids these flows and the ones they call use."""
+        contracts = await self.contracts_for(flow_ids)
+        names = {n for c in contracts.values() for n in c.secret_names}
+        return names, {i for c in contracts.values() for i in c.connection_ids}
 
     async def secret_names(self, graph: Graph) -> set[str]:
         """Secrets the flows it calls need, so a run can load them with its own."""

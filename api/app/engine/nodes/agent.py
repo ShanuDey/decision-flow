@@ -1,19 +1,16 @@
 """A model that decides which published flows to run, in a loop, until it can answer."""
 
-import json
 import uuid
 from typing import Any, Literal
 
 from pydantic import Field
 
+from app.engine.agent_tools import AgentTool, FlowTools
 from app.engine.base import StrictBaseModel
-from app.engine.inputs import InputValidationError
 from app.engine.issues import Issue
 from app.engine.llm import (
     TOOL_NAME,
     AgentLimits,
-    ToolSpec,
-    input_schema,
     require_base_url,
     run_agent,
 )
@@ -25,13 +22,6 @@ STOPPED = {
     "max_tokens": "the agent used up its token budget without answering",
     "timeout": "the agent ran out of time without answering",
 }
-
-
-class AgentTool(StrictBaseModel):
-    flow_id: str = ""
-    # What the model sees: the flow's own name is not shown to it.
-    name: str = ""
-    description: str = ""
 
 
 class AgentData(StrictBaseModel):
@@ -123,8 +113,6 @@ class AgentNode(NodeModel):
         return issues
 
     async def run(self, state: dict[str, Any], ctx: NodeContext) -> dict[str, Any]:
-        from app.engine.contracts import contract_of  # the nodes package imports this module
-
         d = self.data
         if ctx.outbound is None:
             raise ValueError("outbound requests are not configured")
@@ -146,32 +134,22 @@ class AgentNode(NodeModel):
         runtime = ctx.subflows
         if d.tools and runtime is None:
             raise ValueError("flows are not available here")
-        graphs: dict[str, Any] = {}
-        specs: list[ToolSpec] = []
-        for tool in d.tools:
+        tools = FlowTools(specs=[], graphs={})
+        if d.tools:
             assert runtime is not None
             limit = runtime.access.max_depth
             if limit and runtime.depth >= limit:
                 raise ValueError(f"flows are nested more than {limit} levels deep")
-            graph = await runtime.access.load(tool.flow_id)
-            graphs[tool.name] = graph
-            schema = input_schema(contract_of(graph).inputs)
-            specs.append(ToolSpec(name=tool.name, description=tool.description, parameters=schema))
+            tools = await FlowTools.load(d.tools, runtime.access.load)
 
         async def run_tool(name: str, arguments: dict[str, Any]) -> str:
             assert runtime is not None
             key = f"{runtime.scope}>{self.id}" if runtime.scope else self.id
-            try:
-                result = await runtime.execute(graphs[name], arguments, ctx, runtime, key)
-            except InputValidationError as exc:
-                raise ValueError(f"the flow rejected its input: {exc}") from None
-            if result.status == "failed" or result.output is None:
-                error = result.error
-                where = f" at '{error.node_id}'" if error and error.node_id else ""
-                raise ValueError(
-                    f"the flow failed{where}: {error.message if error else 'no output'}"
-                )
-            return json.dumps(result.output)
+
+            async def execute(graph: Any, payload: dict[str, Any]) -> Any:
+                return await runtime.execute(graph, payload, ctx, runtime, key)
+
+            return await tools.run(name, arguments, execute)
 
         policy = ctx.outbound
         if d.timeout_seconds:
@@ -187,7 +165,7 @@ class AgentNode(NodeModel):
             model=model,
             instructions=render_text(d.instructions, scopes, "instructions"),
             messages=[{"role": "user", "content": render_text(d.prompt, scopes, "prompt")}],
-            tools=specs,
+            tools=tools.specs,
             run_tool=run_tool,
             limits=AgentLimits(**limits),
             temperature=d.temperature,

@@ -1,0 +1,299 @@
+"""Agent resources and their conversations. Logic lives here; router.py only does HTTP."""
+
+import uuid
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from app.agents.models import Agent, AgentMessage, AgentThread
+from app.agents.schemas import (
+    AgentCreate,
+    AgentSettings,
+    AgentSummary,
+    AgentUpdate,
+    MessageInfo,
+    ThreadSummary,
+    ToolCallInfo,
+)
+from app.agents.store import AgentStore, NameTaken, NewMessage, ThreadBusy
+from app.connections.store import ConnectionStore
+from app.engine.agent_tools import AgentTool, FlowTools, check_tools
+from app.engine.compiler import compile_graph
+from app.engine.llm import AgentLimits, ToolStep, require_base_url, run_agent
+from app.engine.nodes.agent import STOPPED
+from app.engine.redact import Redactor
+from app.engine.run_secrets import RunSecrets
+from app.engine.runtime import run_flow
+from app.errors import ApiError
+from app.flows.store import FlowStore
+from app.flows.subflows import SubflowSource
+from app.limits import Limits
+from app.runs.service import SecretLoader
+from app.security.ssrf import OutboundPolicy
+from app.workspaces.schemas import Member
+
+SETTING_KEYS = (
+    "max_iterations",
+    "max_total_tokens",
+    "max_seconds",
+    "temperature",
+    "max_tokens",
+    "timeout_seconds",
+)
+# Only the latest turns are sent back to the model, so a long thread stays affordable.
+HISTORY_MESSAGES = 40
+HISTORY_CHARS = 60_000
+TITLE_CHARS = 60
+
+StepListener = Callable[[ToolStep], Awaitable[None]]
+
+
+def not_found(what: str = "Agent") -> ApiError:
+    return ApiError(404, "not_found", f"{what} not found")
+
+
+def summarize(agent: Agent) -> AgentSummary:
+    return AgentSummary(
+        id=agent.id,
+        name=agent.name,
+        description=agent.description,
+        connection_id=agent.connection_id,
+        model=agent.model,
+        instructions=agent.instructions,
+        tools=[AgentTool.model_validate(t) for t in agent.tools],
+        created_at=agent.created_at,
+        updated_at=agent.updated_at,
+        **{k: v for k, v in agent.settings.items() if k in SETTING_KEYS},
+    )
+
+
+def _fields(body: AgentSettings) -> dict[str, Any]:
+    return {
+        "description": body.description,
+        "connection_id": body.connection_id,
+        "model": body.model,
+        "instructions": body.instructions,
+        "tools": [t.model_dump() for t in body.tools],
+        "settings": {k: getattr(body, k) for k in SETTING_KEYS},
+    }
+
+
+async def _check(
+    body: AgentSettings, connections: ConnectionStore, flows: FlowStore, member: Member
+) -> None:
+    if body.connection_id and await connections.get(member, body.connection_id) is None:
+        raise ApiError(
+            422,
+            "connection_not_found",
+            "That connection does not exist",
+            {"field": "connection_id"},
+        )
+    if problem := check_tools(body.tools):
+        raise ApiError(422, "invalid_tools", problem, {"field": "tools"})
+    for tool in body.tools:
+        if await flows.get_flow(member, uuid.UUID(tool.flow_id)) is None:
+            raise ApiError(
+                422,
+                "tool_flow_not_found",
+                f"The flow for tool {tool.name} does not exist",
+                {"field": "tools"},
+            )
+
+
+def name_taken() -> ApiError:
+    return ApiError(409, "agent_name_taken", "You already have an agent with that name.")
+
+
+async def create_agent(
+    store: AgentStore,
+    connections: ConnectionStore,
+    flows: FlowStore,
+    member: Member,
+    body: AgentCreate,
+) -> Agent:
+    await _check(body, connections, flows, member)
+    try:
+        return await store.add(member, body.name, _fields(body))
+    except NameTaken:
+        raise name_taken() from None
+
+
+async def require_agent(store: AgentStore, member: Member, agent_id: uuid.UUID) -> Agent:
+    agent = await store.get(member, agent_id)
+    if agent is None:
+        raise not_found()
+    return agent
+
+
+async def update_agent(
+    store: AgentStore,
+    connections: ConnectionStore,
+    flows: FlowStore,
+    member: Member,
+    agent_id: uuid.UUID,
+    body: AgentUpdate,
+) -> Agent:
+    agent = await require_agent(store, member, agent_id)
+    current = summarize(agent).model_dump(exclude={"id", "name", "created_at", "updated_at"})
+    current["tools"] = [t.model_dump() for t in summarize(agent).tools]
+    sent = {k: getattr(body, k) for k in body.model_fields_set if k != "name"}
+    # Null clears only what can be empty; for the rest it means "leave as it is".
+    clearable = {"connection_id", *SETTING_KEYS} - {"max_iterations"}
+    merged = current | {k: v for k, v in sent.items() if v is not None or k in clearable}
+    settings = AgentSettings.model_validate(merged)
+    await _check(settings, connections, flows, member)
+    try:
+        updated = await store.replace(member, agent_id, body.name or agent.name, _fields(settings))
+    except NameTaken:
+        raise name_taken() from None
+    if updated is None:
+        raise not_found()
+    return updated
+
+
+async def delete_agent(store: AgentStore, member: Member, agent_id: uuid.UUID) -> None:
+    if not await store.delete(member, agent_id):
+        raise not_found()
+
+
+def summarize_thread(thread: AgentThread) -> ThreadSummary:
+    return ThreadSummary.model_validate(thread, from_attributes=True)
+
+
+def info(message: AgentMessage) -> MessageInfo:
+    steps = None if message.steps is None else [ToolCallInfo(**s) for s in message.steps]
+    return MessageInfo(
+        id=message.id,
+        seq=message.seq,
+        role=message.role,  # type: ignore[arg-type]
+        content=message.content,
+        steps=steps,
+        usage=message.usage,
+        model=message.model,
+        created_at=message.created_at,
+    )
+
+
+async def require_thread(
+    store: AgentStore, member: Member, agent_id: uuid.UUID, thread_id: uuid.UUID
+) -> AgentThread:
+    thread = await store.get_thread(member, agent_id, thread_id)
+    if thread is None:
+        raise not_found("Thread")
+    return thread
+
+
+def _history(messages: list[AgentMessage]) -> list[dict[str, str]]:
+    kept: list[dict[str, str]] = []
+    size = 0
+    for message in reversed(messages[-HISTORY_MESSAGES:]):
+        size += len(message.content)
+        if kept and size > HISTORY_CHARS:
+            break
+        kept.append({"role": message.role, "content": message.content})
+    return kept[::-1]
+
+
+class TurnContext:
+    """What one turn needs from the request: who is asking and how to reach the outside."""
+
+    def __init__(
+        self,
+        store: AgentStore,
+        flows: FlowStore,
+        member: Member,
+        limits: Limits,
+        outbound: OutboundPolicy,
+        load_secrets: SecretLoader,
+    ) -> None:
+        self.store, self.member, self.limits = store, member, limits
+        self.outbound, self.load_secrets = outbound, load_secrets
+        self.subflows = SubflowSource(flows, member, limits, outbound)
+
+
+def _redact(message: str, secrets: RunSecrets) -> str:
+    return Redactor(secrets).text(message)
+
+
+async def run_turn(
+    ctx: TurnContext,
+    agent: Agent,
+    thread: AgentThread,
+    content: str,
+    on_step: StepListener | None = None,
+) -> tuple[AgentMessage, AgentMessage]:
+    """Answers one user message and stores both messages; nothing is stored if it fails."""
+    if agent.connection_id is None:
+        raise ApiError(422, "agent_not_ready", "Pick a connection for this agent first")
+    tools = [AgentTool.model_validate(t) for t in agent.tools]
+    names, connection_ids = await ctx.subflows.needs([t.flow_id for t in tools])
+    connection_ids.add(str(agent.connection_id))
+    secrets = await ctx.load_secrets(names, connection_ids)
+    connection = secrets.connections.get(str(agent.connection_id))
+    if connection is None:
+        raise ApiError(422, "agent_not_ready", "The connection of this agent no longer exists")
+    try:
+        require_base_url(connection)
+        model = agent.model.strip() or connection.values.get("default_model", "")
+        if not model:
+            raise ValueError("no model: set one on the agent or a default model on the connection")
+        flow_tools = await FlowTools.load(tools, ctx.subflows.load)
+    except ValueError as exc:
+        raise ApiError(422, "agent_not_ready", str(exc)) from None
+
+    async def execute(graph: Any, payload: dict[str, Any]) -> Any:
+        return await run_flow(
+            compile_graph(graph),
+            payload,
+            None,
+            ctx.limits.run_timeout_seconds,
+            secrets,
+            ctx.outbound,
+            ctx.subflows.access,
+        )
+
+    async def run_tool(name: str, arguments: dict[str, Any]) -> str:
+        return await flow_tools.run(name, arguments, execute)
+
+    history = _history(await ctx.store.list_messages(thread.id))
+    settings = agent.settings
+    policy = ctx.outbound
+    if settings.get("timeout_seconds"):
+        policy = policy.model_copy(
+            update={"timeout_seconds": min(settings["timeout_seconds"], policy.timeout_seconds)}
+        )
+    limit_keys = ("max_iterations", "max_total_tokens", "max_seconds")
+    try:
+        result = await run_agent(
+            policy,
+            connection,
+            model=model,
+            instructions=agent.instructions,
+            messages=[*history, {"role": "user", "content": content}],
+            tools=flow_tools.specs,
+            run_tool=run_tool,
+            limits=AgentLimits(**{k: settings[k] for k in limit_keys if settings.get(k)}),
+            temperature=settings.get("temperature"),
+            max_tokens=settings.get("max_tokens"),
+            on_step=on_step,
+        )
+    except ValueError as exc:
+        raise ApiError(502, "model_failed", _redact(str(exc), secrets)) from None
+    if result.stop != "answer":
+        raise ApiError(422, "agent_stopped", STOPPED[result.stop])
+    asked = NewMessage("user", content)
+    answered = NewMessage(
+        "assistant",
+        result.text,
+        steps=[s.model_dump() for s in result.steps],
+        usage=result.usage,
+        model=result.model,
+    )
+    try:
+        stored = await ctx.store.add_messages(
+            thread, [asked, answered], content.strip()[:TITLE_CHARS]
+        )
+    except ThreadBusy:
+        raise ApiError(
+            409, "thread_busy", "Another message in this thread was answered at the same time"
+        ) from None
+    return stored[0], stored[1]
