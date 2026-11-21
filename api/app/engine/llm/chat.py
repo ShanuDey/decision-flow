@@ -2,13 +2,14 @@
 
 import asyncio
 import json
+import logging
 from typing import Any
 
 import httpx
 import openai
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from app.engine.base import FrozenBaseModel
 from app.engine.connections import ResolvedConnection, host_allowed
@@ -16,7 +17,9 @@ from app.engine.llm.urls import split_base_url
 from app.engine.redact import Redactor
 from app.engine.run_secrets import RunSecrets
 from app.security.ssrf import FRAMING_HEADERS, OutboundPolicy
-from app.security.transport import BlockedRequest, guarded_client
+from app.security.transport import BlockedRequest, guarded_client, shared_ssl_context
+
+logger = logging.getLogger(__name__)
 
 MAX_PROVIDER_MESSAGE = 300
 USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens")
@@ -81,7 +84,10 @@ def _failure(exc: Exception, connection: ResolvedConnection) -> ValueError:
         return ValueError(f"{hint} (HTTP {exc.status_code}){': ' + detail if detail else ''}")
     if isinstance(exc, openai.APIConnectionError):
         return ValueError("request failed (connect_failed): Could not connect to the host")
-    return ValueError("the provider's reply is not a chat completion")
+    if isinstance(exc, ValueError | TypeError | KeyError | AttributeError | ValidationError):
+        return ValueError("the provider's reply is not a chat completion")
+    logger.exception("model call failed unexpectedly", exc_info=exc)
+    return ValueError(f"the model call failed unexpectedly ({type(exc).__name__})")
 
 
 def _text(message: BaseMessage) -> str:
@@ -92,16 +98,29 @@ def _text(message: BaseMessage) -> str:
     return "".join(b for b in blocks if isinstance(b, str))
 
 
-def _reply(message: BaseMessage, requested: str) -> ChatReply:
+def _usage(message: BaseMessage) -> dict[str, int]:
     meta = getattr(message, "response_metadata", None) or {}
     given = meta.get("token_usage") or {}
     usage = {k: given[k] for k in USAGE_KEYS if isinstance(given.get(k), int)}
+    if usage:
+        return usage
+    counted = getattr(message, "usage_metadata", None) or {}
+    renamed = {
+        "prompt_tokens": counted.get("input_tokens"),
+        "completion_tokens": counted.get("output_tokens"),
+        "total_tokens": counted.get("total_tokens"),
+    }
+    return {k: v for k, v in renamed.items() if isinstance(v, int)}
+
+
+def _reply(message: BaseMessage, requested: str) -> ChatReply:
+    meta = getattr(message, "response_metadata", None) or {}
     finish = meta.get("finish_reason")
     return ChatReply(
         text=_text(message),
         model=str(meta.get("model_name") or meta.get("model") or requested),
         finish_reason=finish if isinstance(finish, str) else None,
-        usage=usage,
+        usage=_usage(message),
     )
 
 
@@ -133,23 +152,35 @@ async def chat_completion(
     client = guarded_client(policy, drop_headers=ENVIRONMENT_HEADERS)
     options: dict[str, Any] = {"temperature": temperature, "max_tokens": max_tokens}
     try:
+        chat = ChatOpenAI(
+            model=model,
+            api_key=api_key or "unused",
+            base_url=base,
+            default_query=query or None,
+            default_headers=headers or None,
+            http_async_client=client,
+            # LangChain builds this sync client regardless; give it the shared TLS context.
+            http_client=httpx.Client(verify=shared_ssl_context()),
+            max_retries=0,
+            openai_proxy=None,
+            timeout=policy.timeout_seconds,
+            **{k: v for k, v in options.items() if v is not None},
+        )
+    except Exception as exc:
+        await client.aclose()
+        logger.exception("model client could not be set up", exc_info=exc)
+        raise ValueError(f"the model call could not be set up ({type(exc).__name__})") from None
+    try:
         async with asyncio.timeout(policy.timeout_seconds):
-            chat = ChatOpenAI(
-                model=model,
-                api_key=api_key or "unused",
-                base_url=base,
-                default_query=query or None,
-                default_headers=headers or None,
-                http_async_client=client,
-                max_retries=0,
-                openai_proxy=None,
-                timeout=policy.timeout_seconds,
-                **{k: v for k, v in options.items() if v is not None},
-            )
             extra = {"response_format": response_format} if response_format else {}
             message = await chat.ainvoke(messages, **extra)
     except Exception as exc:
         raise _failure(exc, connection) from None
     finally:
         await client.aclose()
-    return _reply(message, model)
+    reply = _reply(message, model)
+    if not reply.text.strip() and reply.finish_reason == "length":
+        raise ValueError(
+            "the model ran out of tokens before it answered; raise max tokens or leave it empty"
+        )
+    return reply

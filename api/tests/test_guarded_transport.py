@@ -147,3 +147,9 @@ async def test_a_host_header_set_by_a_caller_cannot_change_the_name_that_is_sent
             await c.get(f"http://127.0.0.1:{port}/", headers={"Host": "internal.example"})
 
     assert seen[0]["host"] == f"127.0.0.1:{port}"
+
+
+def test_the_tls_context_is_built_once_and_shared() -> None:
+    from app.security.transport import shared_ssl_context
+
+    assert shared_ssl_context() is shared_ssl_context()

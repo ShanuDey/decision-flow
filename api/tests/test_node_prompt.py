@@ -1,12 +1,16 @@
 from typing import Any
 
 import pytest
+from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from app.connections.catalog import BY_ID
 from app.connections.types import resolve
 from app.engine.compiler import compile_graph
 from app.engine.connections import ResolvedConnection
+from app.engine.llm import chat as chat_module
+from app.engine.llm.chat import _reply
 from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
@@ -294,3 +298,68 @@ async def test_the_servers_own_openai_settings_are_never_sent_to_the_providers_h
     sent = seen[0].headers
     assert sent["authorization"] == f"Bearer {TOKEN}"
     assert not [name for name in sent if name.startswith("openai-")]
+
+
+EMPTY_CUT_OFF = (
+    b'{"id": "x", "object": "chat.completion", "model": "m", "choices": '
+    b'[{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": "%s"}]}'
+)
+
+
+async def test_an_empty_answer_cut_off_by_max_tokens_is_an_error_not_a_blank_reply() -> None:
+    async with chat_server(raw=EMPTY_CUT_OFF % b"length") as (port, _):
+        result = await run(flow({"max_tokens": 5}), connection(port, default_model="m"))
+
+    assert result.status == "failed" and result.error is not None
+    assert "ran out of tokens" in result.error.message
+
+
+async def test_an_empty_answer_that_ended_normally_is_still_a_reply() -> None:
+    async with chat_server(raw=EMPTY_CUT_OFF % b"stop") as (port, _):
+        result = await run(flow(), connection(port, default_model="m"))
+
+    assert result.status == "succeeded", result.error
+    assert result.output == {"answer": ""}
+
+
+async def test_an_unexpected_error_is_named_and_not_called_a_bad_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def boom(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("internal detail")
+
+    monkeypatch.setattr(ChatOpenAI, "ainvoke", boom)
+    async with chat_server() as (port, _):
+        result = await run(flow(), connection(port, default_model="m"))
+
+    assert result.status == "failed" and result.error is not None
+    assert result.error.message == "the model call failed unexpectedly (RuntimeError)"
+
+
+async def test_a_client_that_cannot_be_built_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise ValueError("internal detail")
+
+    monkeypatch.setattr(chat_module, "ChatOpenAI", refuse)
+    async with chat_server() as (port, seen):
+        result = await run(flow(), connection(port, default_model="m"))
+
+    assert result.status == "failed" and result.error is not None
+    assert result.error.message == "the model call could not be set up (ValueError)"
+    assert seen == []
+
+
+def test_token_counts_come_from_either_place_the_library_puts_them() -> None:
+    counted = AIMessage(
+        content="x", usage_metadata={"input_tokens": 3, "output_tokens": 2, "total_tokens": 5}
+    )
+    assert _reply(counted, "m").usage == {
+        "prompt_tokens": 3,
+        "completion_tokens": 2,
+        "total_tokens": 5,
+    }
+    reported = AIMessage(
+        content="x", response_metadata={"token_usage": {"prompt_tokens": 7, "total_tokens": 9}}
+    )
+    assert _reply(reported, "m").usage == {"prompt_tokens": 7, "total_tokens": 9}
+    assert _reply(AIMessage(content="x"), "m").usage == {}

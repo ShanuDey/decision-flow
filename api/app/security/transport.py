@@ -2,10 +2,17 @@
 
 import ssl
 from collections.abc import AsyncIterator
+from functools import lru_cache
 
 import httpx
 
 from app.security.ssrf import OutboundError, OutboundPolicy, Resolver, pin, system_resolver
+
+
+@lru_cache(maxsize=1)
+def shared_ssl_context() -> ssl.SSLContext:
+    """Built once: creating a context loads the CA bundle, which is slow to repeat per request."""
+    return httpx.create_ssl_context()
 
 
 class BlockedRequest(httpx.ConnectError):
@@ -50,7 +57,9 @@ class GuardedTransport(httpx.AsyncBaseTransport):
         self._drop = frozenset(name.lower() for name in drop_headers)
         self._policy = policy
         self._resolver = resolver
-        self._inner = httpx.AsyncHTTPTransport(verify=ssl_context or True, trust_env=False)
+        self._inner = httpx.AsyncHTTPTransport(
+            verify=ssl_context or shared_ssl_context(), trust_env=False
+        )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         try:
@@ -76,7 +85,10 @@ class GuardedTransport(httpx.AsyncBaseTransport):
             await response.aclose()
             error = OutboundError("invalid_response", "The response uses an unsupported encoding")
             raise BlockedRequest(error, request)
-        assert isinstance(response.stream, httpx.AsyncByteStream)
+        if not isinstance(response.stream, httpx.AsyncByteStream):
+            await response.aclose()
+            error = OutboundError("invalid_response", "The response could not be read")
+            raise BlockedRequest(error, request)
         return httpx.Response(
             response.status_code,
             headers=response.headers,
