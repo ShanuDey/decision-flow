@@ -21,7 +21,21 @@ export default defineConfig({
   build: { format: "file" },
   devToolbar: { enabled: false },
   server: { port: 4321 },
-  vite: { server: { strictPort: true } },
+  vite: {
+    server: { strictPort: true },
+    plugins: [
+      {
+        name: "restore-valueless-query-keys",
+        configureServer(server) {
+          // The app's dev rewrite turns `?lang.css` into `?lang.css=`, which Vite no longer serves as CSS.
+          server.middlewares.use((req, _res, next) => {
+            req.url = req.url?.replace(/([?&](?:astro|lang\.[a-z]+|direct|raw|url|inline|no-inline|import))=(?=&|$)/g, "$1");
+            next();
+          });
+        },
+      },
+    ],
+  },
   integrations: [
     mermaid(),
     starlight({

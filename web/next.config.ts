@@ -46,8 +46,13 @@ const nextConfig: NextConfig = {
       // GitHub Pages only serves the docs index at the trailing-slash URL; the dev server only without.
       { source: "/docs", destination: `${DOCS_ORIGIN}/docs${dev ? "" : "/"}` },
       { source: "/docs/:path*", destination: `${DOCS_ORIGIN}/docs/:path*` },
-      // Astro's dev server serves imported assets (the logo) from /@fs, outside the base.
-      ...(dev ? [{ source: "/@fs/:path*", destination: `${DOCS_ORIGIN}/@fs/:path*` }] : []),
+      // Astro's dev server serves Vite modules and assets from the root, outside the base.
+      ...(dev
+        ? ["@fs", "@id", "@vite", "@astro", "src", "node_modules"].map((dir) => ({
+            source: `/${dir}/:path*`,
+            destination: `${DOCS_ORIGIN}/${dir}/:path*`,
+          }))
+        : []),
     ];
   },
   async headers() {
