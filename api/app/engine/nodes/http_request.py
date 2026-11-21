@@ -12,7 +12,7 @@ import httpx
 from pydantic import Field
 
 from app.engine.base import StrictBaseModel
-from app.engine.connections import host_allowed
+from app.engine.connections import ResolvedConnection, host_allowed
 from app.engine.issues import Issue
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.templates import TemplateError, render
@@ -192,18 +192,21 @@ class HttpRequestNode(NodeModel):
         d = self.data
         if ctx.outbound is None:
             raise ValueError("outbound requests are not configured")
-        scopes = {
+        connection = self._connection(ctx)
+        scopes: dict[str, Any] = {
             "input": state.get("input", {}),
             "vars": state.get("vars", {}),
             "nodes": state.get("nodes", {}),
             "secrets": ctx.secrets.as_scope(),
         }
+        if connection is not None:
+            scopes["connection"] = connection.values
         renderer = _Renderer(scopes, ctx.outbound.max_bytes)
         url = _as_text(renderer.one(d.url, "url"))
         query = {k: _as_text(renderer.one(v, f"query.{k}")) for k, v in d.query.items()}
         headers = {k: _as_text(renderer.one(v, f"headers.{k}")) for k, v in d.headers.items()}
         content = self._body(renderer)
-        self._apply_connection(headers, ctx)
+        self._apply_connection(headers, connection)
         if content is not None and not any(k.lower() == "content-type" for k in headers):
             headers["Content-Type"] = CONTENT_TYPES[d.body_type]
         try:
@@ -211,7 +214,7 @@ class HttpRequestNode(NodeModel):
         except httpx.InvalidURL:
             raise ValueError("url: the rendered URL is not valid") from None
 
-        self._check_host(target, ctx)
+        self._check_host(target, connection)
         policy = ctx.outbound
         if d.timeout_seconds:
             policy = policy.model_copy(
@@ -243,19 +246,25 @@ class HttpRequestNode(NodeModel):
         }
         return {"nodes": {self.id: {"output": output}}}
 
-    def _apply_connection(self, headers: dict[str, str], ctx: NodeContext) -> None:
+    def _connection(self, ctx: NodeContext) -> ResolvedConnection | None:
         if not self.data.connection_id:
-            return
+            return None
         connection = ctx.secrets.connections.get(self.data.connection_id)
         if connection is None:
             raise ValueError("the connection is not available; pick it again in the node")
+        return connection
+
+    def _apply_connection(
+        self, headers: dict[str, str], connection: ResolvedConnection | None
+    ) -> None:
+        if connection is None:
+            return
         own = {name.lower() for name in headers}
         for name, value in connection.headers.items():
             if name.lower() not in own:
                 headers[name] = value.get_secret_value()
 
-    def _check_host(self, target: str, ctx: NodeContext) -> None:
-        connection = ctx.secrets.connections.get(self.data.connection_id)
+    def _check_host(self, target: str, connection: ResolvedConnection | None) -> None:
         if connection is None:
             return
         host = httpx.URL(target).host

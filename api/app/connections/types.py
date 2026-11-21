@@ -160,6 +160,17 @@ def test_target(kind: ConnectionType, values: dict[str, str]) -> str | None:
     return None
 
 
+def plain_values(kind: ConnectionType, values: dict[str, str]) -> dict[str, str]:
+    filled = with_defaults(kind, values)
+    found: dict[str, str] = {}
+    for spec in kind.fields:
+        value = filled.get(spec.name, "").strip()
+        if spec.secret or not value:
+            continue
+        found[spec.name] = value.rstrip("/") if spec.format == "url" else value
+    return found
+
+
 def _headers(kind: ConnectionType, values: dict[str, str]) -> dict[str, str]:
     auth = kind.auth
     if isinstance(auth, Bearer):
@@ -184,5 +195,6 @@ def resolve(
         name=name,
         headers={k: SecretStr(v) for k, v in headers.items()},
         hosts=hosts_of(kind, values),
+        values=plain_values(kind, values),
         secret_values=secret_values,
     )

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "openai",
+  "name": "OpenAI",
+  "description": "An OpenAI API key, sent only to api.openai.com.",
+  "icon": "sparkles",
+  "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
+  "category": "builtin",
+  "fields": [
+    {
+      "name": "api_key",
+      "label": "API key",
+      "secret": true,
+      "help": "Starts with sk-."
+    },
+    {
+      "name": "default_model",
+      "label": "Default model",
+      "required": false,
+      "placeholder": "gpt-4o-mini",
+      "help": "Nodes that use this connection can read it as {{ connection.default_model }}."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "api_key"
+  },
+  "fixed_hosts": [
+    "api.openai.com"
+  ]
+}

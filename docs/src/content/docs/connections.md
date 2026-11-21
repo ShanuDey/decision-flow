@@ -13,7 +13,7 @@ A connection holds the credentials for a service, such as an API key. Pick it in
 
 | Type | What it sends |
 |---|---|
-| OpenAI-compatible | `Authorization: Bearer <key>` to the base URL you set. The default is OpenAI; set another URL for any provider with an OpenAI-style API |
+| OpenAI-compatible | `Authorization: Bearer <key>` to the base URL you set, plus an optional default model. The default URL is OpenAI; set another for OpenRouter, Ollama or any provider with an OpenAI-style API |
 | Bearer token | `Authorization: Bearer <token>` to the hosts you list |
 | Basic auth | A username and password as HTTP Basic auth, to the hosts you list |
 | API key in a header | Your key in a header you name, to the hosts you list |
@@ -25,6 +25,8 @@ A connection only sends its credentials to hosts it allows. OpenAI-compatible al
 ## Use one in a flow
 
 In an HTTP Request node, choose it under **Connection**. A header you set in the node itself wins over the connection's. The credentials are masked in traces and errors, including the encoded form Basic auth sends.
+
+A field in the node can read the connection's plain settings, such as `{{ connection.base_url }}` or `{{ connection.default_model }}`. The API key and other secret fields are never available this way. The node must have a connection picked, and the run stops with an error naming the value when the connection does not have it. A trailing `/` on a URL setting is removed, so `{{ connection.base_url }}/chat/completions` is always well formed.
 
 Some types have a **Test** button on the Connections page that calls the service's check endpoint with the saved credentials.
 

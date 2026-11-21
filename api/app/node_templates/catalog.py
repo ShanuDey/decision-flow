@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.connections.catalog import BY_ID as CONNECTION_TYPES
 from app.connections.types import ConnectionType
-from app.node_templates.schemas import NodeTemplate
+from app.node_templates.schemas import NodeTemplate, connection_values_read
 
 DATA = Path(__file__).parent / "data"
 
@@ -24,6 +24,12 @@ def connection_problem(template: NodeTemplate, types: Mapping[str, ConnectionTyp
         field = kind.field(name)
         if field is None or field.secret:
             return f"connection value '{name}' is not a plain field of {kind.name}"
+    for name in sorted(connection_values_read(template)):
+        field = kind.field(name)
+        if field is None or field.secret:
+            return (
+                f"the template reads connection.{name}, which is not a plain field of {kind.name}"
+            )
     return None
 
 

@@ -95,14 +95,29 @@ class NodeTemplate(FrozenBaseModel):
                         problems.append(
                             f"{field} uses secret '{name}' that is not listed in secrets"
                         )
+                elif ref.scope == "connection":
+                    if self.connection is None:
+                        problems.append(f"{field} reads the connection, but none is declared")
+                    elif len(ref.path) != 1:
+                        problems.append(f"{field}: a connection value is a single value")
                 else:
-                    problems.append(
-                        f"{field} uses '{ref.scope}'; only input and secrets are allowed"
-                    )
+                    allowed = "input, secrets and connection"
+                    problems.append(f"{field} uses '{ref.scope}'; only {allowed} are allowed")
         problems += [
             f"secret '{s}' is listed but never used" for s in self.secrets if s not in used_secrets
         ]
         return problems
+
+
+def connection_values_read(template: NodeTemplate) -> set[str]:
+    """Names of the connection values the template's fields read as `{{ connection.NAME }}`."""
+    node = HttpRequestNode(id="template", type="http_request", data=template.data)
+    return {
+        ref.path[0]
+        for text in node.templates().values()
+        for ref in references(text)
+        if ref.scope == "connection" and len(ref.path) == 1
+    }
 
 
 class NodeTemplateItem(FrozenBaseModel):

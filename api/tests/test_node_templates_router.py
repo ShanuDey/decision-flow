@@ -28,10 +28,13 @@ async def test_the_list_returns_every_template_with_its_full_settings(
     items = response.json()["items"]
     assert [i["template"]["id"] for i in items] == [t.id for t in TEMPLATES]
     assert {i["source"] for i in items} == {"builtin"}
-    chat = next(i["template"] for i in items if i["template"]["id"] == "openai_chat_completion")
+    chat = next(
+        i["template"] for i in items if i["template"]["id"] == "openai_compatible_chat_completion"
+    )
     assert chat["connection"] == {"type": "openai_compatible", "values": {}}
     assert chat["data"]["method"] == "POST" and chat["data"]["connection_id"] == ""
-    assert chat["data"]["url"] == "https://api.openai.com/v1/chat/completions"
+    assert chat["data"]["url"] == "{{ connection.base_url }}/chat/completions"
+    assert chat["data"]["body"]["model"] == "{{ connection.default_model }}"
 
 
 async def test_it_can_be_filtered_by_node_type(client: httpx.AsyncClient) -> None:
@@ -65,7 +68,8 @@ async def test_a_server_with_an_allowed_host_list_offers_only_templates_it_could
     client: httpx.AsyncClient,
 ) -> None:
     items = (await client.get("/node-templates")).json()["items"]
-    assert [i["template"]["id"] for i in items] == ["openai_chat_completion"]
+    # A templated host is only known at run time, so that template stays listed.
+    assert [i["template"]["id"] for i in items] == ["openai_compatible_chat_completion"]
 
 
 async def test_a_server_that_requires_https_keeps_templates_that_already_use_it(
