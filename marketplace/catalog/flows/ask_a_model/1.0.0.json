@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "ask_a_model",
+  "name": "Ask a model",
+  "description": "Sends a question to a chat model and returns its answer, using a Prompt node.",
+  "icon": "sparkles",
+  "tags": [
+    "ai",
+    "llm",
+    "prompt"
+  ],
+  "connections": {
+    "3d7a9c10-4e52-4b8f-a1c6-5e0b2f9d8a31": {
+      "type": "openai_compatible",
+      "name": "OpenAI-compatible"
+    }
+  },
+  "draft": {
+    "schema_version": 1,
+    "variables": [],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": { "x": 0, "y": 100 },
+        "data": {
+          "inputs": [
+            { "name": "question", "type": "string", "required": true }
+          ]
+        }
+      },
+      {
+        "id": "ask",
+        "type": "prompt",
+        "name": "Ask",
+        "position": { "x": 300, "y": 100 },
+        "data": {
+          "connection_id": "3d7a9c10-4e52-4b8f-a1c6-5e0b2f9d8a31",
+          "model": "",
+          "system": "Answer in at most two sentences.",
+          "prompt": "{{ input.question }}",
+          "temperature": null,
+          "max_tokens": null,
+          "timeout_seconds": 60
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": { "x": 600, "y": 100 },
+        "data": {
+          "outputs": [
+            { "name": "answer", "type": "string", "value": "{{ nodes.ask.output.text }}" }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "target": "ask", "sourceHandle": null },
+      { "id": "e2", "source": "ask", "target": "end", "sourceHandle": null }
+    ]
+  }
+}

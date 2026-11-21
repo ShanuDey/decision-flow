@@ -74,6 +74,27 @@ export interface PromptData {
   timeout_seconds: number | null;
 }
 
+export interface OutputFieldDef {
+  name: string;
+  type: FieldType;
+  values?: string[];
+  description?: string;
+}
+
+export interface StructuredOutputData {
+  connection_id: string;
+  // Empty: the connection's default model.
+  model: string;
+  system: string;
+  prompt: string;
+  fields: OutputFieldDef[];
+  // "schema": the provider enforces the structure. "json": it is only asked for a JSON object.
+  mode: "schema" | "json";
+  temperature: number | null;
+  max_tokens: number | null;
+  timeout_seconds: number | null;
+}
+
 export interface NodeDataByType {
   start: StartData;
   end: EndData;
@@ -81,6 +102,7 @@ export interface NodeDataByType {
   condition: ConditionData;
   http_request: HttpRequestData;
   prompt: PromptData;
+  structured_output: StructuredOutputData;
   subflow: SubflowData;
 }
 

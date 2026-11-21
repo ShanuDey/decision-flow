@@ -85,6 +85,40 @@
       "version": "1.0.0"
     },
     {
+      "description": "Sends a question to a chat model and returns its answer, using a Prompt node.",
+      "has_readme": true,
+      "hash": "sha256-255b89479641a4fd95f0ec2497e945652b1c327e3a47a8a838f0c6ce670995d2",
+      "icon": "sparkles",
+      "id": "ask_a_model",
+      "kind": "flow",
+      "name": "Ask a model",
+      "path": "flows/ask_a_model/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "prompt"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Reads a message and returns the sender's name, company, topic and whether it is urgent, using a Structured output node.",
+      "has_readme": true,
+      "hash": "sha256-6a90f30a77e75a4c662e688b46ddbb35a681d05fb3e3f3595d44a5edc8199175",
+      "icon": "braces",
+      "id": "extract_contact_details",
+      "kind": "flow",
+      "name": "Extract contact details",
+      "path": "flows/extract_contact_details/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "extraction"
+      ],
+      "version": "1.0.0"
+    },
+    {
       "description": "Creates an issue in a repository from a title and text, and returns its number and link.",
       "has_readme": true,
       "hash": "sha256-df9b4ce4fe771b295b4d3a1c3eaab0697e804bf9ff5a2a306b1e7277253b7eed",

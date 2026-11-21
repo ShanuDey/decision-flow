@@ -16,7 +16,7 @@ import { useEditor } from "./store";
 
 type Update = (patch: Partial<PromptData>) => void;
 
-function NumberField({
+export function NumberField({
   id,
   label,
   value,
@@ -60,12 +60,20 @@ function NumberField({
   );
 }
 
-function ConnectionField({ node, config, update }: { node: FlowNode; config: PromptData; update: Update }) {
+export function ConnectionField({
+  node,
+  connectionId,
+  onPick,
+}: {
+  node: FlowNode;
+  connectionId: string;
+  onPick: (id: string) => void;
+}) {
   const connections = useEditor((s) => s.connections);
   const issues = useEditor((s) => s.issues);
   const id = `${node.id}-prompt-connection`;
-  const chosen = connections.find((c) => c.id === config.connection_id);
-  const missing = config.connection_id !== "" && !chosen;
+  const chosen = connections.find((c) => c.id === connectionId);
+  const missing = connectionId !== "" && !chosen;
 
   return (
     <section className="flex flex-col gap-3">
@@ -75,8 +83,8 @@ function ConnectionField({ node, config, update }: { node: FlowNode; config: Pro
           id={id}
           value={chosen ? chosen.id : ""}
           placeholder="Select a connection…"
-          onValueChange={(next) => update({ connection_id: next })}
-          options={promptConnections(connections, config.connection_id).map((c) => ({
+          onValueChange={onPick}
+          options={promptConnections(connections, connectionId).map((c) => ({
             value: c.id,
             label: `${c.name} (${c.typeName})`,
           }))}
@@ -123,7 +131,7 @@ export function PromptForm({ node }: { node: FlowNode }) {
 
   return (
     <>
-      <ConnectionField node={node} config={config} update={update} />
+      <ConnectionField node={node} connectionId={config.connection_id} onPick={(connection_id) => update({ connection_id })} />
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">Message</h3>
         <Labeled id={`${prefix}-system`} label="System instructions (optional)" issue={fieldIssue(issues, node.id, "data.system")}>

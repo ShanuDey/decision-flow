@@ -79,6 +79,18 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     handles: [],
     pickable: true,
   },
+  structured_output: {
+    label: "Structured output",
+    group: "Data",
+    source: "builtin",
+    description: "Ask a chat model for typed fields, such as a name or a score",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
   subflow: {
     label: "Subflow",
     group: "Data",
@@ -195,6 +207,18 @@ export function defaultData(type: NodeType): NodeData {
         model: "",
         system: "",
         prompt: "",
+        temperature: null,
+        max_tokens: null,
+        timeout_seconds: null,
+      };
+    case "structured_output":
+      return {
+        connection_id: "",
+        model: "",
+        system: "",
+        prompt: "",
+        fields: [],
+        mode: "schema",
         temperature: null,
         max_tokens: null,
         timeout_seconds: null,

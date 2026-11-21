@@ -250,3 +250,51 @@ async def test_the_generic_summarize_flow_follows_the_connection_base_url_and_mo
     assert call.headers["authorization"] == "Bearer test-token"
     assert call.body["model"] == "some/model"
     assert call.body["messages"][-1] == {"role": "user", "content": "A long text."}
+
+
+async def run_shipped(flow_id: str, payload: dict[str, str], reply: str) -> Any:
+    shipped = next(f for f in SHIPPED if f.id == flow_id)
+    (slot,) = shipped.body.connections
+    graph, issues = parse_graph(
+        json.loads(json.dumps(shipped.body.draft).replace(slot, CONNECTION))
+    )
+    assert graph is not None, issues
+    async with chat_server(reply) as (port, _):
+        connection = resolve(
+            CONNECTION_TYPES["openai_compatible"],
+            CONNECTION,
+            "Local",
+            {
+                "api_key": "test-token",
+                "base_url": f"http://127.0.0.1:{port}/v1",
+                "default_model": "some/model",
+            },
+        )
+        return await run_flow(
+            compile_graph(graph),
+            payload,
+            secrets=RunSecrets(connections={CONNECTION: connection}),
+            outbound=policy(),
+        )
+
+
+async def test_the_ask_a_model_flow_returns_the_models_text() -> None:
+    result = await run_shipped("ask_a_model", {"question": "Why is the sky blue?"}, "Scattering.")
+    assert result.status == "succeeded", result.error
+    assert result.output == {"answer": "Scattering."}
+
+
+async def test_the_extract_contact_details_flow_returns_typed_fields() -> None:
+    answer = {"name": "Ada Lovelace", "company": "Analytical", "topic": "billing", "urgent": True}
+    result = await run_shipped(
+        "extract_contact_details", {"message": "Hi, Ada here."}, json.dumps(answer)
+    )
+    assert result.status == "succeeded", result.error
+    assert result.output == answer
+
+
+async def test_the_extract_contact_details_flow_refuses_a_topic_outside_its_list() -> None:
+    answer = {"name": "A", "company": "B", "topic": "weather", "urgent": False}
+    result = await run_shipped("extract_contact_details", {"message": "x"}, json.dumps(answer))
+    assert result.status == "failed" and result.error is not None
+    assert "topic: must be one of" in result.error.message

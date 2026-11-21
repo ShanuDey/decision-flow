@@ -113,6 +113,7 @@ async def chat_completion(
     messages: list[dict[str, str]],
     temperature: float | None = None,
     max_tokens: int | None = None,
+    response_format: dict[str, Any] | None = None,
 ) -> ChatReply:
     """Raises ValueError with a message a flow author can act on. Unset options are not sent."""
     base, query = split_base_url(require_base_url(connection))
@@ -145,7 +146,8 @@ async def chat_completion(
                 timeout=policy.timeout_seconds,
                 **{k: v for k, v in options.items() if v is not None},
             )
-            message = await chat.ainvoke(messages)
+            extra = {"response_format": response_format} if response_format else {}
+            message = await chat.ainvoke(messages, **extra)
     except Exception as exc:
         raise _failure(exc, connection) from None
     finally:

@@ -73,6 +73,8 @@ export function outputKeys(
         { name: "finish_reason", type: "string" },
         { name: "usage", type: "object" },
       ];
+    case "structured_output":
+      return node.data.fields.filter((f) => f.name).map((f) => ({ name: f.name, type: f.type }));
     case "subflow":
       return contracts[node.data.flow_id]?.outputs ?? [];
     case "end":
