@@ -14,18 +14,15 @@ export function getStaticPaths() {
 
 const { entry, items } = Astro.props as { entry: CatalogItem; items: CatalogItem[] };
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const appUrl = (import.meta.env.PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 const body = entry.body;
 const href = (other: CatalogItem) => `${base}/${itemPath(other)}`;
 
-let openInApp: { href: string; note: string } | null = null;
-if (appUrl && entry.source === "marketplace") {
-  openInApp = {
-    href: `${appUrl}/marketplace`,
-    note: "Opens the Marketplace in your workspace. You need to be signed in to install it.",
-  };
-} else if (appUrl && entry.kind === "connection-type") {
-  openInApp = { href: `${appUrl}/connections`, note: "Built in, so there is nothing to install. Add it from Connections." };
+const openHref = (to: string) => `${base}/open?to=${to}`;
+let openInApp: { to: string; note: string } | null = null;
+if (entry.source === "marketplace") {
+  openInApp = { to: "marketplace", note: "Opens the Marketplace in your workspace. You need to be signed in to install it." };
+} else if (entry.kind === "connection-type") {
+  openInApp = { to: "connections", note: "Built in, so there is nothing to install. Add it from Connections." };
 }
 
 const readme = entry.readme ? await getEntry("catalogReadmes", entry.readme) : undefined;
@@ -98,11 +95,13 @@ try {
   {
     openInApp && (
       <p>
-        <a class="btn" href={openInApp.href}>
-          Open in the app
+        <a class="btn" href={openHref(openInApp.to)} target="_top">
+          Open in your app
         </a>
         <br />
-        <small>{openInApp.note}</small>
+        <small>
+          {openInApp.note} <a href={`${openHref(openInApp.to)}&change`} target="_top">Use a different app address</a>.
+        </small>
       </p>
     )
   }
