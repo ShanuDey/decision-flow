@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createFlow, listTemplates } from "@/lib/api/client";
+import { createFlow, listConnections, listConnectionTypes, listTemplates } from "@/lib/api/client";
 import type { Template } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { call, errorText } from "@/lib/call";
@@ -28,10 +28,18 @@ import {
   flatTemplates,
   groupByCategory,
 } from "@/lib/templates/filter";
-import { parseFlowFile } from "@/lib/graph/transfer";
+import { type ConnectionOption, connectionOptions } from "@/lib/connections";
+import {
+  applyConnections,
+  type ConnectionNeed,
+  type ImportResult,
+  parseFlowFile,
+  planConnections,
+} from "@/lib/graph/transfer";
 import { cn } from "@/lib/utils";
 
 import { FlowPreview } from "./flow-preview";
+import { ImportConnectionsDialog } from "./import-connections-dialog";
 
 const BLANK = "blank";
 const BLANK_NAME = "Untitled flow";
@@ -54,6 +62,14 @@ function useIsDesktop() {
   );
 }
 
+interface PendingImport {
+  fileName: string;
+  parsed: Extract<ImportResult, { ok: true }>;
+  needs: ConnectionNeed[];
+  options: ConnectionOption[];
+  typeNames: Record<string, string>;
+}
+
 export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   const router = useRouter();
   const isDesktop = useIsDesktop();
@@ -66,6 +82,7 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   const [selected, setSelected] = useState(BLANK);
   const [name, setName] = useState(BLANK_NAME);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingImport | null>(null);
   const request = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const filled = useRef(BLANK_NAME);
@@ -143,10 +160,40 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
       toast.error(parsed.message);
       return;
     }
-    const fallback = file.name.replace(/(\.flow)?\.json$/i, "").trim() || BLANK_NAME;
-    const result = await call(
-      createFlow({ name: (parsed.name ?? fallback).slice(0, 120), draft: { ...parsed.graph } }),
-    );
+    const [list, types] = await Promise.all([call(listConnections()), call(listConnectionTypes())]);
+    if (!list.ok) {
+      setBusy(false);
+      errorToast("Could not check your connections", list.error);
+      return;
+    }
+    if (!types.ok) {
+      setBusy(false);
+      errorToast("Could not check your connections", types.error);
+      return;
+    }
+    const options = connectionOptions(list.data.items, types.data.items);
+    const typeNames = Object.fromEntries(types.data.items.map((t) => [t.id, t.name]));
+    const job = {
+      fileName: file.name,
+      parsed,
+      needs: planConnections(parsed.graph, parsed.connections, options),
+      options,
+      typeNames,
+    };
+    if (job.needs.length === 0) {
+      await finishImport(job, {});
+      return;
+    }
+    setBusy(false);
+    setPending(job);
+  }
+
+  async function finishImport(job: PendingImport, choices: Record<string, string>) {
+    setBusy(true);
+    const { parsed, needs, options, fileName } = job;
+    const fallback = fileName.replace(/(\.flow)?\.json$/i, "").trim() || BLANK_NAME;
+    const graph = applyConnections(parsed.graph, choices, options);
+    const result = await call(createFlow({ name: (parsed.name ?? fallback).slice(0, 120), draft: { ...graph } }));
     if (!result.ok) {
       setBusy(false);
       errorToast("Could not import the flow", result.error);
@@ -155,6 +202,8 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
     if (parsed.clearedSubflows) {
       toast.info(`Pick the flow again in ${parsed.clearedSubflows} subflow node(s); ids are not carried over.`);
     }
+    const unset = needs.filter((n) => !choices[n.fileId]).reduce((total, n) => total + n.nodes, 0);
+    if (unset) toast.info(`Pick a connection in ${unset} request node(s); the file's ids are not carried over.`);
     router.push(`/flows/${result.data.id}`);
   }
 
@@ -173,152 +222,164 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="sm:max-w-3xl">
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <DialogHeader>
-            <DialogTitle>New flow</DialogTitle>
-            <DialogDescription>
-              Start from a template or a blank flow. You get your own copy to edit.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid h-[min(440px,60vh)] grid-cols-[260px_minmax(0,1fr)] overflow-hidden rounded-lg border max-sm:grid-cols-1 max-sm:grid-rows-[minmax(0,1fr)_auto]">
-            <div className="flex min-h-0 flex-col border-r p-2.5 max-sm:border-r-0 max-sm:border-b">
-              <div className="flex h-9 items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-                <Search className="size-3.5 text-muted-foreground" aria-hidden />
-                <input
-                  aria-label="Search templates"
-                  placeholder="Search templates"
-                  value={query}
-                  autoFocus
-                  aria-controls="template-list"
-                  aria-activedescendant={rowId(active)}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={onSearchKeyDown}
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-              <div role="tablist" aria-label="Category" className="mt-2 flex flex-wrap gap-1">
-                {[ALL_CATEGORIES, ...categoriesOf(items)].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="tab"
-                    aria-selected={category === value}
-                    onClick={() => setCategory(value)}
-                    className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-                      category === value && "bg-muted text-foreground",
-                    )}
-                  >
-                    {value === ALL_CATEGORIES ? "All" : value}
-                  </button>
-                ))}
-              </div>
-              <div id="template-list" role="listbox" aria-label="Templates" className="mt-1 min-h-0 flex-1 overflow-y-auto">
-                <Group label="Start fresh">
-                  <Row
-                    id={rowId(BLANK)}
-                    title="Blank flow"
-                    summary="Start and End only"
-                    selected={active === BLANK}
-                    onSelect={() => choose(BLANK, BLANK_NAME)}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogTrigger render={trigger} />
+        <DialogContent className="sm:max-w-3xl">
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>New flow</DialogTitle>
+              <DialogDescription>
+                Start from a template or a blank flow. You get your own copy to edit.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid h-[min(440px,60vh)] grid-cols-[260px_minmax(0,1fr)] overflow-hidden rounded-lg border max-sm:grid-cols-1 max-sm:grid-rows-[minmax(0,1fr)_auto]">
+              <div className="flex min-h-0 flex-col border-r p-2.5 max-sm:border-r-0 max-sm:border-b">
+                <div className="flex h-9 items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                  <Search className="size-3.5 text-muted-foreground" aria-hidden />
+                  <input
+                    aria-label="Search templates"
+                    placeholder="Search templates"
+                    value={query}
+                    autoFocus
+                    aria-controls="template-list"
+                    aria-activedescendant={rowId(active)}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={onSearchKeyDown}
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                   />
-                </Group>
-                {loaded.state === "loading" && (
-                  <p className="px-2.5 py-3 text-sm text-muted-foreground">Loading templates…</p>
-                )}
-                {loaded.state === "error" && (
-                  <p role="alert" className="px-2.5 py-3 text-sm text-muted-foreground">
-                    Could not load templates: {loaded.message}{" "}
-                    <button type="button" onClick={() => void load(true)} className="underline">
-                      Retry
+                </div>
+                <div role="tablist" aria-label="Category" className="mt-2 flex flex-wrap gap-1">
+                  {[ALL_CATEGORIES, ...categoriesOf(items)].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="tab"
+                      aria-selected={category === value}
+                      onClick={() => setCategory(value)}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                        category === value && "bg-muted text-foreground",
+                      )}
+                    >
+                      {value === ALL_CATEGORIES ? "All" : value}
                     </button>
-                  </p>
-                )}
-                {loaded.state === "ready" && flat.length === 0 && (
-                  <p className="px-2.5 py-3 text-sm text-muted-foreground">No templates match your search.</p>
-                )}
-                {groups.map((group) => (
-                  <Group key={group.category} label={group.category}>
-                    {group.items.map((t) => (
-                      <Row
-                        key={t.id}
-                        id={rowId(t.id)}
-                        title={t.title}
-                        summary={t.summary}
-                        selected={active === t.id}
-                        onSelect={() => choose(t.id, t.title)}
-                      />
-                    ))}
+                  ))}
+                </div>
+                <div id="template-list" role="listbox" aria-label="Templates" className="mt-1 min-h-0 flex-1 overflow-y-auto">
+                  <Group label="Start fresh">
+                    <Row
+                      id={rowId(BLANK)}
+                      title="Blank flow"
+                      summary="Start and End only"
+                      selected={active === BLANK}
+                      onSelect={() => choose(BLANK, BLANK_NAME)}
+                    />
                   </Group>
-                ))}
+                  {loaded.state === "loading" && (
+                    <p className="px-2.5 py-3 text-sm text-muted-foreground">Loading templates…</p>
+                  )}
+                  {loaded.state === "error" && (
+                    <p role="alert" className="px-2.5 py-3 text-sm text-muted-foreground">
+                      Could not load templates: {loaded.message}{" "}
+                      <button type="button" onClick={() => void load(true)} className="underline">
+                        Retry
+                      </button>
+                    </p>
+                  )}
+                  {loaded.state === "ready" && flat.length === 0 && (
+                    <p className="px-2.5 py-3 text-sm text-muted-foreground">No templates match your search.</p>
+                  )}
+                  {groups.map((group) => (
+                    <Group key={group.category} label={group.category}>
+                      {group.items.map((t) => (
+                        <Row
+                          key={t.id}
+                          id={rowId(t.id)}
+                          title={t.title}
+                          summary={t.summary}
+                          selected={active === t.id}
+                          onSelect={() => choose(t.id, t.title)}
+                        />
+                      ))}
+                    </Group>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex min-h-0 min-w-0 flex-col gap-3 p-4">
-              <h3 className="text-base font-semibold">{template ? template.title : "Blank flow"}</h3>
-              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-muted/30 max-sm:hidden">
-                {!isDesktop ? null : template ? (
-                  <FlowPreview key={template.id} draft={template.draft} />
-                ) : (
-                  <p className="grid h-full place-items-center px-4 text-center text-sm text-muted-foreground">
-                    A Start node connected to an End node. Add the rest yourself.
-                  </p>
+              <div className="flex min-h-0 min-w-0 flex-col gap-3 p-4">
+                <h3 className="text-base font-semibold">{template ? template.title : "Blank flow"}</h3>
+                <div className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-muted/30 max-sm:hidden">
+                  {!isDesktop ? null : template ? (
+                    <FlowPreview key={template.id} draft={template.draft} />
+                  ) : (
+                    <p className="grid h-full place-items-center px-4 text-center text-sm text-muted-foreground">
+                      A Start node connected to an End node. Add the rest yourself.
+                    </p>
+                  )}
+                </div>
+                {template && (
+                  <>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{template.description}</p>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs max-sm:hidden">
+                      <dt className="text-muted-foreground">Inputs</dt>
+                      <dd>{template.inputs.join(", ") || "none"}</dd>
+                      <dt className="text-muted-foreground">Outputs</dt>
+                      <dd>{template.outputs.join(", ") || "none"}</dd>
+                    </dl>
+                  </>
                 )}
               </div>
-              {template && (
-                <>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{template.description}</p>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs max-sm:hidden">
-                    <dt className="text-muted-foreground">Inputs</dt>
-                    <dd>{template.inputs.join(", ") || "none"}</dd>
-                    <dt className="text-muted-foreground">Outputs</dt>
-                    <dd>{template.outputs.join(", ") || "none"}</dd>
-                  </dl>
-                </>
-              )}
             </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="flow-name">Name</Label>
-            <Input
-              id="flow-name"
-              value={name}
-              maxLength={120}
-              required
-              onChange={(e) => setName(e.target.value)}
-              className="h-10"
-            />
-          </div>
-          <DialogFooter>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) void importFile(file);
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              className="h-10 sm:mr-auto"
-              onClick={() => fileInput.current?.click()}
-            >
-              <Upload aria-hidden /> Import file
-            </Button>
-            <Button type="submit" disabled={busy || !name.trim()} className="h-10">
-              {busy ? "Creating…" : "Create flow"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="flow-name">Name</Label>
+              <Input
+                id="flow-name"
+                value={name}
+                maxLength={120}
+                required
+                onChange={(e) => setName(e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <DialogFooter>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void importFile(file);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                className="h-10 sm:mr-auto"
+                onClick={() => fileInput.current?.click()}
+              >
+                <Upload aria-hidden /> Import file
+              </Button>
+              <Button type="submit" disabled={busy || !name.trim()} className="h-10">
+                {busy ? "Creating…" : "Create flow"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    {pending && (
+      <ImportConnectionsDialog
+        needs={pending.needs}
+        options={pending.options}
+        typeNames={pending.typeNames}
+        busy={busy}
+        onConfirm={(choices) => void finishImport(pending, choices)}
+        onCancel={() => setPending(null)}
+      />
+    )}
+    </>
   );
 }
 

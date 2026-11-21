@@ -24,6 +24,7 @@ from app.settings import Settings, get_settings
 TTL_SECONDS = 300.0
 MIN_REFRESH_SECONDS = 30.0
 MAX_FILE_BYTES = 256 * 1024
+MAX_README_BYTES = 64 * 1024
 MAX_INDEX_BYTES = 1024 * 1024
 
 ID = re.compile(r"[a-z][a-z0-9_]*")
@@ -162,6 +163,24 @@ class CatalogSource:
             if wanted not in BUILT_IN_TYPES and wanted not in known:
                 raise CatalogItemInvalid(f"connection type '{wanted}' does not exist")
         return CatalogFile(kind=kind, id=item_id, version=version, path=path, body=body)
+
+    async def readme(self, kind: Kind, item_id: str) -> str:
+        """The item's README.md, only for an item the index lists as having one."""
+        if not ID.fullmatch(item_id):
+            raise CatalogItemMissing
+        listing = await self.index()
+        if not any(
+            (e.kind, e.id) == (kind, item_id) and e.has_readme for e in listing.index.entries
+        ):
+            raise CatalogItemMissing
+        path = f"catalog/{DIRECTORIES[kind]}/{item_id}/README.md"
+        raw = await self._fetch().get(path, MAX_README_BYTES, missing_ok=True)
+        if raw is None:
+            raise CatalogItemMissing
+        try:
+            return raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise CatalogItemInvalid(f"{path}: not valid UTF-8 text") from None
 
     def _fetch(self) -> Fetcher:
         if self._fetcher is None:

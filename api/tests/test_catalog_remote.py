@@ -8,6 +8,7 @@ import pytest
 
 from app.catalog.remote import (
     MAX_FILE_BYTES,
+    MAX_README_BYTES,
     TTL_SECONDS,
     CatalogItemInvalid,
     CatalogItemMissing,
@@ -386,3 +387,49 @@ async def test_an_index_with_another_schema_version_is_unavailable(remote: Remot
     remote.files["index.json"] = json.dumps(document).encode()
     with pytest.raises(CatalogUnavailable, match="not valid"):
         await remote.source().index()
+
+
+README_PATH = "catalog/connection-types/github/README.md"
+
+
+async def test_a_readme_is_read_from_a_path_built_from_its_parts(remote: Remote) -> None:
+    remote.files[README_PATH] = b"# GitHub\n\nSets up a token."
+    text = await remote.source().readme("connection-type", "github")
+    assert text == "# GitHub\n\nSets up a token."
+    assert remote.requests == ["/marketplace/index.json", f"/marketplace/{README_PATH}"]
+
+
+async def test_an_item_the_index_says_has_no_readme_is_not_requested(remote: Remote) -> None:
+    document = json.loads(remote.files["index.json"])
+    for item in document["entries"]:
+        item["has_readme"] = False
+    remote.files["index.json"] = json.dumps(document).encode()
+    with pytest.raises(CatalogItemMissing):
+        await remote.source().readme("connection-type", "github")
+    assert remote.requests == ["/marketplace/index.json"]
+
+
+async def test_a_readme_the_host_does_not_have_is_missing(remote: Remote) -> None:
+    with pytest.raises(CatalogItemMissing):
+        await remote.source().readme("connection-type", "github")
+
+
+@pytest.mark.parametrize("item_id", ["../../etc/passwd", "GitHub", "", "a/b"])
+async def test_a_readme_id_that_is_not_an_id_is_refused_before_any_request(
+    remote: Remote, item_id: str
+) -> None:
+    with pytest.raises(CatalogItemMissing):
+        await remote.source().readme("connection-type", item_id)
+    assert remote.requests == []
+
+
+async def test_a_readme_over_the_size_cap_is_refused(remote: Remote) -> None:
+    remote.files[README_PATH] = b"x" * (MAX_README_BYTES + 1)
+    with pytest.raises(CatalogUnavailable, match="too large"):
+        await remote.source().readme("connection-type", "github")
+
+
+async def test_a_readme_that_is_not_text_is_invalid(remote: Remote) -> None:
+    remote.files[README_PATH] = b"\xff\xfe\x00"
+    with pytest.raises(CatalogItemInvalid, match="UTF-8"):
+        await remote.source().readme("connection-type", "github")

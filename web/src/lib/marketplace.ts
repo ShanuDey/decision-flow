@@ -1,3 +1,5 @@
+import MiniSearch from "minisearch";
+
 import type { IndexEntry, InstalledSummary } from "@/lib/api/models";
 
 export type Kind = IndexEntry["kind"];
@@ -35,13 +37,31 @@ export interface Filter {
   kinds: Kind[] | null;
 }
 
+const searchIndexes = new WeakMap<MarketEntry[], MiniSearch>();
+
+// One index per entries array: typing re-queries it, and only a new list rebuilds it.
+function searchIndex(entries: MarketEntry[]): MiniSearch {
+  let index = searchIndexes.get(entries);
+  if (!index) {
+    index = new MiniSearch({ idField: "key", fields: ["name", "description", "tags"] });
+    index.addAll(
+      entries.map((e) => ({ key: keyOf(e.kind, e.id), name: e.name, description: e.description, tags: e.tags.join(" ") })),
+    );
+    searchIndexes.set(entries, index);
+  }
+  return index;
+}
+
+const SEARCH_OPTIONS = { prefix: true, fuzzy: 0.2, combineWith: "AND", boost: { name: 3, tags: 2 } } as const;
+
 export function filterEntries(entries: MarketEntry[], { query, kinds }: Filter): MarketEntry[] {
-  const needle = query.trim().toLowerCase();
-  return entries.filter(
-    (e) =>
-      (!kinds || kinds.includes(e.kind)) &&
-      (!needle || `${e.name} ${e.description} ${e.tags.join(" ")}`.toLowerCase().includes(needle)),
-  );
+  const inKinds = (e: MarketEntry) => !kinds || kinds.includes(e.kind);
+  if (!query.trim()) return entries.filter(inKinds);
+  const byKey = new Map(entries.map((e) => [keyOf(e.kind, e.id), e]));
+  return searchIndex(entries)
+    .search(query, SEARCH_OPTIONS)
+    .flatMap((hit) => byKey.get(hit.id) ?? [])
+    .filter(inKinds);
 }
 
 export function installBody(entry: MarketEntry) {

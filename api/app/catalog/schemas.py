@@ -36,3 +36,7 @@ class CatalogListing(FrozenBaseModel):
     fetched_at: datetime
     # True when the latest refresh failed and these entries are the previous copy.
     stale: bool
+
+
+class CatalogReadme(FrozenBaseModel):
+    markdown: str

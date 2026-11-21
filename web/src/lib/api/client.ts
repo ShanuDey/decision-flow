@@ -7,6 +7,7 @@
 import type {
   AppConfig,
   CatalogListing,
+  CatalogReadme,
   ConnectionCreate,
   ConnectionList,
   ConnectionSummary,
@@ -329,6 +330,80 @@ export const uninstallItem = async (kind: 'connection-type' | 'node-template',
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type getCatalogReadmeResponse200 = {
+  data: CatalogReadme
+  status: 200
+}
+
+export type getCatalogReadmeResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getCatalogReadmeResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getCatalogReadmeResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getCatalogReadmeResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getCatalogReadmeResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getCatalogReadmeResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type getCatalogReadmeResponseSuccess = (getCatalogReadmeResponse200) & {
+  headers: Headers;
+};
+export type getCatalogReadmeResponseError = (getCatalogReadmeResponse401 | getCatalogReadmeResponse403 | getCatalogReadmeResponse404 | getCatalogReadmeResponse422 | getCatalogReadmeResponse429 | getCatalogReadmeResponse503) & {
+  headers: Headers;
+};
+
+export type getCatalogReadmeResponse = (getCatalogReadmeResponseSuccess | getCatalogReadmeResponseError)
+
+export const getGetCatalogReadmeUrl = (kind: 'connection-type' | 'node-template',
+    itemId: string,) => {
+
+
+
+
+  return `/catalog/readme/${kind}/${itemId}`
+}
+
+/**
+ * The notes page of a catalog item, as Markdown, for items whose entry has `has_readme`.
+ *
+ * Shown as text: the client must not run anything from it. 404 `catalog_item_not_found` when the
+ * item has no notes page.
+ * @summary Get Catalog Readme
+ */
+export const getCatalogReadme = async (kind: 'connection-type' | 'node-template',
+    itemId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getCatalogReadmeResponse> => {
+
+  return apiFetch<getCatalogReadmeResponse>(getGetCatalogReadmeUrl(kind,itemId),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

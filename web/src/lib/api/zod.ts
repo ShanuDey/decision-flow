@@ -91,6 +91,23 @@ export const UninstallItemResponse = zod.void()
 
 
 /**
+ * The notes page of a catalog item, as Markdown, for items whose entry has `has_readme`.
+ *
+ * Shown as text: the client must not run anything from it. 404 `catalog_item_not_found` when the
+ * item has no notes page.
+ * @summary Get Catalog Readme
+ */
+export const GetCatalogReadmeParams = zod.object({
+  "kind": zod.enum(['connection-type', 'node-template']),
+  "item_id": zod.string()
+})
+
+export const GetCatalogReadmeResponse = zod.object({
+  "markdown": zod.string()
+})
+
+
+/**
  * Fetches the index again now.
  *
  * Within 30 seconds of the last attempt the saved copy is returned instead.

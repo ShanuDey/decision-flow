@@ -1,3 +1,5 @@
+import { NAME_MAX } from "@/lib/connections";
+
 import { parseDraft } from "./convert";
 import type { Graph } from "./types";
 
@@ -5,19 +7,123 @@ export const FILE_FORMAT = "decision-flow.flow";
 export const FILE_VERSION = 1;
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
+const HINTS_MAX = 100;
+const ID_MAX = 64;
+
+// What a connection was, so the importer can offer a match. Never a secret or a host.
+export interface ConnectionHint {
+  type: string;
+  name: string;
+}
+
+export interface ConnectionRef {
+  id: string;
+  name: string;
+  typeId: string;
+}
+
 export interface FlowFile {
   format: typeof FILE_FORMAT;
   version: typeof FILE_VERSION;
   name: string;
   graph: Graph;
+  connections?: Record<string, ConnectionHint>;
 }
 
 export type ImportResult =
-  | { ok: true; name: string | null; graph: Graph; clearedSubflows: number }
+  | {
+      ok: true;
+      name: string | null;
+      graph: Graph;
+      clearedSubflows: number;
+      connections: Record<string, ConnectionHint>;
+    }
   | { ok: false; message: string };
 
-export function buildFlowFile(name: string, graph: Graph): FlowFile {
-  return { format: FILE_FORMAT, version: FILE_VERSION, name, graph };
+export function usedConnectionIds(graph: Graph): string[] {
+  const ids = new Set<string>();
+  for (const node of graph.nodes) {
+    if (node.type === "http_request" && node.data.connection_id) ids.add(node.data.connection_id);
+  }
+  return [...ids];
+}
+
+function hintsFor(graph: Graph, known: ConnectionRef[]): Record<string, ConnectionHint> {
+  const byId = new Map(known.map((c) => [c.id, c]));
+  const hints: Record<string, ConnectionHint> = {};
+  for (const id of usedConnectionIds(graph)) {
+    const found = byId.get(id);
+    if (found) hints[id] = { type: found.typeId, name: found.name };
+  }
+  return hints;
+}
+
+export function buildFlowFile(name: string, graph: Graph, known: ConnectionRef[] = []): FlowFile {
+  const connections = hintsFor(graph, known);
+  const file: FlowFile = { format: FILE_FORMAT, version: FILE_VERSION, name, graph };
+  return Object.keys(connections).length > 0 ? { ...file, connections } : file;
+}
+
+function readHints(raw: unknown): Record<string, ConnectionHint> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const hints: Record<string, ConnectionHint> = {};
+  for (const [id, value] of Object.entries(raw).slice(0, HINTS_MAX)) {
+    if (id.length > ID_MAX || typeof value !== "object" || value === null) continue;
+    const { type, name } = value as Record<string, unknown>;
+    if (typeof type !== "string" || typeof name !== "string") continue;
+    if (type.length > ID_MAX || name.length > NAME_MAX) continue;
+    hints[id] = { type, name };
+  }
+  return hints;
+}
+
+export interface ConnectionNeed {
+  fileId: string;
+  name: string;
+  type: string;
+  nodes: number;
+  // A connection here to offer first; applied only if the user confirms it.
+  suggestion: string | null;
+}
+
+function suggest(hint: ConnectionHint | undefined, here: ConnectionRef[]): string | null {
+  if (!hint) return null;
+  const sameType = here.filter((c) => c.typeId === hint.type);
+  return (sameType.find((c) => c.name === hint.name) ?? (sameType.length === 1 ? sameType[0] : null))?.id ?? null;
+}
+
+export function planConnections(
+  graph: Graph,
+  hints: Record<string, ConnectionHint>,
+  here: ConnectionRef[],
+): ConnectionNeed[] {
+  const have = new Set(here.map((c) => c.id));
+  const counts = new Map<string, number>();
+  for (const node of graph.nodes) {
+    if (node.type !== "http_request" || !node.data.connection_id) continue;
+    counts.set(node.data.connection_id, (counts.get(node.data.connection_id) ?? 0) + 1);
+  }
+  return [...counts]
+    .filter(([id]) => !have.has(id))
+    .map(([id, nodes]) => ({
+      fileId: id,
+      name: hints[id]?.name ?? "A connection",
+      type: hints[id]?.type ?? "",
+      nodes,
+      suggestion: suggest(hints[id], here),
+    }));
+}
+
+// A chosen connection replaces the file's id; any other id this workspace lacks is cleared.
+export function applyConnections(graph: Graph, choices: Record<string, string>, here: ConnectionRef[]): Graph {
+  const have = new Set(here.map((c) => c.id));
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "http_request" || !node.data.connection_id) return node;
+    const id = node.data.connection_id;
+    const next = id in choices ? choices[id] : have.has(id) ? id : "";
+    return next === id ? node : { ...node, data: { ...node.data, connection_id: next } };
+  });
+  return { ...graph, nodes };
 }
 
 export function flowFileName(name: string): string {
@@ -58,5 +164,6 @@ export function parseFlowFile(text: string): ImportResult {
   if (!graph) return { ok: false, message: "The file does not contain a valid flow graph." };
   const { graph: cleaned, cleared } = clearSubflows(graph);
   const name = wrapped && typeof body.name === "string" && body.name.trim() ? body.name.trim() : null;
-  return { ok: true, name, graph: cleaned, clearedSubflows: cleared };
+  const connections = wrapped ? readHints(body.connections) : {};
+  return { ok: true, name, graph: cleaned, clearedSubflows: cleared, connections };
 }

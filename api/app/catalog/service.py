@@ -15,6 +15,7 @@ from app.catalog.remote import (
 )
 from app.catalog.schemas import (
     CatalogListing,
+    CatalogReadme,
     InstalledList,
     InstalledSummary,
     InstallRequest,
@@ -100,6 +101,17 @@ def _unavailable(exc: CatalogUnavailable) -> ApiError:
 async def catalog_listing(source: CatalogSource, *, force: bool = False) -> CatalogListing:
     try:
         return _listing(await source.index(force=force))
+    except CatalogUnavailable as exc:
+        raise _unavailable(exc) from None
+
+
+async def catalog_readme(source: CatalogSource, kind: Kind, item_id: str) -> CatalogReadme:
+    try:
+        return CatalogReadme(markdown=await source.readme(kind, item_id))
+    except CatalogItemMissing:
+        raise ApiError(404, "catalog_item_not_found", "That item has no details page") from None
+    except CatalogItemInvalid as exc:
+        raise ApiError(422, "invalid_catalog_item", str(exc)) from None
     except CatalogUnavailable as exc:
         raise _unavailable(exc) from None
 
