@@ -2,8 +2,8 @@
   "schema_version": 1,
   "version": "1.0.0",
   "id": "openai_chat_completion",
-  "name": "OpenAI-compatible: chat completion",
-  "description": "Sends one prompt to a chat model. Change the URL for another provider.",
+  "name": "OpenAI: chat completion",
+  "description": "Sends one prompt to an OpenAI chat model, using the connection's default model.",
   "icon": "sparkles",
   "docs_url": "https://platform.openai.com/docs/api-reference/chat/create",
   "tags": [
@@ -13,15 +13,10 @@
   ],
   "node_type": "http_request",
   "connection": {
-    "type": "openai_compatible",
+    "type": "openai",
     "values": {}
   },
   "inputs": [
-    {
-      "name": "model",
-      "type": "string",
-      "description": "The model name"
-    },
     {
       "name": "prompt",
       "type": "string",
@@ -33,7 +28,7 @@
     "url": "https://api.openai.com/v1/chat/completions",
     "body_type": "json",
     "body": {
-      "model": "{{ input.model }}",
+      "model": "{{ connection.default_model }}",
       "messages": [
         {
           "role": "user",

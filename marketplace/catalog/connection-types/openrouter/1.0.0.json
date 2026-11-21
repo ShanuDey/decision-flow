@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "openrouter",
+  "name": "OpenRouter",
+  "description": "An OpenRouter API key, sent only to openrouter.ai.",
+  "icon": "sparkles",
+  "docs_url": "https://openrouter.ai/docs/api-reference/authentication",
+  "category": "builtin",
+  "fields": [
+    {
+      "name": "api_key",
+      "label": "API key",
+      "secret": true,
+      "help": "Starts with sk-or-."
+    },
+    {
+      "name": "default_model",
+      "label": "Default model",
+      "required": false,
+      "placeholder": "openai/gpt-4o-mini",
+      "help": "A model id such as vendor/model. Nodes can read it as {{ connection.default_model }}."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "api_key"
+  },
+  "fixed_hosts": [
+    "openrouter.ai"
+  ]
+}

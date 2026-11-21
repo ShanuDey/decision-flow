@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "openai_compatible_chat_completion",
+  "name": "OpenAI-compatible: chat completion",
+  "description": "Sends one prompt to a chat model at the connection's base URL, using its default model.",
+  "icon": "sparkles",
+  "docs_url": "https://platform.openai.com/docs/api-reference/chat/create",
+  "tags": [
+    "ai",
+    "llm",
+    "openai"
+  ],
+  "node_type": "http_request",
+  "connection": {
+    "type": "openai_compatible",
+    "values": {}
+  },
+  "inputs": [
+    {
+      "name": "prompt",
+      "type": "string",
+      "description": "What to ask"
+    }
+  ],
+  "data": {
+    "method": "POST",
+    "url": "{{ connection.base_url }}/chat/completions",
+    "body_type": "json",
+    "body": {
+      "model": "{{ connection.default_model }}",
+      "messages": [
+        {
+          "role": "user",
+          "content": "{{ input.prompt }}"
+        }
+      ]
+    }
+  }
+}

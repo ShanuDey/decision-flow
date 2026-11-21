@@ -11,7 +11,7 @@ from app.engine.refs import Ref
 
 __all__ = ["Ref", "TemplateError", "references", "render"]
 
-_PATH = re.compile(r"^(input|vars|secrets|nodes)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
+_PATH = re.compile(r"^(input|vars|secrets|nodes|connection)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
 _MISSING_KEY = re.compile(r'Key not found in map : ("[^"]*")')
 
 
@@ -94,6 +94,10 @@ def _resolve(ref: Ref, scopes: dict[str, Any]) -> Any:
         if not isinstance(value, dict) or key not in value:
             if ref.scope == "secrets":
                 raise TemplateError(f"secret {key} is not set; add it in Settings > Secrets")
+            if ref.scope == "connection":
+                raise TemplateError(
+                    f"the connection has no value '{key}'; set it on the connection"
+                )
             raise TemplateError(f"{ref} is not set")
         value = value[key]
     return value

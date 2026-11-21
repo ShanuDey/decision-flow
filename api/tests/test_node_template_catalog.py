@@ -79,8 +79,14 @@ def test_a_secret_header_is_allowed_when_it_is_listed(tmp_path: Path) -> None:
         ({"data": with_data(method="GET")}, "GET request cannot have a body"),
         ({"data": with_data(unknown="x")}, "unknown"),
         ({"data": with_data(body={"text": "{{ input.other }}"})}, "'other' that is not listed"),
-        ({"data": with_data(body={"text": "{{ vars.count }}"})}, "only input and secrets"),
-        ({"data": with_data(body={"text": "{{ nodes.a.output }}"})}, "only input and secrets"),
+        (
+            {"data": with_data(body={"text": "{{ vars.count }}"})},
+            "only input, secrets and connection",
+        ),
+        (
+            {"data": with_data(body={"text": "{{ nodes.a.output }}"})},
+            "only input, secrets and connection",
+        ),
         ({"data": with_data(body={"text": "{{ secrets.ECHO_KEY }}"})}, "not listed in secrets"),
         (
             {"data": with_data(url="https://a.com/{{ secrets.K }}"), "secrets": ["K"]},
@@ -140,3 +146,32 @@ def test_the_committed_schema_matches_the_model() -> None:
     assert OUTPUT.read_text(encoding="utf-8") == schema_text(), (
         "run: uv run python -m scripts.export_node_template_schema"
     )
+
+
+def test_a_template_may_read_a_plain_connection_value(tmp_path: Path) -> None:
+    body = good(
+        connection={"type": "openai_compatible", "values": {}},
+        data=with_data(url="{{ connection.base_url }}/echo"),
+    )
+    write(tmp_path, "echo", body)
+    assert [t.id for t in load_templates(tmp_path)] == ["echo"]
+
+
+@pytest.mark.parametrize(
+    ("connection", "message"),
+    [
+        (None, "none is declared"),
+        ({"type": "openai_compatible", "values": {}}, "api_key"),
+        ({"type": "openai_compatible", "values": {}}, "nope"),
+    ],
+)
+def test_a_template_may_not_read_what_its_connection_lacks(
+    tmp_path: Path, connection: dict[str, Any] | None, message: str
+) -> None:
+    name = message if message in ("api_key", "nope") else "base_url"
+    body = good(data=with_data(url=f"{{{{ connection.{name} }}}}/echo"))
+    if connection:
+        body["connection"] = connection
+    write(tmp_path, "echo", body)
+    with pytest.raises(ValueError, match=message):
+        load_templates(tmp_path)

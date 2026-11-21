@@ -211,3 +211,55 @@ def test_the_openai_card_allows_only_the_host_of_its_base_url() -> None:
     )
     assert custom.hosts == ["proxy.example.com"]
     assert custom.headers["Authorization"].get_secret_value() == f"Bearer {TOKEN}"
+
+
+def test_a_connection_exposes_its_plain_values_but_never_a_secret() -> None:
+    kind = BY_ID["openai_compatible"]
+    default = resolve(kind, "i", "n", {"api_key": TOKEN})
+    assert default.values == {"base_url": "https://api.openai.com/v1"}
+    custom = resolve(
+        kind,
+        "i",
+        "n",
+        {"api_key": TOKEN, "base_url": "https://openrouter.ai/api/v1/", "default_model": " m "},
+    )
+    assert custom.values == {"base_url": "https://openrouter.ai/api/v1", "default_model": "m"}
+    assert TOKEN not in str(custom.values)
+
+
+async def test_a_url_can_be_built_from_the_connection_base_url() -> None:
+    async with serve() as (port, received):
+        base = f"http://127.0.0.1:{port}"
+        result = await run(
+            {"url": "{{ connection.base_url }}/echo"},
+            {
+                CONNECTION_ID: connection({"Xkey": TOKEN}, ["127.0.0.1"]).model_copy(
+                    update={"values": {"base_url": base}}
+                )
+            },
+        )
+
+    assert result.status == "succeeded", result.error
+    assert received[0]["target"] == "/echo"
+
+
+async def test_a_connection_value_that_is_not_set_names_the_value() -> None:
+    async with serve() as (port, _):
+        result = await run(
+            {
+                "url": f"http://127.0.0.1:{port}/echo",
+                "headers": {"X-Model": "{{ connection.default_model }}"},
+            },
+            {CONNECTION_ID: connection({"Xkey": TOKEN}, ["127.0.0.1"])},
+        )
+
+    assert result.status == "failed"
+    assert result.error is not None and "default_model" in result.error.message
+
+
+def test_the_connection_scope_needs_a_connection_on_the_node() -> None:
+    graph = flow({"url": "{{ connection.base_url }}/echo"})
+    _, issues = parse_graph(graph)
+    assert [i.code for i in issues] == ["connection_not_set"]
+    graph["nodes"][1]["data"]["connection_id"] = CONNECTION_ID
+    assert parse_graph(graph)[1] == []

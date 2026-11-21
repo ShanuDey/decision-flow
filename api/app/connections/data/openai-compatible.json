@@ -20,6 +20,13 @@
       "default": "https://api.openai.com/v1",
       "placeholder": "https://api.openai.com/v1",
       "help": "Your key is only ever sent to this URL's host."
+    },
+    {
+      "name": "default_model",
+      "label": "Default model",
+      "required": false,
+      "placeholder": "gpt-4o-mini",
+      "help": "Nodes that use this connection can read it as {{ connection.default_model }}."
     }
   ],
   "auth": {

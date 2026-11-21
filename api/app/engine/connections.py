@@ -16,6 +16,8 @@ class ResolvedConnection(FrozenBaseModel):
     name: str
     headers: dict[str, SecretStr] = Field(default_factory=dict)
     hosts: list[str] = Field(default_factory=list)
+    # Plain (non-secret) field values, read in templates as `{{ connection.NAME }}`.
+    values: dict[str, str] = Field(default_factory=dict)
     # Every secret value, so the redactor can mask it wherever it turns up.
     secret_values: list[SecretStr] = Field(default_factory=list)
 

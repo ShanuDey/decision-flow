@@ -111,7 +111,7 @@ async def test_installing_a_template_also_installs_the_type_it_needs(
     items = (await client.get("/node-templates")).json()["items"]
     sources = {i["template"]["id"]: i["source"] for i in items}
     assert sources["github_create_issue"] == "installed"
-    assert sources["openai_chat_completion"] == "builtin"
+    assert sources["openai_compatible_chat_completion"] == "builtin"
 
 
 async def test_a_second_install_of_the_same_item_changes_nothing_else(

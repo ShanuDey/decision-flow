@@ -14,6 +14,32 @@
       "version": "1.0.0"
     },
     {
+      "description": "An OpenAI API key, sent only to api.openai.com.",
+      "has_readme": true,
+      "hash": "sha256-b49498064a20adb2a3270c326b4c2c787370c8ac71fc7f0a859531980dc5f063",
+      "icon": "sparkles",
+      "id": "openai",
+      "kind": "connection-type",
+      "name": "OpenAI",
+      "path": "connection-types/openai/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
+      "description": "An OpenRouter API key, sent only to openrouter.ai.",
+      "has_readme": true,
+      "hash": "sha256-a171182ca847b46e0f4101a157cd932dde9bd8450651e1643208b871b7ceb5fc",
+      "icon": "sparkles",
+      "id": "openrouter",
+      "kind": "connection-type",
+      "name": "OpenRouter",
+      "path": "connection-types/openrouter/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
       "description": "A Slack bot token, sent only to slack.com.",
       "has_readme": true,
       "hash": "sha256-13963b8e81c3b3e005044eacf3845690445fddc67dfc59eca290fcafe9565031",
@@ -41,6 +67,44 @@
       "tags": [
         "github",
         "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends one prompt to an OpenAI chat model, using the connection's default model.",
+      "has_readme": true,
+      "hash": "sha256-7b20219aa0c9a3607645e0ef5f65d4789591bf3d55c1aa990512ee82bf899f01",
+      "icon": "sparkles",
+      "id": "openai_chat_completion",
+      "kind": "node-template",
+      "name": "OpenAI: chat completion",
+      "path": "node-templates/openai_chat_completion/1.0.0.json",
+      "requires": [
+        "connection-type/openai"
+      ],
+      "tags": [
+        "ai",
+        "llm",
+        "openai"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends one prompt to any model on OpenRouter, using the connection's default model.",
+      "has_readme": true,
+      "hash": "sha256-b472977c6a73618aa71e5fca711bb0dc5aec15daa276f61761d07c2ced0700b3",
+      "icon": "sparkles",
+      "id": "openrouter_chat_completion",
+      "kind": "node-template",
+      "name": "OpenRouter: chat completion",
+      "path": "node-templates/openrouter_chat_completion/1.0.0.json",
+      "requires": [
+        "connection-type/openrouter"
+      ],
+      "tags": [
+        "ai",
+        "llm",
+        "openrouter"
       ],
       "version": "1.0.0"
     },

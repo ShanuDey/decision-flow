@@ -115,6 +115,10 @@ def check_settings(
                     if problem := _secret_problem(node, field, ref):
                         issues.append(problem)
                     continue
+                if ref.scope == "connection":
+                    if problem := _connection_problem(node, ref):
+                        issues.append(_issue(*problem, node.id, field))
+                    continue
                 if ref.scope == "nodes":
                     problem = _reference_problem(
                         ref, inputs, variables, ids, upstream_of(node.id), outputs
@@ -148,6 +152,15 @@ def _secret_problem(node: NodeModel, field: str, ref: Ref) -> Issue | None:
         return _issue("secret_not_allowed", f"{ref} cannot be used in this field", node.id, field)
     if len(ref.path) > 1:
         return _issue("unknown_reference", f"{ref}: a secret is a single value", node.id, field)
+    return None
+
+
+def _connection_problem(node: NodeModel, ref: Ref) -> tuple[str, str] | None:
+    # Whether the picked connection has this value is checked when the run starts.
+    if not node.connection_ids():
+        return "connection_not_set", f"{ref} needs a connection; pick one in the node"
+    if len(ref.path) != 1:
+        return "unknown_reference", f"{ref}: a connection value is a single value"
     return None
 
 
