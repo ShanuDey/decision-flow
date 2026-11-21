@@ -163,14 +163,14 @@ function Detail({
   }, [entry.kind, entry.id]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-between gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft aria-hidden /> All items
         </Button>
         <Actions entry={entry} busy={busy} onInstall={onInstall} onRemove={onRemove} />
       </div>
-      <div className="flex items-start gap-3">
+      <div className="flex shrink-0 items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
           <CatalogIcon name={entry.icon ?? "plug"} className="size-4" />
         </span>
@@ -186,7 +186,7 @@ function Detail({
           )}
         </div>
       </div>
-      <div className="border-t pt-1">
+      <div className="min-h-0 flex-1 overflow-y-auto border-t pt-1">
         {notes.state === "loading" && (
           <p role="status" className="py-6 text-center text-sm text-muted-foreground">
             Loading details…
@@ -300,7 +300,7 @@ export function MarketplaceView({
 
   if (loaded.state !== "ready") {
     return (
-      <p role={loaded.state === "error" ? "alert" : "status"} className="py-8 text-center text-sm text-muted-foreground">
+      <p role={loaded.state === "error" ? "alert" : "status"} className="my-auto py-8 text-center text-sm text-muted-foreground">
         {loaded.state === "loading" ? (
           "Loading the Marketplace…"
         ) : (
@@ -332,7 +332,7 @@ export function MarketplaceView({
   const detail = detailKey ? market.find((e) => `${e.kind}/${e.id}` === detailKey) : undefined;
   if (detail) {
     return (
-      <div className={className}>
+      <div className={cn("flex flex-col", className)}>
         <Detail
           key={detailKey}
           entry={detail}
@@ -349,7 +349,7 @@ export function MarketplaceView({
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex h-9 min-w-48 flex-1 items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
           <Search className="size-3.5 text-muted-foreground" aria-hidden />
           <input
@@ -393,26 +393,28 @@ export function MarketplaceView({
         </span>
       </div>
       {loaded.listing.stale && (
-        <p role="status" className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+        <p role="status" className="shrink-0 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
           Showing a saved copy of the list. The Marketplace could not be reached to update it.
         </p>
       )}
-      {shown.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Nothing matches your search.</p>
-      ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {shown.map((entry) => (
-            <Card
-              key={`${entry.kind}/${entry.id}`}
-              entry={entry}
-              busy={busy !== null}
-              onInstall={() => void install(entry)}
-              onRemove={() => void remove(entry)}
-              onDetails={() => setDetailKey(`${entry.kind}/${entry.id}`)}
-            />
-          ))}
-        </ul>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {shown.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nothing matches your search.</p>
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {shown.map((entry) => (
+              <Card
+                key={`${entry.kind}/${entry.id}`}
+                entry={entry}
+                busy={busy !== null}
+                onInstall={() => void install(entry)}
+                onRemove={() => void remove(entry)}
+                onDetails={() => setDetailKey(`${entry.kind}/${entry.id}`)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
