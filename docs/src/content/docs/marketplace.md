@@ -7,7 +7,7 @@ The Marketplace lists connection types and request templates you can add to a wo
 ## Install something
 
 1. Open **Marketplace** in the sidebar, or choose **Browse the Marketplace** in the Add connection list or the HTTP Request node's template list. Those links open it on top of what you are doing.
-2. Search, or filter by **Connections** or **Templates**.
+2. Search, or filter by **Connections** or **Templates**. Search looks at names, descriptions and tags, matches the start of a word, forgives a small typo, and lists the best matches first.
 3. Choose **Install**.
 
 Installing copies the item into your workspace. It then appears under **Installed** in the pickers:

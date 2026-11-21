@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { IndexEntry, InstalledSummary } from "@/lib/api/models";
 
-import { filterEntries, installBody, joinCatalog, relativeTime } from "./marketplace";
+import { filterEntries, installBody, joinCatalog, type Kind, relativeTime } from "./marketplace";
 
 const entry = (over: Partial<IndexEntry> & Pick<IndexEntry, "id" | "kind">): IndexEntry => ({
   name: over.id,
@@ -94,6 +94,51 @@ describe("filterEntries", () => {
     expect(filterEntries(all, { query: "github", kinds: ["node-template"] }).map((e) => e.id)).toEqual([
       "github_create_issue",
     ]);
+  });
+});
+
+describe("filterEntries search", () => {
+  const slack = entry({
+    id: "slack_post_message",
+    kind: "node-template",
+    name: "Slack: post message",
+    description: "Posts a message to a channel. Mentions GitHub issues when asked.",
+    tags: ["slack", "chat"],
+    requires: ["connection-type/slack"],
+  });
+  const all = joinCatalog([github, issue, slack], []);
+  const ids = (query: string, kinds: Kind[] | null = null) => filterEntries(all, { query, kinds }).map((e) => e.id);
+
+  it("matches the start of a word", () => {
+    expect(ids("sla")).toEqual(["slack_post_message"]);
+  });
+
+  it("tolerates a typo", () => {
+    expect(ids("slak")).toEqual(["slack_post_message"]);
+  });
+
+  it("needs every word to match", () => {
+    expect(ids("github issue")).toEqual(expect.arrayContaining(["github_create_issue"]));
+    expect(ids("github zzz")).toEqual([]);
+  });
+
+  it("ranks a name match above a description match", () => {
+    const found = ids("github");
+    expect(found).toHaveLength(3);
+    expect(found[2]).toBe("slack_post_message");
+  });
+
+  it("combines with a kind and keeps a connection and a template with one id apart", () => {
+    const same = joinCatalog([github, entry({ id: "github", kind: "node-template", name: "GitHub hook" })], []);
+    expect(filterEntries(same, { query: "github", kinds: null })).toHaveLength(2);
+    expect(filterEntries(same, { query: "github", kinds: ["node-template"] }).map((e) => e.kind)).toEqual([
+      "node-template",
+    ]);
+  });
+
+  it("searches a new list afresh and does not return entries that are gone", () => {
+    const fewer = joinCatalog([github], []);
+    expect(filterEntries(fewer, { query: "slack", kinds: null })).toEqual([]);
   });
 });
 

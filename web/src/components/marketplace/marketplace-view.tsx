@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCw, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CatalogIcon } from "@/components/catalog/catalog-gallery";
@@ -187,6 +187,11 @@ export function MarketplaceView({
     onChanged?.();
   }
 
+  const market = useMemo(
+    () => (loaded.state === "ready" ? joinCatalog(loaded.listing.entries, loaded.installed) : []),
+    [loaded],
+  );
+
   if (loaded.state !== "ready") {
     return (
       <p role={loaded.state === "error" ? "alert" : "status"} className="py-8 text-center text-sm text-muted-foreground">
@@ -218,7 +223,7 @@ export function MarketplaceView({
     );
   }
 
-  const shown = filterEntries(joinCatalog(loaded.listing.entries, loaded.installed), { query, kinds });
+  const shown = filterEntries(market, { query, kinds });
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
