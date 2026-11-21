@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "openai_summarize_text",
+  "name": "Summarize text with OpenAI",
+  "description": "Sends a text to an OpenAI chat model and returns a short summary.",
+  "icon": "sparkles",
+  "tags": [
+    "ai",
+    "llm",
+    "openai",
+    "summary"
+  ],
+  "connections": {
+    "9e3f1a4b-5c6b-4a8c-9e3d-2f4a0b6c8d03": {
+      "type": "openai",
+      "name": "OpenAI"
+    }
+  },
+  "draft": {
+    "schema_version": 1,
+    "variables": [],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": {
+          "x": 0,
+          "y": 100
+        },
+        "data": {
+          "inputs": [
+            {
+              "name": "text",
+              "type": "string",
+              "required": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "summarize",
+        "type": "http_request",
+        "name": "Summarize",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "headers": {},
+          "query": {},
+          "timeout_seconds": 60,
+          "fail_on_error_status": true,
+          "connection_id": "9e3f1a4b-5c6b-4a8c-9e3d-2f4a0b6c8d03",
+          "method": "POST",
+          "url": "https://api.openai.com/v1/chat/completions",
+          "body_type": "json",
+          "body": {
+            "model": "{{ connection.default_model }}",
+            "messages": [
+              {
+                "role": "system",
+                "content": "Summarize the user's text in at most three sentences."
+              },
+              {
+                "role": "user",
+                "content": "{{ input.text }}"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": {
+          "x": 600,
+          "y": 100
+        },
+        "data": {
+          "outputs": [
+            {
+              "name": "summary",
+              "type": "string",
+              "value": "{{ nodes.summarize.output.body.choices[0].message.content }}"
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "summarize",
+        "sourceHandle": null
+      },
+      {
+        "id": "e2",
+        "source": "summarize",
+        "target": "end",
+        "sourceHandle": null
+      }
+    ]
+  }
+}

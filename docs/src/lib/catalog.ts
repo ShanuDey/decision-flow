@@ -1,12 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-export type Kind = "connection-type" | "node-template";
+export type Kind = "connection-type" | "node-template" | "flow";
 export type Source = "builtin" | "marketplace";
 
 export const KINDS: Record<Kind, { dir: string; label: string; plural: string }> = {
   "connection-type": { dir: "connection-types", label: "Connection", plural: "Connection types" },
   "node-template": { dir: "node-templates", label: "Template", plural: "Request templates" },
+  flow: { dir: "flows", label: "Flow", plural: "Flows" },
 };
 
 export interface CatalogItem {
@@ -24,7 +25,8 @@ export interface CatalogItem {
   readme: string | null;
 }
 
-const BUILT_IN_DATA: Record<Kind, string> = {
+// Flows have no built-in items: the app's own starter flows are templates in the New flow list.
+const BUILT_IN_DATA: Partial<Record<Kind, string>> = {
   "connection-type": "api/app/connections/data",
   "node-template": "api/app/node_templates/data",
 };
@@ -54,6 +56,9 @@ function load(file: string, kind: Kind): Record<string, any> {
     }
     if (kind === "node-template" && (typeof body.node_type !== "string" || typeof body.data !== "object")) {
       problems.push("a template needs node_type and data");
+    }
+    if (kind === "flow" && !(Array.isArray(body.draft?.nodes) && typeof body.connections === "object")) {
+      problems.push("a flow needs a draft with nodes, and connections");
     }
   }
   if (problems.length) throw new Error(`${file}: ${problems.join(", ")}`);
@@ -92,7 +97,9 @@ function newer(a: string, b: string): boolean {
 }
 
 function builtIn(kind: Kind): CatalogItem[] {
-  const dir = join(repo, BUILT_IN_DATA[kind]);
+  const folder = BUILT_IN_DATA[kind];
+  if (!folder) return [];
+  const dir = join(repo, folder);
   if (!existsSync(dir)) throw new Error(`${dir}: built-in data folder not found`);
   return readdirSync(dir)
     .filter((name) => name.endsWith(".json"))

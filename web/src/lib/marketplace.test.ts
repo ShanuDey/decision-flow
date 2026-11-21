@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import type { IndexEntry, InstalledSummary } from "@/lib/api/models";
+import type { InstalledSummary, ListedEntry } from "@/lib/api/models";
 
-import { filterEntries, installBody, joinCatalog, type Kind, relativeTime } from "./marketplace";
+import {
+  canInstall,
+  filterEntries,
+  healthNote,
+  installBody,
+  isBroken,
+  joinCatalog,
+  type Kind,
+  relativeTime,
+} from "./marketplace";
 
-const entry = (over: Partial<IndexEntry> & Pick<IndexEntry, "id" | "kind">): IndexEntry => ({
+const entry = (over: Partial<ListedEntry> & Pick<ListedEntry, "id" | "kind">): ListedEntry => ({
   name: over.id,
   description: "",
   icon: "plug",
@@ -139,6 +148,41 @@ describe("filterEntries search", () => {
   it("searches a new list afresh and does not return entries that are gone", () => {
     const fewer = joinCatalog([github], []);
     expect(filterEntries(fewer, { query: "slack", kinds: null })).toEqual([]);
+  });
+});
+
+describe("health", () => {
+  const sick = (over: Partial<ListedEntry> = {}) =>
+    entry({ id: "github", kind: "connection-type", health: "broken", health_reason: "the file is missing", ...over });
+
+  it("treats an entry with no health field as fine", () => {
+    const [ok] = joinCatalog([github], []);
+    expect([isBroken(ok), canInstall(ok), healthNote(ok)]).toEqual([false, true, null]);
+  });
+
+  it("pauses installing a broken item and says why", () => {
+    const [broken] = joinCatalog([sick()], []);
+    expect([isBroken(broken), canInstall(broken)]).toEqual([true, false]);
+    expect(healthNote(broken)).toBe("Reported broken (the file is missing). Installing is paused until a later check passes.");
+  });
+
+  it("pauses an update of a broken item", () => {
+    const old = installedItem("connection-type", "github", { hash: "sha256-old" });
+    const [broken] = joinCatalog([sick()], [old]);
+    expect([broken.status, canInstall(broken)]).toEqual(["update", false]);
+  });
+
+  it("tells whoever has it installed that their copy keeps working", () => {
+    const [installed] = joinCatalog([sick()], [installedItem("connection-type", "github")]);
+    expect(installed.status).toBe("installed");
+    expect(healthNote(installed)).toBe(
+      "Reported broken upstream (the file is missing). Your installed copy keeps working.",
+    );
+  });
+
+  it("copes with a broken item that has no reason", () => {
+    const [broken] = joinCatalog([sick({ health_reason: "" })], []);
+    expect(healthNote(broken)).toBe("Reported broken. Installing is paused until a later check passes.");
   });
 });
 

@@ -31,6 +31,7 @@ import type {
   HealthResponse,
   InstallRequest,
   InstallResult,
+  InstalledFlowList,
   InstalledList,
   ListFlowsParams,
   ListNodeTemplatesParams,
@@ -55,6 +56,63 @@ import type {
 } from './models';
 
 import { apiFetch } from '../fetcher';
+export type listInstalledFlowsResponse200 = {
+  data: InstalledFlowList
+  status: 200
+}
+
+export type listInstalledFlowsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listInstalledFlowsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listInstalledFlowsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listInstalledFlowsResponseSuccess = (listInstalledFlowsResponse200) & {
+  headers: Headers;
+};
+export type listInstalledFlowsResponseError = (listInstalledFlowsResponse401 | listInstalledFlowsResponse403 | listInstalledFlowsResponse429) & {
+  headers: Headers;
+};
+
+export type listInstalledFlowsResponse = (listInstalledFlowsResponseSuccess | listInstalledFlowsResponseError)
+
+export const getListInstalledFlowsUrl = () => {
+
+
+
+
+  return `/catalog/flows`
+}
+
+/**
+ * Lists the flows installed from the Marketplace, with their graphs, for starting a new flow.
+ *
+ * Each flow's `connections` maps the placeholder ids in its request nodes to the connection type
+ * and name they stand for; the client matches them to the user's own connections.
+ * @summary List Installed Flows
+ */
+export const listInstalledFlows = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listInstalledFlowsResponse> => {
+
+  return apiFetch<listInstalledFlowsResponse>(getListInstalledFlowsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export type getCatalogIndexResponse200 = {
   data: CatalogListing
   status: 200
@@ -102,7 +160,8 @@ export const getGetCatalogIndexUrl = () => {
  *
  * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
  * is cached for a few minutes; `stale` is true when the latest refresh failed and this is the
- * previous copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.
+ * previous copy. Each entry carries its nightly `health`. 503 `catalog_unavailable` when the
+ * catalog cannot be read and nothing is cached.
  * @summary Get Catalog Index
  */
 export const getCatalogIndex = async ( options?: Parameters<typeof apiFetch>[1]): Promise<getCatalogIndexResponse> => {
@@ -179,7 +238,8 @@ export const getInstallItemUrl = () => {
  * Installs a catalog item in this workspace, or updates it to the given version.
  *
  * The server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the
- * entry changed since you loaded the index. Items it requires are installed first.
+ * entry changed since you loaded the index. Items it requires are installed first. 409
+ * `catalog_item_broken` when the nightly check reports the item, or one it requires, as broken.
  * @summary Install Item
  */
 export const installItem = async (installRequest: InstallRequest, options?: Parameters<typeof apiFetch>[1]): Promise<installItemResponse> => {
@@ -307,7 +367,7 @@ export type uninstallItemResponseError = (uninstallItemResponse401 | uninstallIt
 
 export type uninstallItemResponse = (uninstallItemResponseSuccess | uninstallItemResponseError)
 
-export const getUninstallItemUrl = (kind: 'connection-type' | 'node-template',
+export const getUninstallItemUrl = (kind: 'connection-type' | 'node-template' | 'flow',
     itemId: string,) => {
 
 
@@ -320,10 +380,10 @@ export const getUninstallItemUrl = (kind: 'connection-type' | 'node-template',
  * Removes an installed item. Things already made from it keep their copied settings.
  *
  * 409 `type_in_use` if connections still use a connection type, and 409 `required_by` if
- * another installed item needs it.
+ * another installed template or flow needs it.
  * @summary Uninstall Item
  */
-export const uninstallItem = async (kind: 'connection-type' | 'node-template',
+export const uninstallItem = async (kind: 'connection-type' | 'node-template' | 'flow',
     itemId: string, options?: Parameters<typeof apiFetch>[1]): Promise<uninstallItemResponse> => {
 
   return apiFetch<uninstallItemResponse>(getUninstallItemUrl(kind,itemId),
@@ -381,7 +441,7 @@ export type getCatalogReadmeResponseError = (getCatalogReadmeResponse401 | getCa
 
 export type getCatalogReadmeResponse = (getCatalogReadmeResponseSuccess | getCatalogReadmeResponseError)
 
-export const getGetCatalogReadmeUrl = (kind: 'connection-type' | 'node-template',
+export const getGetCatalogReadmeUrl = (kind: 'connection-type' | 'node-template' | 'flow',
     itemId: string,) => {
 
 
@@ -397,7 +457,7 @@ export const getGetCatalogReadmeUrl = (kind: 'connection-type' | 'node-template'
  * item has no notes page.
  * @summary Get Catalog Readme
  */
-export const getCatalogReadme = async (kind: 'connection-type' | 'node-template',
+export const getCatalogReadme = async (kind: 'connection-type' | 'node-template' | 'flow',
     itemId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getCatalogReadmeResponse> => {
 
   return apiFetch<getCatalogReadmeResponse>(getGetCatalogReadmeUrl(kind,itemId),

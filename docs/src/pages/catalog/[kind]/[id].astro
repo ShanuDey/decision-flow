@@ -35,8 +35,27 @@ const connectionType: CatalogItem | undefined =
     : undefined;
 const usedBy =
   entry.kind === "connection-type"
-    ? items.filter((i) => i.kind === "node-template" && i.body.connection?.type === entry.id)
+    ? items.filter(
+        (i) =>
+          (i.kind === "node-template" && i.body.connection?.type === entry.id) ||
+          (i.kind === "flow" && Object.values<any>(i.body.connections ?? {}).some((c) => c.type === entry.id)),
+      )
     : [];
+const flowTypes: { id: string; item: CatalogItem | undefined }[] =
+  entry.kind === "flow"
+    ? [...new Set(Object.values<any>(body.connections ?? {}).map((c) => String(c.type)))].map((id) => ({
+        id,
+        item: items.find((i) => i.kind === "connection-type" && i.id === id),
+      }))
+    : [];
+const flowNodes: any[] = entry.kind === "flow" ? body.draft.nodes : [];
+const flowInputs: string[] = flowNodes
+  .filter((n) => n.type === "start")
+  .flatMap((n) => (n.data?.inputs ?? []).map((i: any) => String(i.name)));
+const flowOutputs: string[] = flowNodes
+  .filter((n) => n.type === "end")
+  .flatMap((n) => (n.data?.outputs ?? []).map((o: any) => String(o.name)));
+const flowSteps: string[] = flowNodes.filter((n) => n.type !== "start" && n.type !== "end").map((n) => String(n.name));
 
 let sends = "";
 let reach = "";
@@ -154,7 +173,7 @@ try {
         )}
         {usedBy.length > 0 && (
           <>
-            <h2 id="templates">Templates that use it</h2>
+            <h2 id="templates">Templates and flows that use it</h2>
             <ul>
               {usedBy.map((t) => (
                 <li>
@@ -164,6 +183,66 @@ try {
             </ul>
           </>
         )}
+      </>
+    ) : entry.kind === "flow" ? (
+      <>
+        <h2 id="about">About this flow</h2>
+        <table>
+          <tbody>
+            {flowInputs.length > 0 && (
+              <tr>
+                <th scope="row">Inputs</th>
+                <td>
+                  {flowInputs.map((name, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <code>{name}</code>
+                    </>
+                  ))}
+                </td>
+              </tr>
+            )}
+            {flowOutputs.length > 0 && (
+              <tr>
+                <th scope="row">Returns</th>
+                <td>
+                  {flowOutputs.map((name, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <code>{name}</code>
+                    </>
+                  ))}
+                </td>
+              </tr>
+            )}
+            {flowSteps.length > 0 && (
+              <tr>
+                <th scope="row">Steps</th>
+                <td>{flowSteps.join(", ")}</td>
+              </tr>
+            )}
+            {flowTypes.length > 0 && (
+              <tr>
+                <th scope="row">Connections</th>
+                <td>
+                  Needs{" "}
+                  {flowTypes.map(({ id, item }, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      {item ? <a href={href(item)}>{item.name}</a> : <code>{id}</code>}
+                    </>
+                  ))}
+                  . Installing the flow installs any of these types that are not built in.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        <p>
+          <small>
+            Choose it under <strong>New flow</strong> to get your own copy. You pick your own connections when you do, and nothing stays linked to the Marketplace.
+          </small>
+        </p>
       </>
     ) : (
       <>

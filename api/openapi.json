@@ -52,7 +52,7 @@
         "properties": {
           "entries": {
             "items": {
-              "$ref": "#/components/schemas/IndexEntry"
+              "$ref": "#/components/schemas/ListedEntry"
             },
             "title": "Entries",
             "type": "array"
@@ -534,6 +534,25 @@
         "title": "FlowCallers",
         "type": "object"
       },
+      "FlowConnection": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "FlowConnection",
+        "type": "object"
+      },
       "FlowCreate": {
         "additionalProperties": false,
         "properties": {
@@ -931,7 +950,201 @@
         "title": "HttpRequestData",
         "type": "object"
       },
-      "IndexEntry": {
+      "InstallRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template",
+              "flow"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "version",
+          "hash"
+        ],
+        "title": "InstallRequest",
+        "type": "object"
+      },
+      "InstallResult": {
+        "additionalProperties": false,
+        "properties": {
+          "installed": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledSummary"
+            },
+            "title": "Installed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "installed"
+        ],
+        "title": "InstallResult",
+        "type": "object"
+      },
+      "InstalledFlow": {
+        "additionalProperties": false,
+        "properties": {
+          "connections": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FlowConnection"
+            },
+            "title": "Connections",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "title": "Draft",
+            "type": "object"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outputs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "icon",
+          "version",
+          "inputs",
+          "outputs",
+          "connections",
+          "draft"
+        ],
+        "title": "InstalledFlow",
+        "type": "object"
+      },
+      "InstalledFlowList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledFlow"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "InstalledFlowList",
+        "type": "object"
+      },
+      "InstalledList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "InstalledList",
+        "type": "object"
+      },
+      "InstalledSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "date-time",
+            "title": "Installed At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template",
+              "flow"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "version",
+          "hash",
+          "installed_at"
+        ],
+        "title": "InstalledSummary",
+        "type": "object"
+      },
+      "ListedEntry": {
         "additionalProperties": false,
         "properties": {
           "description": {
@@ -946,6 +1159,20 @@
             "title": "Hash",
             "type": "string"
           },
+          "health": {
+            "default": "ok",
+            "enum": [
+              "ok",
+              "broken"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "health_reason": {
+            "default": "",
+            "title": "Health Reason",
+            "type": "string"
+          },
           "icon": {
             "title": "Icon",
             "type": "string"
@@ -957,7 +1184,8 @@
           "kind": {
             "enum": [
               "connection-type",
-              "node-template"
+              "node-template",
+              "flow"
             ],
             "title": "Kind",
             "type": "string"
@@ -1002,118 +1230,7 @@
           "requires",
           "has_readme"
         ],
-        "title": "IndexEntry",
-        "type": "object"
-      },
-      "InstallRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "hash": {
-            "title": "Hash",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "connection-type",
-              "node-template"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "id",
-          "version",
-          "hash"
-        ],
-        "title": "InstallRequest",
-        "type": "object"
-      },
-      "InstallResult": {
-        "additionalProperties": false,
-        "properties": {
-          "installed": {
-            "items": {
-              "$ref": "#/components/schemas/InstalledSummary"
-            },
-            "title": "Installed",
-            "type": "array"
-          }
-        },
-        "required": [
-          "installed"
-        ],
-        "title": "InstallResult",
-        "type": "object"
-      },
-      "InstalledList": {
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/InstalledSummary"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "InstalledList",
-        "type": "object"
-      },
-      "InstalledSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "hash": {
-            "title": "Hash",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "installed_at": {
-            "format": "date-time",
-            "title": "Installed At",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "connection-type",
-              "node-template"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "kind",
-          "id",
-          "name",
-          "version",
-          "hash",
-          "installed_at"
-        ],
-        "title": "InstalledSummary",
+        "title": "ListedEntry",
         "type": "object"
       },
       "NodeTemplate": {
@@ -2088,9 +2205,66 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/catalog/flows": {
+      "get": {
+        "description": "Lists the flows installed from the Marketplace, with their graphs, for starting a new flow.\n\nEach flow's `connections` maps the placeholder ids in its request nodes to the connection type\nand name they stand for; the client matches them to the user's own connections.",
+        "operationId": "list_installed_flows",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstalledFlowList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Installed Flows",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/catalog/index": {
       "get": {
-        "description": "Lists what the Marketplace offers: a summary per item, newest version only.\n\nEach entry has the `hash` to send when installing it, and the entries it `requires`. The list\nis cached for a few minutes; `stale` is true when the latest refresh failed and this is the\nprevious copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.",
+        "description": "Lists what the Marketplace offers: a summary per item, newest version only.\n\nEach entry has the `hash` to send when installing it, and the entries it `requires`. The list\nis cached for a few minutes; `stale` is true when the latest refresh failed and this is the\nprevious copy. Each entry carries its nightly `health`. 503 `catalog_unavailable` when the\ncatalog cannot be read and nothing is cached.",
         "operationId": "get_catalog_index",
         "responses": {
           "200": {
@@ -2157,7 +2331,7 @@
     },
     "/catalog/install": {
       "post": {
-        "description": "Installs a catalog item in this workspace, or updates it to the given version.\n\nThe server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the\nentry changed since you loaded the index. Items it requires are installed first.",
+        "description": "Installs a catalog item in this workspace, or updates it to the given version.\n\nThe server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the\nentry changed since you loaded the index. Items it requires are installed first. 409\n`catalog_item_broken` when the nightly check reports the item, or one it requires, as broken.",
         "operationId": "install_item",
         "requestBody": {
           "content": {
@@ -2321,7 +2495,7 @@
     },
     "/catalog/installed/{kind}/{item_id}": {
       "delete": {
-        "description": "Removes an installed item. Things already made from it keep their copied settings.\n\n409 `type_in_use` if connections still use a connection type, and 409 `required_by` if\nanother installed item needs it.",
+        "description": "Removes an installed item. Things already made from it keep their copied settings.\n\n409 `type_in_use` if connections still use a connection type, and 409 `required_by` if\nanother installed template or flow needs it.",
         "operationId": "uninstall_item",
         "parameters": [
           {
@@ -2331,7 +2505,8 @@
             "schema": {
               "enum": [
                 "connection-type",
-                "node-template"
+                "node-template",
+                "flow"
               ],
               "title": "Kind",
               "type": "string"
@@ -2435,7 +2610,8 @@
             "schema": {
               "enum": [
                 "connection-type",
-                "node-template"
+                "node-template",
+                "flow"
               ],
               "title": "Kind",
               "type": "string"

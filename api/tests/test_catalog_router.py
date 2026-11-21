@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -6,6 +7,7 @@ import httpx
 import pytest
 from cryptography.fernet import Fernet
 
+from app.catalog.health import EntryHealth, HealthReport, HealthSource, get_health_source
 from app.catalog.index import build_index
 from app.catalog.remote import CatalogSource, get_catalog_source
 from app.catalog.source import load_files
@@ -51,7 +53,12 @@ async def type_ids(client: httpx.AsyncClient, headers: dict[str, str] | None = N
 async def test_the_index_is_the_one_the_source_serves(client: httpx.AsyncClient) -> None:
     body = (await client.get("/catalog/index")).json()
     expected = build_index(load_files(MARKETPLACE / "catalog")).model_dump(mode="json")
-    assert body["entries"] == expected["entries"] and body["stale"] is False
+    entries = [
+        {k: v for k, v in e.items() if k not in ("health", "health_reason")}
+        for e in body["entries"]
+    ]
+    assert entries == expected["entries"] and body["stale"] is False
+    assert {(e["health"], e["health_reason"]) for e in body["entries"]} == {("ok", "")}
     assert body["fetched_at"].endswith(("Z", "+00:00"))
     assert {(e["kind"], e["id"]) for e in body["entries"]} >= {
         ("connection-type", "github"),
@@ -289,4 +296,66 @@ async def test_a_built_in_item_has_no_readme_page(client: httpx.AsyncClient) -> 
 
 
 async def test_a_readme_kind_must_be_a_known_kind(client: httpx.AsyncClient) -> None:
-    assert (await client.get("/catalog/readme/flow/github")).status_code == 422
+    assert (await client.get("/catalog/readme/workflow/github")).status_code == 422
+
+
+def report_source(entries: dict[str, EntryHealth]) -> HealthSource:
+    source = HealthSource("https://health.test")
+    source._report = HealthReport(generated_at=datetime.now(UTC), entries=entries)
+    source._attempted = float("inf")
+    return source
+
+
+def broken(reason: str = "file no longer valid") -> EntryHealth:
+    return EntryHealth(status="broken", failures=2, checked_at=datetime.now(UTC), reason=reason)
+
+
+def use_health(source: HealthSource) -> None:
+    app.dependency_overrides[get_health_source] = lambda: source
+
+
+@pytest.fixture
+async def broken_github(client: httpx.AsyncClient) -> AsyncIterator[None]:
+    # After `client`, which installs its own empty health source.
+    use_health(report_source({"connection-type/github": broken()}))
+    yield
+    app.dependency_overrides.pop(get_health_source, None)
+
+
+@pytest.mark.usefixtures("broken_github")
+async def test_a_broken_item_is_marked_in_the_listing(client: httpx.AsyncClient) -> None:
+    found = await entry(client, "connection-type", "github")
+    assert (found["health"], found["health_reason"]) == ("broken", "file no longer valid")
+    assert (await entry(client, "connection-type", "slack"))["health"] == "ok"
+
+
+@pytest.mark.usefixtures("broken_github")
+async def test_a_broken_item_cannot_be_installed(client: httpx.AsyncClient) -> None:
+    response = await install(client, "connection-type", "github")
+    assert response.status_code == 409 and response.json()["code"] == "catalog_item_broken"
+    assert "file no longer valid" in response.json()["message"]
+    assert (await client.get("/catalog/installed")).json() == {"items": []}
+
+
+@pytest.mark.usefixtures("broken_github")
+async def test_a_template_needing_a_broken_type_cannot_be_installed(
+    client: httpx.AsyncClient,
+) -> None:
+    response = await install(client, "node-template", "github_create_issue")
+    assert response.status_code == 409 and response.json()["code"] == "catalog_item_broken"
+    assert (await client.get("/catalog/installed")).json() == {"items": []}
+
+
+@pytest.mark.usefixtures("broken_github")
+async def test_a_broken_type_that_is_already_installed_does_not_block_its_template(
+    client: httpx.AsyncClient,
+) -> None:
+    use_health(HealthSource(""))
+    assert (await install(client, "connection-type", "github")).status_code == 201
+    use_health(report_source({"connection-type/github": broken()}))
+    assert (await install(client, "node-template", "github_create_issue")).status_code == 201
+
+
+@pytest.mark.usefixtures("broken_github")
+async def test_a_healthy_item_installs_while_another_is_broken(client: httpx.AsyncClient) -> None:
+    assert (await install(client, "connection-type", "slack")).status_code == 201

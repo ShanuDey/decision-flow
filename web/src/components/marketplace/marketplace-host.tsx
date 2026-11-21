@@ -21,7 +21,7 @@ export function MarketplaceHost() {
         <DialogHeader className="shrink-0">
           <DialogTitle>Marketplace</DialogTitle>
           <DialogDescription>
-            Add connections and templates to this workspace. Installed items appear in the pickers.
+            Add connections, templates and flows to this workspace. Installed items appear in the pickers.
           </DialogDescription>
         </DialogHeader>
         {options && (

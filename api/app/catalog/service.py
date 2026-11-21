@@ -4,6 +4,8 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from app.catalog.flow_file import CatalogFlow
+from app.catalog.health import EntryHealth, HealthSource
 from app.catalog.index import IndexEntry, file_hash
 from app.catalog.models import InstalledItem
 from app.catalog.remote import (
@@ -16,12 +18,15 @@ from app.catalog.remote import (
 from app.catalog.schemas import (
     CatalogListing,
     CatalogReadme,
+    InstalledFlow,
+    InstalledFlowList,
     InstalledList,
     InstalledSummary,
     InstallRequest,
     InstallResult,
+    ListedEntry,
 )
-from app.catalog.source import CatalogFile, Kind
+from app.catalog.source import CatalogFile, Kind, flow_problem
 from app.catalog.store import InstalledStore, ItemDraft
 from app.connections.catalog import BY_ID as BUILT_IN_TYPES
 from app.connections.store import ConnectionStore
@@ -73,6 +78,34 @@ async def installed_templates(store: InstalledStore, member: Member) -> list[Nod
     return found
 
 
+def _flow_of(item: InstalledItem) -> CatalogFlow | None:
+    try:
+        return CatalogFlow.model_validate(item.definition)
+    except ValidationError:
+        return None
+
+
+async def installed_flows(store: InstalledStore, member: Member) -> InstalledFlowList:
+    found: list[InstalledFlow] = []
+    for item in await store.list_items(member, "flow"):
+        if (flow := _flow_of(item)) is None:
+            continue
+        found.append(
+            InstalledFlow(
+                id=flow.id,
+                name=flow.name,
+                description=flow.description,
+                icon=flow.icon,
+                version=item.version,
+                inputs=flow.input_names(),
+                outputs=flow.output_names(),
+                connections=flow.connections,
+                draft=flow.draft,
+            )
+        )
+    return InstalledFlowList(items=found)
+
+
 def _draft(file: CatalogFile) -> ItemDraft:
     return ItemDraft(
         kind=file.kind,
@@ -83,9 +116,21 @@ def _draft(file: CatalogFile) -> ItemDraft:
     )
 
 
-def _listing(listing: Listing) -> CatalogListing:
+def _listed(entry: IndexEntry, health: dict[str, EntryHealth]) -> ListedEntry:
+    found = health.get(f"{entry.kind}/{entry.id}")
+    problem = found is not None and found.status == "broken"
+    return ListedEntry(
+        **entry.model_dump(),
+        health="broken" if problem else "ok",
+        health_reason=found.reason if found and problem else "",
+    )
+
+
+def _listing(listing: Listing, health: dict[str, EntryHealth]) -> CatalogListing:
     return CatalogListing(
-        entries=listing.index.entries, fetched_at=listing.fetched_at, stale=listing.stale
+        entries=[_listed(e, health) for e in listing.index.entries],
+        fetched_at=listing.fetched_at,
+        stale=listing.stale,
     )
 
 
@@ -98,11 +143,14 @@ def _unavailable(exc: CatalogUnavailable) -> ApiError:
     )
 
 
-async def catalog_listing(source: CatalogSource, *, force: bool = False) -> CatalogListing:
+async def catalog_listing(
+    source: CatalogSource, health: HealthSource, *, force: bool = False
+) -> CatalogListing:
     try:
-        return _listing(await source.index(force=force))
+        listing = await source.index(force=force)
     except CatalogUnavailable as exc:
         raise _unavailable(exc) from None
+    return _listing(listing, await health.statuses())
 
 
 async def catalog_readme(source: CatalogSource, kind: Kind, item_id: str) -> CatalogReadme:
@@ -140,9 +188,9 @@ async def _fetch(source: CatalogSource, entry: IndexEntry) -> CatalogFile:
 
 
 def _missing_requirements(
-    entry: IndexEntry, listed: dict[str, IndexEntry], have: set[str]
-) -> list[IndexEntry]:
-    missing: list[IndexEntry] = []
+    entry: ListedEntry, listed: dict[str, ListedEntry], have: set[str]
+) -> list[ListedEntry]:
+    missing: list[ListedEntry] = []
     for need in entry.requires:
         if need in have:
             continue
@@ -152,11 +200,27 @@ def _missing_requirements(
     return missing
 
 
+def _refuse_broken(entries: list[ListedEntry]) -> None:
+    for entry in entries:
+        if entry.health == "broken":
+            raise ApiError(
+                409,
+                "catalog_item_broken",
+                f"{entry.name} failed the nightly check ({entry.health_reason}). "
+                "It cannot be installed until a later check passes.",
+                {"name": entry.name, "reason": entry.health_reason},
+            )
+
+
 async def install(
-    store: InstalledStore, source: CatalogSource, member: Member, request: InstallRequest
+    store: InstalledStore,
+    source: CatalogSource,
+    health: HealthSource,
+    member: Member,
+    request: InstallRequest,
 ) -> InstallResult:
     """Fetches and checks everything first, then writes the item and what it needs together."""
-    listed = {f"{e.kind}/{e.id}": e for e in (await catalog_listing(source)).entries}
+    listed = {f"{e.kind}/{e.id}": e for e in (await catalog_listing(source, health)).entries}
     entry = listed.get(f"{request.kind}/{request.id}")
     if entry is None:
         raise ApiError(404, "catalog_item_not_found", "That catalog entry does not exist")
@@ -165,6 +229,7 @@ async def install(
 
     have = {f"{i.kind}/{i.item_id}" for i in await store.list_items(member)}
     needs = _missing_requirements(entry, listed, have)
+    _refuse_broken([entry, *needs])
     files = [await _fetch(source, e) for e in (*needs, entry)]
     *required, file = files
 
@@ -174,6 +239,13 @@ async def install(
             **{f.id: f.body for f in required if isinstance(f.body, ConnectionType)},
         }
         if problem := connection_problem(file.body, types):
+            raise ApiError(422, "invalid_catalog_item", problem)
+    if isinstance(file.body, CatalogFlow):
+        have_types = {
+            *(await connection_types(store, member)),
+            *(f.id for f in required if isinstance(f.body, ConnectionType)),
+        }
+        if problem := flow_problem(file.body, have_types):
             raise ApiError(422, "invalid_catalog_item", problem)
 
     saved = await store.put_all(member, [_draft(f) for f in files])
@@ -203,12 +275,16 @@ async def uninstall(
             t.name
             for t in await installed_templates(store, member)
             if t.connection and t.connection.type == item_id
+        ] + [
+            f.name
+            for item in await store.list_items(member, "flow")
+            if (f := _flow_of(item)) and any(c.type == item_id for c in f.connections.values())
         ]
         if needing:
             raise ApiError(
                 409,
                 "required_by",
-                f"Installed templates need this type: {', '.join(needing)}",
+                f"Installed templates and flows need this type: {', '.join(needing)}",
                 {"names": needing},
             )
     await store.delete(member, kind, item_id)

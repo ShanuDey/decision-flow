@@ -11,9 +11,9 @@ from tests.test_catalog_index import put, template_file, type_file
 ROOT = MARKETPLACE / "catalog"
 
 
-def test_the_marketplace_folder_loads_with_both_kinds() -> None:
+def test_the_marketplace_folder_loads_with_every_kind() -> None:
     files = load_files(ROOT)
-    assert {f.kind for f in files} == {"connection-type", "node-template"}
+    assert {f.kind for f in files} == {"connection-type", "node-template", "flow"}
     assert {(f.id, f.version) for f in files} >= {("github", "1.0.0"), ("slack", "1.0.0")}
 
 

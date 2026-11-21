@@ -1,6 +1,16 @@
 "use client";
 
-import { Braces, ExternalLink, KeyRound, type LucideIcon, Plug, Search, Sparkles, UserRound } from "lucide-react";
+import {
+  Braces,
+  ExternalLink,
+  KeyRound,
+  type LucideIcon,
+  Plug,
+  Search,
+  Sparkles,
+  UserRound,
+  Workflow,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +21,7 @@ const ICONS: Record<string, LucideIcon> = {
   "key-round": KeyRound,
   "user-round": UserRound,
   braces: Braces,
+  workflow: Workflow,
 };
 
 export function CatalogIcon({ name, className }: { name: string; className?: string }) {

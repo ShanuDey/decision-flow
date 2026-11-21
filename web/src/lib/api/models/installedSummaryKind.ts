@@ -11,4 +11,5 @@ export type InstalledSummaryKind = typeof InstalledSummaryKind[keyof typeof Inst
 export const InstalledSummaryKind = {
   'connection-type': 'connection-type',
   'node-template': 'node-template',
+  flow: 'flow',
 } as const;

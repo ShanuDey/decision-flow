@@ -4,10 +4,10 @@
  * decision-flow api
  * OpenAPI spec version: 0.1.0
  */
-import type { IndexEntry } from './indexEntry';
+import type { ListedEntry } from './listedEntry';
 
 export interface CatalogListing {
-  entries: IndexEntry[];
+  entries: ListedEntry[];
   fetched_at: string;
   stale: boolean;
 }

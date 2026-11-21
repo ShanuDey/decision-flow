@@ -1,0 +1,82 @@
+{
+  "$defs": {
+    "FlowConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "title": "FlowConnection",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "connections": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FlowConnection"
+      },
+      "title": "Connections",
+      "type": "object"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "draft": {
+      "additionalProperties": true,
+      "title": "Draft",
+      "type": "object"
+    },
+    "icon": {
+      "default": "workflow",
+      "title": "Icon",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "version": {
+      "default": "1.0.0",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "draft"
+  ],
+  "title": "CatalogFlow",
+  "type": "object"
+}

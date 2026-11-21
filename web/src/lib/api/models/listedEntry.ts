@@ -4,15 +4,18 @@
  * decision-flow api
  * OpenAPI spec version: 0.1.0
  */
-import type { IndexEntryKind } from './indexEntryKind';
+import type { ListedEntryHealth } from './listedEntryHealth';
+import type { ListedEntryKind } from './listedEntryKind';
 
-export interface IndexEntry {
+export interface ListedEntry {
   description: string;
   has_readme: boolean;
   hash: string;
+  health?: ListedEntryHealth;
+  health_reason?: string;
   icon: string;
   id: string;
-  kind: IndexEntryKind;
+  kind: ListedEntryKind;
   name: string;
   path: string;
   requires: string[];

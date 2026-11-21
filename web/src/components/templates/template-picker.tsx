@@ -1,10 +1,11 @@
 "use client";
 
-import { Search, Upload } from "lucide-react";
+import { Search, Store, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
+import { openMarketplace } from "@/components/marketplace/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,8 +18,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createFlow, listConnections, listConnectionTypes, listTemplates } from "@/lib/api/client";
-import type { Template } from "@/lib/api/models";
+import {
+  createFlow,
+  listConnections,
+  listConnectionTypes,
+  listInstalledFlows,
+  listTemplates,
+} from "@/lib/api/client";
+import type { InstalledFlow, Template } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { call, errorText } from "@/lib/call";
 import {
@@ -36,6 +43,7 @@ import {
   parseFlowFile,
   planConnections,
 } from "@/lib/graph/transfer";
+import { findInstalledFlow, flowAsImport, flowAsTemplate } from "@/lib/templates/marketplace-flows";
 import { cn } from "@/lib/utils";
 
 import { FlowPreview } from "./flow-preview";
@@ -87,7 +95,8 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const filled = useRef(BLANK_NAME);
 
-  const items = loaded.state === "ready" ? loaded.items : [];
+  const [installedFlows, setInstalledFlows] = useState<InstalledFlow[]>([]);
+  const items = loaded.state === "ready" ? [...loaded.items, ...installedFlows.map(flowAsTemplate)] : [];
   const groups = groupByCategory(filterTemplates(items, query, category));
   const flat = flatTemplates(groups);
   // Looked up in the full list so a search can hide the choice without changing it.
@@ -97,12 +106,16 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
   async function load(force = false) {
     if (cachedItems && !force) {
       setLoaded({ state: "ready", items: cachedItems });
+      void call(listInstalledFlows()).then((flows) => {
+        if (flows.ok) setInstalledFlows(flows.data.items);
+      });
       return;
     }
     const id = ++request.current;
     setLoaded({ state: "loading" });
-    const result = await call(listTemplates());
+    const [result, flows] = await Promise.all([call(listTemplates()), call(listInstalledFlows())]);
     if (id !== request.current) return;
+    setInstalledFlows(flows.ok ? flows.data.items : []);
     if (result.ok) {
       cachedItems = result.data.items;
       setLoaded({ state: "ready", items: result.data.items });
@@ -160,6 +173,11 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
       toast.error(parsed.message);
       return;
     }
+    await beginImport(parsed, file.name);
+  }
+
+  async function beginImport(parsed: Extract<ImportResult, { ok: true }>, fileName: string) {
+    setBusy(true);
     const [list, types] = await Promise.all([call(listConnections()), call(listConnectionTypes())]);
     if (!list.ok) {
       setBusy(false);
@@ -174,7 +192,7 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
     const options = connectionOptions(list.data.items, types.data.items);
     const typeNames = Object.fromEntries(types.data.items.map((t) => [t.id, t.name]));
     const job = {
-      fileName: file.name,
+      fileName,
       parsed,
       needs: planConnections(parsed.graph, parsed.connections, options),
       options,
@@ -212,6 +230,17 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
     const trimmed = name.trim();
     if (!trimmed) return;
     setBusy(true);
+    const installed = template ? findInstalledFlow(installedFlows, template.id) : undefined;
+    if (installed) {
+      const parsed = flowAsImport(installed, trimmed);
+      if (!parsed) {
+        setBusy(false);
+        toast.error("This flow is not valid for this version of the app. Reinstall it from the Marketplace.");
+        return;
+      }
+      await beginImport(parsed, trimmed);
+      return;
+    }
     const result = await call(createFlow({ name: trimmed, draft: template?.draft }));
     if (!result.ok) {
       setBusy(false);
@@ -361,6 +390,15 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
                 onClick={() => fileInput.current?.click()}
               >
                 <Upload aria-hidden /> Import file
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                className="h-10"
+                onClick={() => openMarketplace({ kinds: ["flow"], onChanged: () => void load(true) })}
+              >
+                <Store aria-hidden /> Browse the Marketplace
               </Button>
               <Button type="submit" disabled={busy || !name.trim()} className="h-10">
                 {busy ? "Creating…" : "Create flow"}
