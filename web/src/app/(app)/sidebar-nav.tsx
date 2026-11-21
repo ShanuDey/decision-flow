@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Bot,
   ExternalLink,
   GitBranch,
   LayoutDashboard,
@@ -25,6 +26,7 @@ interface Item {
 const ITEMS: Item[] = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/flows", label: "Flows", icon: GitBranch },
+  { href: "/agents", label: "Agents", icon: Bot },
   { href: "/runs", label: "Runs", icon: Play },
   { href: "/connections", label: "Connections", icon: Plug },
   { href: "/marketplace", label: "Marketplace", icon: Store },
