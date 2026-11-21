@@ -1,14 +1,16 @@
 "use client";
 
-import { RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, RefreshCw, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CatalogIcon } from "@/components/catalog/catalog-gallery";
+import { Markdown } from "@/components/catalog/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   getCatalogIndex,
+  getCatalogReadme,
   installItem,
   listInstalled,
   refreshCatalogIndex,
@@ -43,7 +45,13 @@ function sameKinds(a: Kind[] | null, b: Kind[] | null): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function Card({
+function versionLabel(entry: MarketEntry): string {
+  return entry.status === "update" && entry.installedVersion !== entry.version
+    ? `v${entry.installedVersion} → v${entry.version}`
+    : `v${entry.version}`;
+}
+
+function Actions({
   entry,
   busy,
   onInstall,
@@ -53,6 +61,39 @@ function Card({
   busy: boolean;
   onInstall: () => void;
   onRemove: () => void;
+}) {
+  return (
+    <span className="flex gap-1">
+      {entry.status !== "available" && (
+        <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onRemove}>
+          Remove
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="sm"
+        variant={entry.status === "available" || entry.status === "update" ? "default" : "outline"}
+        disabled={busy || entry.status === "installed"}
+        onClick={onInstall}
+      >
+        {entry.status === "installed" ? "Installed" : entry.status === "update" ? "Update" : "Install"}
+      </Button>
+    </span>
+  );
+}
+
+function Card({
+  entry,
+  busy,
+  onInstall,
+  onRemove,
+  onDetails,
+}: {
+  entry: MarketEntry;
+  busy: boolean;
+  onInstall: () => void;
+  onRemove: () => void;
+  onDetails: () => void;
 }) {
   return (
     <li className="flex flex-col gap-3 rounded-lg border p-3">
@@ -72,29 +113,93 @@ function Card({
         <p className="text-xs text-muted-foreground">Also installs {entry.alsoInstalls.join(", ")}.</p>
       )}
       <div className="mt-auto flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          {entry.status === "update" && entry.installedVersion !== entry.version
-            ? `v${entry.installedVersion} → v${entry.version}`
-            : `v${entry.version}`}
-        </span>
-        <span className="flex gap-1">
-          {entry.status !== "available" && (
-            <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onRemove}>
-              Remove
-            </Button>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          {versionLabel(entry)}
+          {entry.has_readme && (
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-foreground"
+              aria-label={`Details of ${entry.name}`}
+              onClick={onDetails}
+            >
+              Details
+            </button>
           )}
-          <Button
-            type="button"
-            size="sm"
-            variant={entry.status === "available" || entry.status === "update" ? "default" : "outline"}
-            disabled={busy || entry.status === "installed"}
-            onClick={onInstall}
-          >
-            {entry.status === "installed" ? "Installed" : entry.status === "update" ? "Update" : "Install"}
-          </Button>
         </span>
+        <Actions entry={entry} busy={busy} onInstall={onInstall} onRemove={onRemove} />
       </div>
     </li>
+  );
+}
+
+type Notes = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; markdown: string };
+
+function Detail({
+  entry,
+  busy,
+  onBack,
+  onInstall,
+  onRemove,
+}: {
+  entry: MarketEntry;
+  busy: boolean;
+  onBack: () => void;
+  onInstall: () => void;
+  onRemove: () => void;
+}) {
+  const [notes, setNotes] = useState<Notes>({ state: "loading" });
+
+  useEffect(() => {
+    let stale = false;
+    call(getCatalogReadme(entry.kind, entry.id)).then((result) => {
+      if (stale) return;
+      setNotes(
+        result.ok ? { state: "ready", markdown: result.data.markdown } : { state: "error", message: errorText(result.error) },
+      );
+    });
+    return () => {
+      stale = true;
+    };
+  }, [entry.kind, entry.id]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft aria-hidden /> All items
+        </Button>
+        <Actions entry={entry} busy={busy} onInstall={onInstall} onRemove={onRemove} />
+      </div>
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <CatalogIcon name={entry.icon ?? "plug"} className="size-4" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-medium">{entry.name}</h3>
+            <Badge variant="secondary">{KIND_LABELS[entry.kind]}</Badge>
+            <span className="text-xs text-muted-foreground">{versionLabel(entry)}</span>
+          </span>
+          <span className="text-xs text-muted-foreground">{entry.description}</span>
+          {entry.alsoInstalls.length > 0 && (
+            <span className="text-xs text-muted-foreground">Also installs {entry.alsoInstalls.join(", ")}.</span>
+          )}
+        </div>
+      </div>
+      <div className="border-t pt-1">
+        {notes.state === "loading" && (
+          <p role="status" className="py-6 text-center text-sm text-muted-foreground">
+            Loading details…
+          </p>
+        )}
+        {notes.state === "error" && (
+          <p role="alert" className="py-6 text-center text-sm text-muted-foreground">
+            Could not load the details: {notes.message}
+          </p>
+        )}
+        {notes.state === "ready" && <Markdown>{notes.markdown}</Markdown>}
+      </div>
+    </div>
   );
 }
 
@@ -113,6 +218,7 @@ export function MarketplaceView({
   const [kinds, setKinds] = useState<Kind[] | null>(initialKinds);
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -223,6 +329,22 @@ export function MarketplaceView({
     );
   }
 
+  const detail = detailKey ? market.find((e) => `${e.kind}/${e.id}` === detailKey) : undefined;
+  if (detail) {
+    return (
+      <div className={className}>
+        <Detail
+          key={detailKey}
+          entry={detail}
+          busy={busy !== null}
+          onBack={() => setDetailKey(null)}
+          onInstall={() => void install(detail)}
+          onRemove={() => void remove(detail)}
+        />
+      </div>
+    );
+  }
+
   const shown = filterEntries(market, { query, kinds });
 
   return (
@@ -286,6 +408,7 @@ export function MarketplaceView({
               busy={busy !== null}
               onInstall={() => void install(entry)}
               onRemove={() => void remove(entry)}
+              onDetails={() => setDetailKey(`${entry.kind}/${entry.id}`)}
             />
           ))}
         </ul>

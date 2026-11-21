@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, status
 
 from app.catalog import service
 from app.catalog.remote import CatalogSource, get_catalog_source
-from app.catalog.schemas import CatalogListing, InstalledList, InstallRequest, InstallResult
+from app.catalog.schemas import (
+    CatalogListing,
+    CatalogReadme,
+    InstalledList,
+    InstallRequest,
+    InstallResult,
+)
 from app.catalog.source import Kind
 from app.catalog.store import InstalledStore, get_installed_store
 from app.connections.store import ConnectionStore, get_connection_store
@@ -41,6 +47,16 @@ async def refresh_catalog_index(source: Source) -> CatalogListing:
     Within 30 seconds of the last attempt the saved copy is returned instead.
     """
     return await service.catalog_listing(source, force=True)
+
+
+@router.get("/catalog/readme/{kind}/{item_id}", responses={**NOT_FOUND, **UNAVAILABLE})
+async def get_catalog_readme(kind: Kind, item_id: str, source: Source) -> CatalogReadme:
+    """The notes page of a catalog item, as Markdown, for items whose entry has `has_readme`.
+
+    Shown as text: the client must not run anything from it. 404 `catalog_item_not_found` when the
+    item has no notes page.
+    """
+    return await service.catalog_readme(source, kind, item_id)
 
 
 @router.get("/catalog/installed")

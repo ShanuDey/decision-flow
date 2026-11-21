@@ -8,6 +8,7 @@
 export * from './appConfig';
 export * from './appConfigDeleteMode';
 export * from './catalogListing';
+export * from './catalogReadme';
 export * from './connectionCreate';
 export * from './connectionCreateValues';
 export * from './connectionList';

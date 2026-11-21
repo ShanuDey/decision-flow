@@ -270,3 +270,23 @@ async def test_an_empty_catalog_url_switches_the_marketplace_off(
 async def test_refresh_returns_the_index(client: httpx.AsyncClient) -> None:
     body = (await client.post("/catalog/refresh")).json()
     assert {e["id"] for e in body["entries"]} >= {"github", "slack"}
+
+
+async def test_a_readme_is_served_as_markdown(client: httpx.AsyncClient) -> None:
+    response = await client.get("/catalog/readme/connection-type/github")
+    expected = (MARKETPLACE / "catalog/connection-types/github/README.md").read_text("utf-8")
+    assert response.status_code == 200
+    assert response.json()["markdown"].replace("\r\n", "\n") == expected.replace("\r\n", "\n")
+
+
+async def test_an_item_with_no_readme_is_404(client: httpx.AsyncClient) -> None:
+    response = await client.get("/catalog/readme/connection-type/nope")
+    assert response.status_code == 404 and response.json()["code"] == "catalog_item_not_found"
+
+
+async def test_a_built_in_item_has_no_readme_page(client: httpx.AsyncClient) -> None:
+    assert (await client.get("/catalog/readme/connection-type/bearer")).status_code == 404
+
+
+async def test_a_readme_kind_must_be_a_known_kind(client: httpx.AsyncClient) -> None:
+    assert (await client.get("/catalog/readme/flow/github")).status_code == 422

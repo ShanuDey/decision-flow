@@ -4,13 +4,11 @@ import sys
 from pathlib import Path
 
 from app.catalog.index import build_index
-from app.catalog.remote import ID, MAX_FILE_BYTES, MAX_INDEX_BYTES, VERSION
+from app.catalog.remote import ID, MAX_FILE_BYTES, MAX_INDEX_BYTES, MAX_README_BYTES, VERSION
 from app.catalog.source import DIRECTORIES, load_files
 from scripts.build_catalog_index import MARKETPLACE, index_text
 from scripts.export_connection_type_schema import schema_text as connection_schema_text
 from scripts.export_node_template_schema import schema_text as template_schema_text
-
-MAX_README_BYTES = 64 * 1024
 
 
 def _text(path: Path) -> str:
