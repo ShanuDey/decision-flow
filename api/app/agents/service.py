@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 from app.agents.models import Agent, AgentMessage, AgentThread
 from app.agents.schemas import (
@@ -18,8 +18,9 @@ from app.agents.store import AgentStore, NameTaken, NewMessage, ThreadBusy
 from app.connections.store import ConnectionStore
 from app.engine.agent_tools import AgentTool, FlowTools, check_tools
 from app.engine.compiler import compile_graph
-from app.engine.llm import AgentLimits, ToolStep, require_base_url, run_agent
+from app.engine.llm import AgentLimits, ChatReply, ToolStep, require_base_url, run_agent
 from app.engine.nodes.agent import STOPPED
+from app.engine.observer import Observer, ScopedObserver
 from app.engine.redact import Redactor
 from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
@@ -27,7 +28,8 @@ from app.errors import ApiError
 from app.flows.store import FlowStore
 from app.flows.subflows import SubflowSource
 from app.limits import Limits
-from app.runs.service import SecretLoader
+from app.runs.schemas import RunSteps
+from app.runs.service import SecretLoader, TraceReader, trace_steps
 from app.security.ssrf import OutboundPolicy
 from app.workspaces.schemas import Member
 
@@ -169,6 +171,7 @@ def info(message: AgentMessage) -> MessageInfo:
         steps=steps,
         usage=message.usage,
         model=message.model,
+        traced=message.trace_id is not None,
         created_at=message.created_at,
     )
 
@@ -193,6 +196,19 @@ def _history(messages: list[AgentMessage]) -> list[dict[str, str]]:
     return kept[::-1]
 
 
+class AgentTracer(Observer, Protocol):
+    """Records one trace per turn: the engine's observer, plus a span for each model call."""
+
+    trace_id: str | None
+
+    async def span_started(self, key: str, name: str, kind: str, inputs: Any) -> None: ...
+
+    async def span_finished(self, key: str, ok: bool, error: str | None, outputs: Any) -> None: ...
+
+
+TracerFactory = Callable[[str], AgentTracer]
+
+
 class TurnContext:
     """What one turn needs from the request: who is asking and how to reach the outside."""
 
@@ -204,14 +220,42 @@ class TurnContext:
         limits: Limits,
         outbound: OutboundPolicy,
         load_secrets: SecretLoader,
+        new_tracer: TracerFactory,
     ) -> None:
         self.store, self.member, self.limits = store, member, limits
-        self.outbound, self.load_secrets = outbound, load_secrets
+        self.outbound, self.load_secrets, self.new_tracer = outbound, load_secrets, new_tracer
         self.subflows = SubflowSource(flows, member, limits, outbound)
 
 
 def _redact(message: str, secrets: RunSecrets) -> str:
     return Redactor(secrets).text(message)
+
+
+class _ModelSpans:
+    """Turns the engine's model-call hooks into trace spans, with secrets masked."""
+
+    def __init__(self, tracer: AgentTracer, redactor: Redactor) -> None:
+        self._tracer, self._redactor = tracer, redactor
+
+    async def started(self, index: int, messages: list[dict[str, Any]]) -> None:
+        inputs = self._redactor.apply({"messages": messages})
+        await self._tracer.span_started(f"model-{index}", f"Model call {index}", "llm", inputs)
+
+    async def finished(self, index: int, reply: ChatReply | None, error: str | None) -> None:
+        outputs = None
+        if reply is not None:
+            outputs = {
+                "text": reply.text,
+                "model": reply.model,
+                "finish_reason": reply.finish_reason,
+                "usage": reply.usage,
+            }
+        await self._tracer.span_finished(
+            f"model-{index}",
+            error is None,
+            self._redactor.text(error) if error else None,
+            self._redactor.apply(outputs),
+        )
 
 
 async def run_turn(
@@ -240,19 +284,40 @@ async def run_turn(
     except ValueError as exc:
         raise ApiError(422, "agent_not_ready", str(exc)) from None
 
-    async def execute(graph: Any, payload: dict[str, Any]) -> Any:
-        return await run_flow(
-            compile_graph(graph),
-            payload,
-            None,
-            ctx.limits.run_timeout_seconds,
-            secrets,
-            ctx.outbound,
-            ctx.subflows.access,
-        )
+    redactor = Redactor(secrets)
+    tracer = ctx.new_tracer(agent.name)
+    started = {"message": content, "agent": agent.name, "thread": str(thread.id)}
+    await tracer.run_started(redactor.apply(started))
+    calls = 0
 
     async def run_tool(name: str, arguments: dict[str, Any]) -> str:
-        return await flow_tools.run(name, arguments, execute)
+        nonlocal calls
+        calls += 1
+        key = f"tool-{calls}"
+        await tracer.span_started(key, name, "tool", redactor.apply(arguments))
+
+        async def execute(graph: Any, payload: dict[str, Any]) -> Any:
+            return await run_flow(
+                compile_graph(graph),
+                payload,
+                ScopedObserver(tracer, key),
+                ctx.limits.run_timeout_seconds,
+                secrets,
+                ctx.outbound,
+                ctx.subflows.access,
+            )
+
+        try:
+            result = await flow_tools.run(name, arguments, execute)
+        except ValueError as exc:
+            await tracer.span_finished(key, False, redactor.text(str(exc)), None)
+            raise
+        await tracer.span_finished(key, True, None, redactor.text(result))
+        return result
+
+    async def fail(error: ApiError) -> ApiError:
+        await tracer.run_finished("failed", error.body.message)
+        return error
 
     history = _history(await ctx.store.list_messages(thread.id))
     settings = agent.settings
@@ -275,11 +340,12 @@ async def run_turn(
             temperature=settings.get("temperature"),
             max_tokens=settings.get("max_tokens"),
             on_step=on_step,
+            on_model=_ModelSpans(tracer, redactor),
         )
     except ValueError as exc:
-        raise ApiError(502, "model_failed", _redact(str(exc), secrets)) from None
+        raise await fail(ApiError(502, "model_failed", _redact(str(exc), secrets))) from None
     if result.stop != "answer":
-        raise ApiError(422, "agent_stopped", STOPPED[result.stop])
+        raise await fail(ApiError(422, "agent_stopped", STOPPED[result.stop]))
     asked = NewMessage("user", content)
     answered = NewMessage(
         "assistant",
@@ -287,13 +353,32 @@ async def run_turn(
         steps=[s.model_dump() for s in result.steps],
         usage=result.usage,
         model=result.model,
+        trace_id=tracer.trace_id,
     )
     try:
         stored = await ctx.store.add_messages(
             thread, [asked, answered], content.strip()[:TITLE_CHARS]
         )
     except ThreadBusy:
-        raise ApiError(
-            409, "thread_busy", "Another message in this thread was answered at the same time"
+        raise await fail(
+            ApiError(
+                409, "thread_busy", "Another message in this thread was answered at the same time"
+            )
         ) from None
+    await tracer.run_finished("succeeded", None, {"answer": redactor.text(result.text)})
     return stored[0], stored[1]
+
+
+async def message_steps(
+    store: AgentStore,
+    member: Member,
+    agent_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    message_id: uuid.UUID,
+    read: TraceReader,
+) -> RunSteps:
+    thread = await require_thread(store, member, agent_id, thread_id)
+    message = await store.get_message(thread.id, message_id)
+    if message is None:
+        raise not_found("Message")
+    return await trace_steps(message.trace_id, message.created_at, read)

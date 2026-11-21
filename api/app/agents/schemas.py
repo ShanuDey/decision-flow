@@ -89,6 +89,8 @@ class MessageInfo(FrozenBaseModel):
     steps: list[ToolCallInfo] | None
     usage: dict[str, int] | None
     model: str | None
+    # Whether a trace of how the agent answered can be read.
+    traced: bool
     created_at: datetime
 
 

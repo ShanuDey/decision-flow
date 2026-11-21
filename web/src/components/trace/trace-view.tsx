@@ -10,7 +10,7 @@ import { buildTree, formatStepDuration, totalMs } from "@/lib/trace/tree";
 import type { Format } from "./io-block";
 import { Segmented } from "./segmented";
 import { StepRows, type TraceContext, type ViewMode } from "./step-row";
-import { useRunSteps } from "./use-run-steps";
+import { type StepsFetcher, useRunSteps } from "./use-run-steps";
 
 function toggled(set: ReadonlySet<string>, id: string): Set<string> {
   const next = new Set(set);
@@ -27,8 +27,17 @@ function Notice({ children, action }: { children: React.ReactNode; action?: Reac
   );
 }
 
-export function TraceView({ runId, onSelectNode }: { runId: string; onSelectNode?: (nodeId: string) => void }) {
-  const { state, reload } = useRunSteps(runId);
+export function TraceView({
+  runId,
+  onSelectNode,
+  fetchSteps,
+}: {
+  // The id of the trace's owner: a run, or an agent message when `fetchSteps` is given.
+  runId: string;
+  onSelectNode?: (nodeId: string) => void;
+  fetchSteps?: StepsFetcher;
+}) {
+  const { state, reload } = useRunSteps(runId, fetchSteps);
   const [mode, setMode] = useState<ViewMode>("list");
   const [format, setFormat] = useState<Format>("pretty");
   const [open, setOpen] = useState<string | null>(null);

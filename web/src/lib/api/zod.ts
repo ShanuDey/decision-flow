@@ -407,6 +407,7 @@ export const GetThreadResponse = zod.object({
   "name": zod.string(),
   "result": zod.string()
 })),zod.null()]),
+  "traced": zod.boolean(),
   "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
 })),
   "thread": zod.object({
@@ -454,6 +455,7 @@ export const SendMessageResponse = zod.object({
   "name": zod.string(),
   "result": zod.string()
 })),zod.null()]),
+  "traced": zod.boolean(),
   "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
 }),
   "user_message": zod.object({
@@ -469,6 +471,7 @@ export const SendMessageResponse = zod.object({
   "name": zod.string(),
   "result": zod.string()
 })),zod.null()]),
+  "traced": zod.boolean(),
   "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
 })
 })
@@ -496,6 +499,37 @@ export const StreamMessageBody = zod.object({
 })
 
 export const StreamMessageResponse = zod.unknown()
+
+
+/**
+ * How the agent answered a message: each model call and each flow it ran, with timings.
+ *
+ * `pending` while the trace is still being written. A message without a trace has no steps.
+ * @summary Get Message Steps
+ */
+export const GetMessageStepsParams = zod.object({
+  "agent_id": zod.uuid(),
+  "thread_id": zod.uuid(),
+  "message_id": zod.uuid()
+})
+
+export const GetMessageStepsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "duration_ms": zod.number(),
+  "error": zod.union([zod.string(),zod.null()]),
+  "id": zod.string(),
+  "input": zod.unknown(),
+  "kind": zod.enum(['node', 'llm', 'tool', 'parser', 'other']),
+  "name": zod.string(),
+  "node_id": zod.union([zod.string(),zod.null()]),
+  "node_type": zod.union([zod.string(),zod.null()]),
+  "output": zod.unknown(),
+  "parent_id": zod.union([zod.string(),zod.null()]),
+  "start_offset_ms": zod.number(),
+  "status": zod.enum(['ok', 'failed'])
+})),
+  "pending": zod.boolean()
+})
 
 
 /**

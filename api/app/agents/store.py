@@ -31,6 +31,7 @@ class NewMessage:
         steps: list[dict[str, Any]] | None = None,
         usage: dict[str, int] | None = None,
         model: str | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self.role, self.content, self.steps, self.usage, self.model = (
             role,
@@ -39,6 +40,7 @@ class NewMessage:
             usage,
             model,
         )
+        self.trace_id = trace_id
 
 
 class AgentStore:
@@ -178,6 +180,13 @@ class AgentStore:
         )
         return list(rows)
 
+    async def get_message(self, thread_id: uuid.UUID, message_id: uuid.UUID) -> AgentMessage | None:
+        return await self.session.scalar(
+            select(AgentMessage).where(
+                AgentMessage.thread_id == thread_id, AgentMessage.id == message_id
+            )
+        )
+
     async def add_messages(
         self, thread: AgentThread, new: list[NewMessage], title: str
     ) -> list[AgentMessage]:
@@ -194,6 +203,7 @@ class AgentStore:
                 steps=m.steps,
                 usage=m.usage,
                 model=m.model,
+                trace_id=m.trace_id,
             )
             for i, m in enumerate(new)
         ]

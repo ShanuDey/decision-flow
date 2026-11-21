@@ -29,11 +29,13 @@ from app.errors import ApiError, ErrorResponse
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
 from app.ratelimit import limit_runs
-from app.runs.router import get_secret_loader
-from app.runs.service import SecretLoader
+from app.runs.router import get_secret_loader, get_trace_reader
+from app.runs.schemas import RunSteps
+from app.runs.service import SecretLoader, TraceReader
 from app.runs.slots import RunSlots, get_run_slots
 from app.security.policy import outbound_policy
 from app.settings import get_settings
+from app.tracing import MlflowAgentObserver
 from app.workspaces.deps import CurrentMember
 
 router = APIRouter(tags=["agents"])
@@ -134,15 +136,20 @@ async def delete_thread(
         raise service.not_found("Thread")
 
 
+def get_tracer_factory() -> service.TracerFactory:
+    return lambda name: MlflowAgentObserver(get_settings(), name)
+
+
 def turn_context(
     store: AgentStore,
     flows: FlowStore,
     member: Any,
     limits: Limits,
     load_secrets: SecretLoader,
+    new_tracer: service.TracerFactory,
 ) -> service.TurnContext:
     outbound = outbound_policy(get_settings(), limits)
-    return service.TurnContext(store, flows, member, limits, outbound, load_secrets)
+    return service.TurnContext(store, flows, member, limits, outbound, load_secrets, new_tracer)
 
 
 @router.post(
@@ -158,6 +165,7 @@ async def send_message(
     flows: Flows,
     member: CurrentMember,
     load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
+    new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
     limits: Annotated[Limits, Depends(get_limits)],
 ) -> TurnResponse:
@@ -169,7 +177,7 @@ async def send_message(
     """
     agent = await service.require_agent(store, member, agent_id)
     thread = await service.require_thread(store, member, agent_id, thread_id)
-    ctx = turn_context(store, flows, member, limits, load_secrets)
+    ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
     async with slots.hold(member.workspace_id):
         user, reply = await service.run_turn(ctx, agent, thread, body.content)
     return TurnResponse(user_message=service.info(user), reply=service.info(reply))
@@ -197,6 +205,7 @@ async def stream_message(
     flows: Flows,
     member: CurrentMember,
     load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
+    new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
     limits: Annotated[Limits, Depends(get_limits)],
 ) -> StreamingResponse:
@@ -208,7 +217,7 @@ async def stream_message(
     """
     agent = await service.require_agent(store, member, agent_id)
     thread = await service.require_thread(store, member, agent_id, thread_id)
-    ctx = turn_context(store, flows, member, limits, load_secrets)
+    ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
 
     async def events() -> AsyncIterator[str]:
         queue: asyncio.Queue[tuple[str, Any] | None] = asyncio.Queue()
@@ -243,3 +252,22 @@ async def stream_message(
     return StreamingResponse(
         events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
     )
+
+
+@router.get(
+    "/agents/{agent_id}/threads/{thread_id}/messages/{message_id}/steps",
+    responses={**NOT_FOUND, 503: {"model": ErrorResponse}},
+)
+async def get_message_steps(
+    agent_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    message_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    read: Annotated[TraceReader, Depends(get_trace_reader)],
+) -> RunSteps:
+    """How the agent answered a message: each model call and each flow it ran, with timings.
+
+    `pending` while the trace is still being written. A message without a trace has no steps.
+    """
+    return await service.message_steps(store, member, agent_id, thread_id, message_id, read)

@@ -4,7 +4,7 @@ import asyncio
 import logging
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from langchain_core.messages import BaseMessage, ToolMessage
 from pydantic import Field
@@ -12,7 +12,7 @@ from pydantic import Field
 from app.engine.base import FrozenBaseModel
 from app.engine.connections import ResolvedConnection
 from app.engine.fields import FieldDef
-from app.engine.llm.chat import OUT_OF_TOKENS, _reply, failure, open_chat
+from app.engine.llm.chat import OUT_OF_TOKENS, ChatReply, _reply, _text, failure, open_chat
 from app.security.ssrf import OutboundPolicy
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,14 @@ FORMAT_REQUEST = "Now give your final answer again, in the required format."
 Stop = Literal["answer", "max_iterations", "max_tokens", "timeout"]
 ToolRunner = Callable[[str, dict[str, Any]], Awaitable[str]]
 StepListener = Callable[["ToolStep"], Awaitable[None]]
+
+
+class ModelListener(Protocol):
+    """Told about each model call, so a trace can show them. Must not raise."""
+
+    async def started(self, index: int, messages: list[dict[str, Any]]) -> None: ...
+
+    async def finished(self, index: int, reply: ChatReply | None, error: str | None) -> None: ...
 
 
 class ToolSpec(FrozenBaseModel):
@@ -118,6 +126,20 @@ async def _ask(
         raise failure(exc, connection) from None
 
 
+def _brief(thread: list[Any]) -> list[dict[str, Any]]:
+    """The conversation as plain role and content, tool calls by name."""
+    brief: list[dict[str, Any]] = []
+    for item in thread:
+        if isinstance(item, dict):
+            brief.append({"role": item.get("role"), "content": item.get("content")})
+            continue
+        entry: dict[str, Any] = {"role": item.type, "content": _text(item)}
+        if getattr(item, "tool_calls", None):
+            entry["tool_calls"] = [c["name"] for c in item.tool_calls]
+        brief.append(entry)
+    return brief
+
+
 async def run_agent(
     policy: OutboundPolicy,
     connection: ResolvedConnection,
@@ -132,6 +154,7 @@ async def run_agent(
     max_tokens: int | None = None,
     response_format: dict[str, Any] | None = None,
     on_step: StepListener | None = None,
+    on_model: ModelListener | None = None,
 ) -> AgentResult:
     """Raises ValueError with a message a flow author can act on. A tool's own failure is not
     raised: the model is told and can try something else. Hitting a limit is a `stop` value.
@@ -152,10 +175,26 @@ async def run_agent(
     usage: dict[str, int] = {}
     served = model
     text, stop, iterations = "", "max_iterations", 0
+    made = 0
+
+    async def ask(runnable: Any, format_: dict[str, Any] | None = None) -> BaseMessage:
+        nonlocal made
+        made += 1
+        if on_model is None:
+            return await _ask(runnable, thread, policy, connection, format_)
+        await on_model.started(made, _brief(thread))
+        try:
+            message = await _ask(runnable, thread, policy, connection, format_)
+        except ValueError as exc:
+            await on_model.finished(made, None, str(exc))
+            raise
+        await on_model.finished(made, _reply(message, model), None)
+        return message
+
     try:
         async with asyncio.timeout(limits.max_seconds) as deadline:
             for iterations in range(1, limits.max_iterations + 1):
-                message = await _ask(bound, thread, policy, connection)
+                message = await ask(bound)
                 reply = _reply(message, model)
                 served = reply.model
                 for key, value in reply.usage.items():
@@ -174,7 +213,7 @@ async def run_agent(
                     text, stop = reply.text, "answer"
                     if response_format:
                         thread.append({"role": "user", "content": FORMAT_REQUEST})
-                        final = await _ask(chat, thread, policy, connection, response_format)
+                        final = await ask(chat, response_format)
                         shaped = _reply(final, model)
                         text = shaped.text
                         for key, value in shaped.usage.items():

@@ -225,3 +225,38 @@ async def test_a_reply_cut_off_by_the_token_limit_is_a_failure() -> None:
     async with chat_server(script=[cut]) as (port, _):
         with pytest.raises(ValueError, match="ran out of tokens"):
             await agent(port, Tools())
+
+
+class Calls:
+    def __init__(self) -> None:
+        self.events: list[tuple[Any, ...]] = []
+
+    async def started(self, index: int, messages: list[dict[str, Any]]) -> None:
+        self.events.append(("started", index, [m["role"] for m in messages]))
+
+    async def finished(self, index: int, reply: Any, error: str | None) -> None:
+        self.events.append(("finished", index, reply.text if reply else None, error))
+
+
+async def test_each_model_call_is_reported_with_the_conversation_it_got() -> None:
+    calls = Calls()
+    script = [asks(("add", '{"a": 1}')), says("It is 3")]
+    async with chat_server(script=script) as (port, _):
+        await agent(port, Tools(), on_model=calls)
+
+    assert calls.events == [
+        ("started", 1, ["system", "user"]),
+        ("finished", 1, "", None),
+        ("started", 2, ["system", "user", "ai", "tool"]),
+        ("finished", 2, "It is 3", None),
+    ]
+
+
+async def test_a_failed_model_call_is_reported_with_its_error() -> None:
+    calls = Calls()
+    async with chat_server(status=401, raw=b'{"error": {"message": "bad key"}}') as (port, _):
+        with pytest.raises(ValueError, match="rejected the key"):
+            await agent(port, Tools(), on_model=calls)
+
+    assert calls.events[0] == ("started", 1, ["system", "user"])
+    assert calls.events[1][:3] == ("finished", 1, None) and "rejected the key" in calls.events[1][3]

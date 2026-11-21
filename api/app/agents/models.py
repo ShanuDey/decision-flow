@@ -65,4 +65,6 @@ class AgentMessage(Base):
     steps: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     usage: Mapped[dict[str, int] | None] = mapped_column(JSONB)
     model: Mapped[str | None] = mapped_column(String(200))
+    # The MLflow trace of the turn, on the assistant message; null if it was not recorded.
+    trace_id: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())

@@ -850,6 +850,81 @@ return apiFetch<streamMessageResponse>(getStreamMessageUrl(agentId,threadId),
 
 
 
+export type getMessageStepsResponse200 = {
+  data: RunSteps
+  status: 200
+}
+
+export type getMessageStepsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getMessageStepsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getMessageStepsResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getMessageStepsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getMessageStepsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getMessageStepsResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type getMessageStepsResponseSuccess = (getMessageStepsResponse200) & {
+  headers: Headers;
+};
+export type getMessageStepsResponseError = (getMessageStepsResponse401 | getMessageStepsResponse403 | getMessageStepsResponse404 | getMessageStepsResponse422 | getMessageStepsResponse429 | getMessageStepsResponse503) & {
+  headers: Headers;
+};
+
+export type getMessageStepsResponse = (getMessageStepsResponseSuccess | getMessageStepsResponseError)
+
+export const getGetMessageStepsUrl = (agentId: string,
+    threadId: string,
+    messageId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads/${threadId}/messages/${messageId}/steps`
+}
+
+/**
+ * How the agent answered a message: each model call and each flow it ran, with timings.
+ *
+ * `pending` while the trace is still being written. A message without a trace has no steps.
+ * @summary Get Message Steps
+ */
+export const getMessageSteps = async (agentId: string,
+    threadId: string,
+    messageId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getMessageStepsResponse> => {
+
+  return apiFetch<getMessageStepsResponse>(getGetMessageStepsUrl(agentId,threadId,messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export type listInstalledFlowsResponse200 = {
   data: InstalledFlowList
   status: 200

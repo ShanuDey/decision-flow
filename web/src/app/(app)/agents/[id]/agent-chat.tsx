@@ -1,12 +1,13 @@
 "use client";
 
-import { Plus, Send, Trash2 } from "lucide-react";
+import { ListTree, Plus, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { TraceView } from "@/components/trace/trace-view";
 import { Textarea } from "@/components/ui/textarea";
-import { createThread, deleteThread, getThread } from "@/lib/api/client";
+import { createThread, deleteThread, getMessageSteps, getThread } from "@/lib/api/client";
 import type { MessageInfo, ThreadSummary, ToolCallInfo } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { streamTurn } from "@/lib/agent-stream";
@@ -40,8 +41,9 @@ function Steps({ steps }: { steps: ToolCallInfo[] }) {
   );
 }
 
-function Bubble({ message }: { message: MessageInfo }) {
+function Bubble({ message, agentId, threadId }: { message: MessageInfo; agentId: string; threadId: string }) {
   const mine = message.role === "user";
+  const [tracing, setTracing] = useState(false);
   return (
     <div className={cn("flex flex-col gap-1.5", mine ? "items-end" : "items-start")}>
       {!mine && message.steps && <Steps steps={message.steps} />}
@@ -53,8 +55,28 @@ function Bubble({ message }: { message: MessageInfo }) {
       >
         {message.content}
       </div>
-      {!mine && message.usage?.total_tokens !== undefined && (
-        <span className="text-[11px] text-muted-foreground">{message.usage.total_tokens} tokens</span>
+      {!mine && (
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          {message.usage?.total_tokens !== undefined && <span>{message.usage.total_tokens} tokens</span>}
+          {message.traced && (
+            <button
+              type="button"
+              aria-expanded={tracing}
+              onClick={() => setTracing((open) => !open)}
+              className="flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline"
+            >
+              <ListTree className="size-3" aria-hidden /> {tracing ? "Hide trace" : "Trace"}
+            </button>
+          )}
+        </div>
+      )}
+      {!mine && tracing && (
+        <div className="w-full max-w-full">
+          <TraceView
+            runId={message.id}
+            fetchSteps={(id) => call(getMessageSteps(agentId, threadId, id))}
+          />
+        </div>
       )}
     </div>
   );
@@ -242,9 +264,8 @@ export function AgentChat({
               Ask the agent something. It can run the flows you gave it as tools.
             </p>
           )}
-          {messages.map((m) => (
-            <Bubble key={m.id} message={m} />
-          ))}
+          {activeId &&
+            messages.map((m) => <Bubble key={m.id} message={m} agentId={agentId} threadId={activeId} />)}
           {pending && (
             <>
               <div className="flex flex-col items-end gap-1.5">

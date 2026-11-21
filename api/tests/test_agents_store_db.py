@@ -167,3 +167,23 @@ async def test_deleting_a_connection_clears_it_from_the_agents_that_used_it(
     async with sessions() as session:
         loaded = await AgentStore(session).get(member, made.id)
     assert loaded is not None and loaded.connection_id is None
+
+
+async def test_a_message_keeps_the_trace_it_was_answered_with(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    made = await make_agent(sessions, member)
+    async with sessions() as session:
+        store = AgentStore(session)
+        thread = await store.create_thread(member, made.id)
+        user, reply = await store.add_messages(
+            thread,
+            [NewMessage("user", "Hi"), NewMessage("assistant", "Hello", trace_id="tr-1")],
+            "Hi",
+        )
+    async with sessions() as session:
+        store = AgentStore(session)
+        loaded = await store.get_message(thread.id, reply.id)
+        plain = await store.get_message(thread.id, user.id)
+        elsewhere = await store.get_message(uuid.uuid4(), reply.id)
+    assert loaded is not None and loaded.trace_id == "tr-1"
+    assert plain is not None and plain.trace_id is None and elsewhere is None

@@ -128,6 +128,9 @@ class FakeAgentStore:
     async def list_messages(self, thread_id: uuid.UUID) -> list[AgentMessage]:
         return list(self.messages.get(thread_id, []))
 
+    async def get_message(self, thread_id: uuid.UUID, message_id: uuid.UUID) -> AgentMessage | None:
+        return next((m for m in self.messages.get(thread_id, []) if m.id == message_id), None)
+
     async def add_messages(
         self, thread: AgentThread, new: list[NewMessage], title: str
     ) -> list[AgentMessage]:
@@ -142,6 +145,7 @@ class FakeAgentStore:
                 steps=m.steps,
                 usage=m.usage,
                 model=m.model,
+                trace_id=m.trace_id,
                 created_at=now(),
             )
             for i, m in enumerate(new)

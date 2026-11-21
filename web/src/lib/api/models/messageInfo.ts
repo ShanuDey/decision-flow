@@ -16,5 +16,6 @@ export interface MessageInfo {
   role: MessageInfoRole;
   seq: number;
   steps: ToolCallInfo[] | null;
+  traced: boolean;
   usage: MessageInfoUsage;
 }
