@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "groq",
+  "name": "Groq",
+  "description": "A Groq API key, sent only to api.groq.com.",
+  "icon": "sparkles",
+  "docs_url": "https://console.groq.com/docs/openai",
+  "category": "builtin",
+  "fields": [
+    {
+      "name": "api_key",
+      "label": "API key",
+      "secret": true,
+      "help": "Starts with gsk_."
+    },
+    {
+      "name": "default_model",
+      "label": "Default model",
+      "required": false,
+      "placeholder": "openai/gpt-oss-20b",
+      "help": "A model id from the Groq console. Nodes can read it as {{ connection.default_model }}."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "api_key"
+  },
+  "fixed_hosts": [
+    "api.groq.com"
+  ]
+}

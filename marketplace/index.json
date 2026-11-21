@@ -14,6 +14,19 @@
       "version": "1.0.0"
     },
     {
+      "description": "A Groq API key, sent only to api.groq.com.",
+      "has_readme": true,
+      "hash": "sha256-23944c7d48340d07d1ed7fdb7c90abff9fbd86d88a0e45205eb485b8c7394ffa",
+      "icon": "sparkles",
+      "id": "groq",
+      "kind": "connection-type",
+      "name": "Groq",
+      "path": "connection-types/groq/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
       "description": "An OpenAI API key, sent only to api.openai.com.",
       "has_readme": true,
       "hash": "sha256-b49498064a20adb2a3270c326b4c2c787370c8ac71fc7f0a859531980dc5f063",
@@ -90,6 +103,24 @@
       "version": "1.0.0"
     },
     {
+      "description": "Sends a text to any OpenAI-compatible chat model, at the connection's base URL, and returns a short summary.",
+      "has_readme": true,
+      "hash": "sha256-98daac03f49921e586abd20b3b28eb0cc229d14411a6edb3790ec5b5cae8e4a7",
+      "icon": "sparkles",
+      "id": "openai_compatible_summarize_text",
+      "kind": "flow",
+      "name": "Summarize text (OpenAI-compatible)",
+      "path": "flows/openai_compatible_summarize_text/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "openai",
+        "summary"
+      ],
+      "version": "1.0.0"
+    },
+    {
       "description": "Sends a text to an OpenAI chat model and returns a short summary.",
       "has_readme": true,
       "hash": "sha256-75ef44783f67dc065ffe6af56176752ba1b03b872642afe1d4d864a09c753ea7",
@@ -124,6 +155,25 @@
       "tags": [
         "github",
         "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends one prompt to a Groq chat model, using the connection's default model.",
+      "has_readme": true,
+      "hash": "sha256-943016ff9efb695faa833b79037c958f6102f0e81867bb7e7cc54d0e3603496d",
+      "icon": "sparkles",
+      "id": "groq_chat_completion",
+      "kind": "node-template",
+      "name": "Groq: chat completion",
+      "path": "node-templates/groq_chat_completion/1.0.0.json",
+      "requires": [
+        "connection-type/groq"
+      ],
+      "tags": [
+        "ai",
+        "llm",
+        "groq"
       ],
       "version": "1.0.0"
     },
