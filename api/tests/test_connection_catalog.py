@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,7 @@ def test_every_shipped_file_has_the_schema_version_and_a_matching_name() -> None
     for path in DATA.glob("*.json"):
         body = json.loads(path.read_text(encoding="utf-8"))
         assert body["schema_version"] == 1, path.name
+        assert re.fullmatch(r"\d+\.\d+\.\d+", body["version"]), path.name
         assert path.stem.replace("-", "_") == body["id"].replace("-", "_"), path.name
 
 

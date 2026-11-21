@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from collections.abc import Mapping
 
 from cryptography.fernet import InvalidToken
 
@@ -34,7 +35,14 @@ from app.security.ssrf import OutboundError, OutboundPolicy, fetch
 from app.workspaces.schemas import Member
 
 
-def type_infos() -> list[ConnectionTypeInfo]:
+def ordered(types: Mapping[str, ConnectionType]) -> list[ConnectionType]:
+    """Built-in types in their shipped order, then the installed ones by name."""
+    built_in = [t for t in TYPES if t.id in types]
+    installed = sorted((t for t in types.values() if t.id not in BY_ID), key=lambda t: t.name)
+    return [*built_in, *installed]
+
+
+def type_infos(types: Mapping[str, ConnectionType]) -> list[ConnectionTypeInfo]:
     return [
         ConnectionTypeInfo(
             id=t.id,
@@ -43,17 +51,18 @@ def type_infos() -> list[ConnectionTypeInfo]:
             icon=t.icon,
             docs_url=t.docs_url,
             category=t.category,
+            source="builtin" if t.id in BY_ID else "installed",
             fields=[FieldInfo(**f.model_dump()) for f in t.fields],
             hosts=t.fixed_hosts,
             hosts_from=t.hosts_from or "",
             testable=bool(t.test_url or t.test_path),
         )
-        for t in TYPES
+        for t in ordered(types)
     ]
 
 
-def summarize(connection: Connection) -> ConnectionSummary:
-    kind = BY_ID.get(connection.type)
+def summarize(connection: Connection, types: Mapping[str, ConnectionType]) -> ConnectionSummary:
+    kind = types.get(connection.type)
     return ConnectionSummary(
         id=connection.id,
         name=connection.name,
@@ -77,8 +86,8 @@ def name_taken() -> ApiError:
     return ApiError(409, "connection_name_taken", "You already have a connection with that name.")
 
 
-def require_type(type_id: str) -> ConnectionType:
-    kind = BY_ID.get(type_id)
+def require_type(type_id: str, types: Mapping[str, ConnectionType]) -> ConnectionType:
+    kind = types.get(type_id)
     if kind is None:
         raise ApiError(422, "unknown_connection_type", f"Unknown connection type '{type_id}'")
     return kind
@@ -142,6 +151,7 @@ async def create_connection(
     member: Member,
     body: ConnectionCreate,
     limits: Limits,
+    types: Mapping[str, ConnectionType],
 ) -> Connection:
     cap = limits.max_connections_per_workspace
     if cap and (count := await store.count(member)) >= cap:
@@ -151,7 +161,7 @@ async def create_connection(
             f"You have {count} connections; the limit is {cap}.",
             {"limit": cap, "count": count, **limits.notice_details()},
         )
-    kind = require_type(body.type)
+    kind = require_type(body.type, types)
     _check_values(kind, body.values)
     values = with_defaults(kind, body.values)
     _check_complete(kind, values)
@@ -168,11 +178,12 @@ async def update_connection(
     member: Member,
     connection_id: uuid.UUID,
     body: ConnectionUpdate,
+    types: Mapping[str, ConnectionType],
 ) -> Connection:
     connection = await store.get(member, connection_id)
     if connection is None:
         raise not_found()
-    kind = require_type(connection.type)
+    kind = require_type(connection.type, types)
     _check_values(kind, body.values)
     merged = with_defaults(
         kind, {**connection.config, **read_secrets(box, connection), **body.values}
@@ -218,7 +229,11 @@ async def delete_connection(
 
 
 async def load_run_connections(
-    store: ConnectionStore, make_box: BoxFactory, member: Member, ids: set[str]
+    store: ConnectionStore,
+    make_box: BoxFactory,
+    member: Member,
+    ids: set[str],
+    types: Mapping[str, ConnectionType],
 ) -> dict[str, ResolvedConnection]:
     wanted: dict[uuid.UUID, str] = {}
     for raw in ids:
@@ -239,7 +254,7 @@ async def load_run_connections(
     box = make_box()
     return {
         str(c.id): resolve(
-            require_type(c.type), str(c.id), c.name, {**c.config, **read_secrets(box, c)}
+            require_type(c.type, types), str(c.id), c.name, {**c.config, **read_secrets(box, c)}
         )
         for c in found.values()
     }
@@ -251,11 +266,12 @@ async def test_connection(
     member: Member,
     connection_id: uuid.UUID,
     policy: OutboundPolicy,
+    types: Mapping[str, ConnectionType],
 ) -> ConnectionTest:
     connection = await store.get(member, connection_id)
     if connection is None:
         raise not_found()
-    kind = require_type(connection.type)
+    kind = require_type(connection.type, types)
     values = {**connection.config, **read_secrets(make_box(), connection)}
     target = test_target(kind, values)
     if target is None:

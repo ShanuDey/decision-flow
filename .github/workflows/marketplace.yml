@@ -1,0 +1,40 @@
+name: Marketplace
+
+on:
+  pull_request:
+    paths:
+      - marketplace/**
+      - api/app/catalog/**
+      - api/app/connections/**
+      - api/app/node_templates/**
+      - api/scripts/check_marketplace.py
+      - .github/workflows/marketplace.yml
+  push:
+    branches: [main]
+    paths:
+      - marketplace/**
+      - api/app/catalog/**
+      - api/app/connections/**
+      - api/app/node_templates/**
+      - api/scripts/check_marketplace.py
+      - .github/workflows/marketplace.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+      - run: uv --directory api sync --frozen
+      - run: uv --directory api run python -m scripts.check_marketplace

@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - docs/**
+      - marketplace/**
+      - api/app/connections/data/**
+      - api/app/node_templates/data/**
       - api/openapi.json
       - web/src/lib/docs/**
       - .github/workflows/docs.yml

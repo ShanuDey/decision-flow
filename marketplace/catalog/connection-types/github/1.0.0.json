@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "github",
+  "name": "GitHub",
+  "description": "A GitHub token, sent only to api.github.com.",
+  "icon": "plug",
+  "docs_url": "https://docs.github.com/rest/authentication/authenticating-to-the-rest-api",
+  "category": "builtin",
+  "fields": [
+    {
+      "name": "token",
+      "label": "Token",
+      "secret": true,
+      "help": "A personal access token or an app installation token."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "token"
+  },
+  "fixed_hosts": [
+    "api.github.com"
+  ],
+  "test_url": "https://api.github.com/user"
+}

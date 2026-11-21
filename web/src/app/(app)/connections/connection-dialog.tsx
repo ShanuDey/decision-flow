@@ -1,21 +1,11 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Braces,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  KeyRound,
-  type LucideIcon,
-  Plug,
-  Search,
-  Sparkles,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CatalogGallery, CatalogIcon } from "@/components/catalog/catalog-gallery";
+import { openMarketplace } from "@/components/marketplace/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,29 +24,24 @@ import { errorToast } from "@/lib/api-error";
 import { type ApiFailure, type ApiResult, call } from "@/lib/call";
 import {
   formProblem,
-  groupTypes,
   NAME_MAX,
   payloadValues,
+  type Prefill,
   suggestName,
   VALUE_MAX,
 } from "@/lib/connections";
+import type { CatalogItem } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
 type Props =
-  | { mode: "add"; types: ConnectionTypeInfo[]; existing: string[]; onSaved: () => void }
+  | {
+      mode: "add";
+      types: ConnectionTypeInfo[];
+      existing: string[];
+      initial?: Prefill;
+      onSaved: () => void;
+    }
   | { mode: "edit"; type: ConnectionTypeInfo; connection: ConnectionSummary; onSaved: () => void };
-
-const ICONS: Record<string, LucideIcon> = {
-  sparkles: Sparkles,
-  "key-round": KeyRound,
-  "user-round": UserRound,
-  braces: Braces,
-};
-
-function TypeIcon({ name, className }: { name: string; className?: string }) {
-  const Icon = ICONS[name] ?? Plug;
-  return <Icon className={className} aria-hidden />;
-}
 
 async function save(result: Promise<ApiResult<unknown>>): Promise<ApiFailure | null> {
   const done = await result;
@@ -64,85 +49,22 @@ async function save(result: Promise<ApiResult<unknown>>): Promise<ApiFailure | n
 }
 
 function initialValues(props: Props): Record<string, string> {
-  return props.mode === "edit" ? { ...props.connection.config } : {};
+  if (props.mode === "edit") return { ...props.connection.config };
+  return { ...props.initial?.values };
 }
 
-function TypeCard({ type, onPick }: { type: ConnectionTypeInfo; onPick: () => void }) {
-  return (
-    <div className="flex flex-col rounded-lg border focus-within:ring-2 focus-within:ring-ring/50 hover:border-foreground/30">
-      <button
-        type="button"
-        onClick={onPick}
-        className="flex flex-1 items-start gap-3 rounded-lg p-3 text-left outline-none"
-      >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <TypeIcon name={type.icon} className="size-4" />
-        </span>
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-sm font-medium">{type.name}</span>
-          <span className="text-xs text-muted-foreground">{type.description}</span>
-        </span>
-      </button>
-      {type.docs_url && (
-        <a
-          href={type.docs_url}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-1 px-3 pb-2 pl-15 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-        >
-          Docs <ExternalLink className="size-3" aria-hidden />
-        </a>
-      )}
-    </div>
-  );
-}
+const GROUPS = ["Built-in", "Installed", "Custom"];
 
-function Gallery({ types, onPick }: { types: ConnectionTypeInfo[]; onPick: (id: string) => void }) {
-  const [query, setQuery] = useState("");
-  const { builtin, custom } = groupTypes(types, query);
-  const sections = [
-    { label: "Built-in", items: builtin },
-    { label: "Custom", items: custom },
-  ].filter((section) => section.items.length > 0);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <DialogHeader>
-        <DialogTitle>Add connection</DialogTitle>
-        <DialogDescription>
-          Pick the service to connect. Use Custom for a service that is not listed.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex h-9 items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-        <Search className="size-3.5 text-muted-foreground" aria-hidden />
-        <input
-          aria-label="Search connection types"
-          placeholder="Search"
-          value={query}
-          autoFocus
-          onChange={(e) => setQuery(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-      <div className="flex max-h-[min(420px,55vh)] flex-col gap-4 overflow-y-auto">
-        {sections.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">No connection types match.</p>
-        )}
-        {sections.map((section) => (
-          <div key={section.label} role="group" aria-label={section.label} className="flex flex-col gap-2">
-            <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              {section.label}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {section.items.map((type) => (
-                <TypeCard key={type.id} type={type} onPick={() => onPick(type.id)} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function typeItems(types: ConnectionTypeInfo[]): CatalogItem[] {
+  return types.map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    icon: t.icon,
+    docsUrl: t.docs_url,
+    group: t.source === "installed" ? "Installed" : t.category === "custom" ? "Custom" : "Built-in",
+    tags: [],
+  }));
 }
 
 function hostsHint(type: ConnectionTypeInfo): string | null {
@@ -153,8 +75,11 @@ function hostsHint(type: ConnectionTypeInfo): string | null {
 
 export function ConnectionDialog(props: Props) {
   const editing = props.mode === "edit";
-  const [open, setOpen] = useState(false);
-  const [typeId, setTypeId] = useState(props.mode === "edit" ? props.type.id : "");
+  // A prefilled link opens the dialog on its type.
+  const [open, setOpen] = useState(props.mode === "add" && props.initial !== undefined);
+  const [typeId, setTypeId] = useState(
+    props.mode === "edit" ? props.type.id : (props.initial?.typeId ?? ""),
+  );
   // Null until the user types a name; the suggestion shows meanwhile.
   const [typed, setTyped] = useState<string | null>(props.mode === "edit" ? props.connection.name : null);
   const [values, setValues] = useState(() => initialValues(props));
@@ -168,7 +93,7 @@ export function ConnectionDialog(props: Props) {
   function reset() {
     setTypeId(props.mode === "edit" ? props.type.id : "");
     setTyped(props.mode === "edit" ? props.connection.name : null);
-    setValues(initialValues(props));
+    setValues(props.mode === "edit" ? { ...props.connection.config } : {});
     setShown({});
   }
 
@@ -213,7 +138,22 @@ export function ConnectionDialog(props: Props) {
       />
       <DialogContent className={cn(!type && "sm:max-w-2xl")}>
         {props.mode === "add" && !type ? (
-          <Gallery types={props.types} onPick={setTypeId} />
+          <CatalogGallery
+            title="Add connection"
+            description="Pick the service to connect. Use Custom for a service that is not listed."
+            items={typeItems(props.types)}
+            order={GROUPS}
+            onPick={setTypeId}
+            footer={
+              <button
+                type="button"
+                onClick={() => openMarketplace({ kinds: ["connection-type"], onChanged: props.onSaved })}
+                className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Browse the Marketplace for more services
+              </button>
+            }
+          />
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-4">
             <DialogHeader>
@@ -231,7 +171,7 @@ export function ConnectionDialog(props: Props) {
                 </button>
               )}
               <DialogTitle className="flex items-center gap-2">
-                {type && <TypeIcon name={type.icon} className="size-4" />}
+                {type && <CatalogIcon name={type.icon} className="size-4" />}
                 {editing ? `Edit ${props.connection.name}` : `Add ${type?.name ?? ""}`}
               </DialogTitle>
               <DialogDescription>

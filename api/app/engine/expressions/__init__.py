@@ -6,11 +6,12 @@ from typing import Any
 from cel_expr_python import cel
 
 from app.engine.base import FrozenBaseModel
-from app.engine.expressions.wire import reference_paths
-from app.engine.templates import Ref
+from app.engine.expressions.wire import comprehension_depth, reference_paths
+from app.engine.refs import Ref
 
 SCOPES = ("input", "vars", "nodes")
 MAX_LENGTH = 2000
+MAX_LOOP_DEPTH = 2  # the library has no eval budget, so bound the cost of nested loops
 
 _ENV = cel.NewEnv(variables={s: cel.Type.Map(cel.Type.STRING, cel.Type.DYN) for s in SCOPES})
 
@@ -23,6 +24,7 @@ class Compiled(FrozenBaseModel):
     source: str
     program: Any
     return_type: str
+    refs: tuple[Ref, ...]
 
 
 def _message(exc: Exception) -> str:
@@ -42,7 +44,16 @@ def _compile(source: str) -> Compiled:
         program = _ENV.compile(source)
     except RuntimeError as exc:
         raise ExpressionError(_message(exc)) from exc
-    return Compiled(source=source, program=program, return_type=program.return_type().name())
+    serialized = program.serialize()
+    if comprehension_depth(serialized) > MAX_LOOP_DEPTH:
+        raise ExpressionError(f"loops nest deeper than {MAX_LOOP_DEPTH} levels")
+    paths = reference_paths(serialized)
+    return Compiled(
+        source=source,
+        program=program,
+        return_type=program.return_type().name(),
+        refs=tuple(Ref(scope=p[0], path=tuple(p[1:])) for p in paths if p[0] in SCOPES),
+    )
 
 
 def evaluate(compiled: Compiled, scope: dict[str, Any]) -> Any:
@@ -57,5 +68,4 @@ def evaluate(compiled: Compiled, scope: dict[str, Any]) -> Any:
 
 
 def references(compiled: Compiled) -> list[Ref]:
-    paths = reference_paths(compiled.program.serialize())
-    return [Ref(scope=p[0], path=tuple(p[1:])) for p in paths if p[0] in SCOPES]
+    return list(compiled.refs)

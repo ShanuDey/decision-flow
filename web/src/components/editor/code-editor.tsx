@@ -28,10 +28,13 @@ const TOKENS: [RegExp, string][] = [
   [/^\{\{|^\}\}/, "cm-tok-op"],
 ];
 
-// Re-tokenizes the whole text on each change; fine because expressions are capped at 2000 characters.
+// Re-tokenizes the whole text on each change, so a long document is left uncolored.
+const MAX_HIGHLIGHT = 20_000;
+
 function mark(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   const text = view.state.doc.toString();
+  if (text.length > MAX_HIGHLIGHT) return builder.finish();
   let i = 0;
   while (i < text.length) {
     const rest = text.slice(i);

@@ -8,6 +8,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Query
 
 from app import tracing
+from app.connections.deps import Types
 from app.connections.service import load_run_connections
 from app.connections.store import ConnectionStore, get_connection_store
 from app.engine.run_secrets import RunSecrets
@@ -48,13 +49,14 @@ def get_secret_loader(
     member: CurrentMember,
     store: Annotated[SecretStore, Depends(get_secret_store)],
     connections: Annotated[ConnectionStore, Depends(get_connection_store)],
+    types: Types,
     make_box: Annotated[BoxFactory, Depends(get_box_factory)],
 ) -> SecretLoader:
     async def load(names: set[str], connection_ids: set[str]) -> RunSecrets:
         secrets = await load_run_secrets(store, make_box, member, names) if names else RunSecrets()
         if not connection_ids:
             return secrets
-        resolved = await load_run_connections(connections, make_box, member, connection_ids)
+        resolved = await load_run_connections(connections, make_box, member, connection_ids, types)
         return secrets.model_copy(update={"connections": resolved})
 
     return load

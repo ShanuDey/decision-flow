@@ -81,6 +81,17 @@ A flow cannot read the server's environment variables.
 
 A header or URL that contains a line break is refused before anything is sent. The call identifies itself with a `User-Agent` of `decision-flow` unless you set your own, so a site that sees abuse can trace it to the server.
 
+## Start from a request template
+
+**Use a template** at the top of the node opens a list of ready-made requests, such as creating a GitHub issue or posting a Slack message. Pick one to see what it sends, then **Use template** to copy its settings into the node. You can change everything afterwards, and nothing stays linked to the template.
+
+- Applying a template replaces the node's current settings. If the node already has any, you are asked to confirm first.
+- A template that needs a connection uses yours when you have exactly one of that kind. Otherwise pick one in the node, or add one on the Connections page.
+- A template reads flow inputs such as `{{ input.title }}`. The preview lists them; add them on the Start node, or change the references.
+- Templates only fill in settings. A secret a template uses is named in the preview, and you create it in Settings.
+
+A server that turns the HTTP Request node off (`DISABLED_NODE_TYPES`) does not offer these templates.
+
 ## Keep credentials safe
 
 A secret goes wherever the flow sends it. Anyone who can edit a flow in a workspace can point a header at any address the server may call, so only give edit access to people you trust. On a shared server, set `HTTP_ALLOWED_HOSTS` so a flow can reach only hosts you have chosen.

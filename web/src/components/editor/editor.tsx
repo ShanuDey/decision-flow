@@ -43,7 +43,8 @@ export default function Editor({ id, name, draftVersion, graph, published }: Edi
     });
     Promise.all([call(listConnections()), call(listConnectionTypes())]).then(([list, types]) => {
       if (stale || !list.ok || !types.ok) return;
-      useEditor.getState().setConnections(connectionOptions(list.data.items, types.data.items));
+      const names = Object.fromEntries(types.data.items.map((t) => [t.id, t.name]));
+      useEditor.getState().setConnections(connectionOptions(list.data.items, types.data.items), names);
     });
     call(getConfig()).then((result) => {
       if (stale || !result.ok) return;

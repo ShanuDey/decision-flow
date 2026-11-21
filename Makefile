@@ -8,7 +8,7 @@ MLFLOW_UI_PORT ?= 5000
 
 .PHONY: start api setup auth-setup secrets-setup auth-token auth-migrate studio kill-studio kill-port web db mlflow-ui adminer up down migrate migration db-reset openapi client client-check \
 	lint lint-api lint-web lint-fix lint-fix-api lint-fix-web format-api format-check-api fix \
-	test-api test-api-fast typecheck-web build-web docs build-docs checks \
+	test-api test-api-fast check-marketplace typecheck-web build-web docs build-docs checks \
 	e2e-install e2e e2e-ui e2e-api e2e-report
 
 # containers first (detached), then both dev servers in parallel; Ctrl+C stops only the servers
@@ -123,6 +123,10 @@ test-api:
 test-api-fast:
 	$(API) pytest -m "not db"
 
+# the marketplace/ folder: files, index.json and schemas, read with the app's own loaders
+check-marketplace:
+	$(API) python -m scripts.check_marketplace
+
 # typegen creates the global route types (LayoutProps, ...) that a clean checkout lacks
 typecheck-web:
 	$(WEB) exec next typegen
@@ -140,7 +144,7 @@ build-docs:
 	$(DOCS) build
 	DOCS_BASE=decision-flow DOCS_OUT=dist-direct $(DOCS) build
 
-checks: lint format-check-api test-api typecheck-web client-check build-docs
+checks: lint format-check-api test-api check-marketplace typecheck-web client-check build-docs
 
 # needs a running stack (make start), so not part of checks
 e2e-install:

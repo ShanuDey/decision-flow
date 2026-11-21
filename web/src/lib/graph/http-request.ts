@@ -71,21 +71,6 @@ export function recordOf(
   return record;
 }
 
-export const bearerHeader = (secret: string): Row => ({
-  name: "Authorization",
-  value: `Bearer {{ secrets.${secret} }}`,
-});
-
-export const apiKeyHeader = (secret: string, name = "X-Api-Key"): Row => ({
-  name,
-  value: `{{ secrets.${secret} }}`,
-});
-
-export function withHeader(rows: Row[], header: Row): Row[] {
-  const at = rows.findIndex((row) => row.name.toLowerCase() === header.name.toLowerCase());
-  return at === -1 ? [...rows, header] : rows.map((row, i) => (i === at ? header : row));
-}
-
 export function bodyOnTypeChange(from: BodyType, to: BodyType, body: unknown): unknown {
   if (from === to) return body;
   if (to === "none") return null;

@@ -1,3 +1,4 @@
+import { MarketplaceHost } from "@/components/marketplace/marketplace-host";
 import { requireSession } from "@/lib/auth/session";
 
 import { EditorUserProvider } from "./editor-user";
@@ -7,6 +8,7 @@ export default async function EditorLayout({ children }: { children: React.React
   return (
     <EditorUserProvider name={user.name} email={user.email}>
       <div className="flex flex-1 flex-col">{children}</div>
+      <MarketplaceHost />
     </EditorUserProvider>
   );
 }

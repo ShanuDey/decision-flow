@@ -17,7 +17,7 @@ import { testConnection } from "@/lib/api/client";
 import type { ConnectionSummary, ConnectionTypeInfo } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
-import { hostsLabel } from "@/lib/connections";
+import { hostsLabel, type Prefill } from "@/lib/connections";
 import { formatDateTime } from "@/lib/format";
 
 import { ConnectionDialog } from "./connection-dialog";
@@ -48,9 +48,11 @@ function TestButton({ id, name }: { id: string; name: string }) {
 export function ConnectionsPanel({
   connections,
   types,
+  prefill,
 }: {
   connections: ConnectionSummary[];
   types: ConnectionTypeInfo[];
+  prefill: Prefill | null;
 }) {
   const router = useRouter();
   const byId = new Map(types.map((t) => [t.id, t]));
@@ -67,6 +69,7 @@ export function ConnectionsPanel({
           mode="add"
           types={types}
           existing={connections.map((c) => c.name)}
+          initial={prefill ?? undefined}
           onSaved={() => router.refresh()}
         />
       </div>

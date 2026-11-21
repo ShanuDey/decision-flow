@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "slack_post_message",
+  "name": "Slack: post message",
+  "description": "Posts a message to a channel with a bot token.",
+  "docs_url": "https://api.slack.com/methods/chat.postMessage",
+  "tags": [
+    "slack",
+    "messaging"
+  ],
+  "node_type": "http_request",
+  "connection": {
+    "type": "slack",
+    "values": {}
+  },
+  "inputs": [
+    {
+      "name": "channel",
+      "type": "string",
+      "description": "Channel id or name"
+    },
+    {
+      "name": "text",
+      "type": "string",
+      "description": "The message"
+    }
+  ],
+  "data": {
+    "method": "POST",
+    "url": "https://slack.com/api/chat.postMessage",
+    "body_type": "json",
+    "body": {
+      "channel": "{{ input.channel }}",
+      "text": "{{ input.text }}"
+    }
+  }
+}

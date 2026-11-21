@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "webhook_post_json",
+  "name": "Webhook: post JSON",
+  "description": "Sends an event and a payload to a webhook URL. Replace the URL.",
+  "icon": "plug",
+  "tags": [
+    "webhook"
+  ],
+  "node_type": "http_request",
+  "inputs": [
+    {
+      "name": "event",
+      "type": "string",
+      "description": "The event name"
+    },
+    {
+      "name": "payload",
+      "type": "object",
+      "description": "The data to send"
+    }
+  ],
+  "data": {
+    "method": "POST",
+    "url": "https://example.com/webhook",
+    "body_type": "json",
+    "body": {
+      "event": "{{ input.event }}",
+      "payload": "{{ input.payload }}"
+    }
+  }
+}

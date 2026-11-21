@@ -9,6 +9,7 @@ import {
   Play,
   Plug,
   Settings,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,6 +27,7 @@ const ITEMS: Item[] = [
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play },
   { href: "/connections", label: "Connections", icon: Plug },
+  { href: "/marketplace", label: "Marketplace", icon: Store },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

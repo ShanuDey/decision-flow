@@ -108,6 +108,21 @@ def _children(expr: bytes) -> list[bytes]:
     return out
 
 
+def comprehension_depth(serialized: bytes) -> int:
+    """How deeply loops (`map`, `filter`, `all`, ...) nest; chained calls do not nest."""
+
+    def depth(expr: bytes) -> int:
+        msg = _message(expr)
+        if (loop := _first(msg, _COMPREHENSION)) is not None:
+            parts = _message(loop)
+            before = [depth(e) for number in (2, 4) for e in _all(parts, number)]
+            body = [depth(e) for number in (5, 6, 7) for e in _all(parts, number)]
+            return max([*before, 1 + max(body, default=0)])
+        return max((depth(child) for child in _children(expr)), default=0)
+
+    return depth(_checked_expr(serialized))
+
+
 def reference_paths(serialized: bytes) -> list[list[str]]:
     found: list[list[str]] = []
 

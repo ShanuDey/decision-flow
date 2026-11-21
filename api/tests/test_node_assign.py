@@ -70,7 +70,7 @@ def test_a_typo_in_a_vars_reference_fails_validation(raw: dict) -> None:
 
 def test_unknown_input_and_unsupported_expressions_fail_validation(raw: dict) -> None:
     assign_node(raw)["data"]["assignments"][0]["value"] = "{{ input.ghost }}"
-    assign_node(raw)["data"]["assignments"][1]["value"] = "{{ input.amount > 1 }}"
+    assign_node(raw)["data"]["assignments"][1]["value"] = "{{ input.amount > }}"
     assert [i.code for i in issues(raw)] == ["unknown_reference", "unsupported_expression"]
 
 

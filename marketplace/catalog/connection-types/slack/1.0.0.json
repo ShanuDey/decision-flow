@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "slack",
+  "name": "Slack",
+  "description": "A Slack bot token, sent only to slack.com.",
+  "icon": "plug",
+  "docs_url": "https://api.slack.com/authentication/token-types",
+  "category": "builtin",
+  "fields": [
+    {
+      "name": "token",
+      "label": "Bot token",
+      "secret": true,
+      "help": "Starts with xoxb-."
+    }
+  ],
+  "auth": {
+    "kind": "bearer",
+    "token": "token"
+  },
+  "fixed_hosts": [
+    "slack.com"
+  ]
+}

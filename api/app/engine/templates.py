@@ -1,46 +1,89 @@
-"""Minimal resolver: `{{ input.a.b }}`, `{{ vars.x }}`, `{{ nodes.id.output.k }}` and secrets."""
+"""`{{ ... }}` fields: plain scope paths resolve directly, anything else is CEL."""
 
 import json
 import re
+from functools import lru_cache
 from typing import Any
 
-from app.engine.base import FrozenBaseModel
+from app.engine import expressions
+from app.engine.expressions import Compiled
+from app.engine.refs import Ref
 
-_EXPR = re.compile(r"\{\{(.*?)\}\}")
+__all__ = ["Ref", "TemplateError", "references", "render"]
+
 _PATH = re.compile(r"^(input|vars|secrets|nodes)((?:\.[A-Za-z_][A-Za-z0-9_]*)+)$")
+_MISSING_KEY = re.compile(r'Key not found in map : ("[^"]*")')
 
 
 class TemplateError(ValueError):
     pass
 
 
-class Ref(FrozenBaseModel):
-    scope: str
-    path: tuple[str, ...]
+def _expr_end(text: str, i: int) -> int:
+    """Index of the `}}` closing an expression, skipping string literals and `{...}` maps."""
+    depth, quote = 0, ""
+    while i < len(text):
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 1
+            elif c == quote:
+                quote = ""
+        elif c in "'\"":
+            quote = c
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            if depth == 0 and text.startswith("}}", i):
+                return i
+            depth = max(depth - 1, 0)
+        i += 1
+    return -1
 
-    def __str__(self) -> str:
-        return ".".join((self.scope, *self.path))
 
-
-def _parse(template: str) -> list[str | Ref]:
-    # re.split with one group alternates literal text and expression text
-    parts: list[str | Ref] = []
-    for i, chunk in enumerate(_EXPR.split(template)):
-        if i % 2 == 0:
-            parts.append(chunk)
-            continue
-        match = _PATH.match(chunk.strip())
-        if not match:
-            raise TemplateError(
-                f"unsupported expression '{chunk.strip()}': "
-                "only input.*, vars.*, nodes.* and secrets.* references work yet"
-            )
-        parts.append(Ref(scope=match[1], path=tuple(match[2].lstrip(".").split("."))))
+def _split(template: str) -> list[str]:
+    """Alternates literal text and expression text, starting and ending with literal."""
+    parts: list[str] = []
+    pos = 0
+    while (start := template.find("{{", pos)) >= 0:
+        end = _expr_end(template, start + 2)
+        if end < 0:
+            end = template.find("}}", start + 2)  # unbalanced quote: still report the expression
+        if end < 0:
+            break
+        parts += [template[pos:start], template[start + 2 : end]]
+        pos = end + 2
+    parts.append(template[pos:])
     return parts
 
 
+@lru_cache(maxsize=1024)
+def _parse(template: str) -> tuple[str | Ref | Compiled, ...]:
+    parts: list[str | Ref | Compiled] = []
+    for i, chunk in enumerate(_split(template)):
+        if i % 2 == 0:
+            parts.append(chunk)
+            continue
+        source = chunk.strip()
+        match = _PATH.match(source)
+        if match:
+            parts.append(Ref(scope=match[1], path=tuple(match[2].lstrip(".").split("."))))
+            continue
+        try:
+            parts.append(expressions.compile(source))
+        except expressions.ExpressionError as exc:
+            raise TemplateError(f"invalid expression '{source}': {exc}") from exc
+    return tuple(parts)
+
+
 def references(template: str) -> list[Ref]:
-    return [p for p in _parse(template) if isinstance(p, Ref)]
+    refs: list[Ref] = []
+    for part in _parse(template):
+        if isinstance(part, Ref):
+            refs.append(part)
+        elif isinstance(part, Compiled):
+            refs.extend(expressions.references(part))
+    return refs
 
 
 def _resolve(ref: Ref, scopes: dict[str, Any]) -> Any:
@@ -56,16 +99,26 @@ def _resolve(ref: Ref, scopes: dict[str, Any]) -> Any:
     return value
 
 
+def _value(part: Ref | Compiled, scopes: dict[str, Any]) -> Any:
+    if isinstance(part, Ref):
+        return _resolve(part, scopes)
+    try:
+        return expressions.evaluate(part, scopes)
+    except expressions.ExpressionError as exc:
+        reason = _MISSING_KEY.sub(r"\1 is not set", str(exc))
+        raise TemplateError(f"expression '{part.source}' failed: {reason}") from exc
+
+
 def render(template: str, scopes: dict[str, Any]) -> Any:
-    """A lone `{{ ref }}` keeps the value's type; mixed text is interpolated into a string."""
+    """A lone `{{ expr }}` keeps the value's type; mixed text is interpolated into a string."""
     parts = _parse(template)
     if len(parts) == 3 and parts[0] == "" and parts[2] == "":
-        return _resolve(parts[1], scopes)  # type: ignore[arg-type]
+        return _value(parts[1], scopes)  # type: ignore[arg-type]
     out = []
     for part in parts:
         if isinstance(part, str):
             out.append(part)
         else:
-            value = _resolve(part, scopes)
+            value = _value(part, scopes)
             out.append(value if isinstance(value, str) else json.dumps(value))
     return "".join(out)

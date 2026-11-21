@@ -32,6 +32,8 @@ class ConnectionTypeInfo(FrozenBaseModel):
     docs_url: str
     # "builtin" ships with the app; "custom" is a generic type for services nobody has packaged.
     category: str
+    # "builtin" ships with the app; "installed" came from the Marketplace.
+    source: str
     fields: list[FieldInfo]
     # The fixed hosts, or empty when the user lists them in the `hosts` field.
     hosts: list[str]

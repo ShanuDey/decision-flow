@@ -47,6 +47,34 @@
         "title": "AppConfig",
         "type": "object"
       },
+      "CatalogListing": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/IndexEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "entries",
+          "fetched_at",
+          "stale"
+        ],
+        "title": "CatalogListing",
+        "type": "object"
+      },
       "ConnectionCreate": {
         "additionalProperties": false,
         "properties": {
@@ -222,6 +250,10 @@
             "title": "Name",
             "type": "string"
           },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
           "testable": {
             "title": "Testable",
             "type": "boolean"
@@ -234,6 +266,7 @@
           "icon",
           "docs_url",
           "category",
+          "source",
           "fields",
           "hosts",
           "hosts_from",
@@ -808,6 +841,391 @@
           "status"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "HttpRequestData": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "title": "Body"
+          },
+          "body_type": {
+            "default": "none",
+            "enum": [
+              "none",
+              "json",
+              "form",
+              "text"
+            ],
+            "title": "Body Type",
+            "type": "string"
+          },
+          "connection_id": {
+            "default": "",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "fail_on_error_status": {
+            "default": false,
+            "title": "Fail On Error Status",
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "object"
+          },
+          "method": {
+            "default": "GET",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Query",
+            "type": "object"
+          },
+          "timeout_seconds": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout Seconds"
+          },
+          "url": {
+            "default": "",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "title": "HttpRequestData",
+        "type": "object"
+      },
+      "IndexEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "has_readme": {
+            "title": "Has Readme",
+            "type": "boolean"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "description",
+          "icon",
+          "tags",
+          "version",
+          "hash",
+          "path",
+          "requires",
+          "has_readme"
+        ],
+        "title": "IndexEntry",
+        "type": "object"
+      },
+      "InstallRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "version",
+          "hash"
+        ],
+        "title": "InstallRequest",
+        "type": "object"
+      },
+      "InstallResult": {
+        "additionalProperties": false,
+        "properties": {
+          "installed": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledSummary"
+            },
+            "title": "Installed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "installed"
+        ],
+        "title": "InstallResult",
+        "type": "object"
+      },
+      "InstalledList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InstalledSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "InstalledList",
+        "type": "object"
+      },
+      "InstalledSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "installed_at": {
+            "format": "date-time",
+            "title": "Installed At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "version",
+          "hash",
+          "installed_at"
+        ],
+        "title": "InstalledSummary",
+        "type": "object"
+      },
+      "NodeTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "connection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateConnection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/HttpRequestData"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "docs_url": {
+            "default": "",
+            "title": "Docs Url",
+            "type": "string"
+          },
+          "icon": {
+            "default": "plug",
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateInput"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_type": {
+            "const": "http_request",
+            "title": "Node Type",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "secrets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secrets",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "version": {
+            "default": "1.0.0",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "node_type",
+          "data"
+        ],
+        "title": "NodeTemplate",
+        "type": "object"
+      },
+      "NodeTemplateItem": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "enum": [
+              "builtin",
+              "installed"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "template": {
+            "$ref": "#/components/schemas/NodeTemplate"
+          }
+        },
+        "required": [
+          "source",
+          "template"
+        ],
+        "title": "NodeTemplateItem",
+        "type": "object"
+      },
+      "NodeTemplateList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NodeTemplateItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "NodeTemplateList",
         "type": "object"
       },
       "Principal": {
@@ -1440,6 +1858,58 @@
         "title": "Template",
         "type": "object"
       },
+      "TemplateConnection": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "TemplateConnection",
+        "type": "object"
+      },
+      "TemplateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "default": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "object",
+              "array"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TemplateInput",
+        "type": "object"
+      },
       "TemplateList": {
         "additionalProperties": false,
         "properties": {
@@ -1604,6 +2074,408 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/catalog/index": {
+      "get": {
+        "description": "Lists what the Marketplace offers: a summary per item, newest version only.\n\nEach entry has the `hash` to send when installing it, and the entries it `requires`. The list\nis cached for a few minutes; `stale` is true when the latest refresh failed and this is the\nprevious copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.",
+        "operationId": "get_catalog_index",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogListing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Catalog Index",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/install": {
+      "post": {
+        "description": "Installs a catalog item in this workspace, or updates it to the given version.\n\nThe server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the\nentry changed since you loaded the index. Items it requires are installed first.",
+        "operationId": "install_item",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Install Item",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/installed": {
+      "get": {
+        "description": "Lists the Marketplace items installed in this workspace, with their versions.",
+        "operationId": "list_installed",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstalledList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Installed",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/installed/{kind}/{item_id}": {
+      "delete": {
+        "description": "Removes an installed item. Things already made from it keep their copied settings.\n\n409 `type_in_use` if connections still use a connection type, and 409 `required_by` if\nanother installed item needs it.",
+        "operationId": "uninstall_item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "connection-type",
+                "node-template"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Uninstall Item",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/catalog/refresh": {
+      "post": {
+        "description": "Fetches the index again now.\n\nWithin 30 seconds of the last attempt the saved copy is returned instead.",
+        "operationId": "refresh_catalog_index",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogListing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Refresh Catalog Index",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/config": {
       "get": {
         "description": "Deployment settings the web app needs.",
@@ -3716,6 +4588,92 @@
         "summary": "Me",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/node-templates": {
+      "get": {
+        "description": "Lists the ready-made settings for a node, such as an HTTP Request.\n\nThe built-in templates plus the ones installed from the Marketplace. A template this server\ncould not run is left out: its node type is turned off, or its URL points at a host the\nserver does not allow. Applying one copies its settings into the node; nothing stays linked.",
+        "operationId": "list_node_templates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "node_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "http_request",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeTemplateList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Node Templates",
+        "tags": [
+          "node-templates"
         ]
       }
     },

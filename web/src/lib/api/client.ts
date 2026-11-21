@@ -6,6 +6,7 @@
  */
 import type {
   AppConfig,
+  CatalogListing,
   ConnectionCreate,
   ConnectionList,
   ConnectionSummary,
@@ -27,8 +28,13 @@ import type {
   FlowSummary,
   HTTPValidationError,
   HealthResponse,
+  InstallRequest,
+  InstallResult,
+  InstalledList,
   ListFlowsParams,
+  ListNodeTemplatesParams,
   ListRunsParams,
+  NodeTemplateList,
   Principal,
   ReadyResponse,
   RunDetail,
@@ -48,6 +54,349 @@ import type {
 } from './models';
 
 import { apiFetch } from '../fetcher';
+export type getCatalogIndexResponse200 = {
+  data: CatalogListing
+  status: 200
+}
+
+export type getCatalogIndexResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getCatalogIndexResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getCatalogIndexResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getCatalogIndexResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type getCatalogIndexResponseSuccess = (getCatalogIndexResponse200) & {
+  headers: Headers;
+};
+export type getCatalogIndexResponseError = (getCatalogIndexResponse401 | getCatalogIndexResponse403 | getCatalogIndexResponse429 | getCatalogIndexResponse503) & {
+  headers: Headers;
+};
+
+export type getCatalogIndexResponse = (getCatalogIndexResponseSuccess | getCatalogIndexResponseError)
+
+export const getGetCatalogIndexUrl = () => {
+
+
+
+
+  return `/catalog/index`
+}
+
+/**
+ * Lists what the Marketplace offers: a summary per item, newest version only.
+ *
+ * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
+ * is cached for a few minutes; `stale` is true when the latest refresh failed and this is the
+ * previous copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.
+ * @summary Get Catalog Index
+ */
+export const getCatalogIndex = async ( options?: Parameters<typeof apiFetch>[1]): Promise<getCatalogIndexResponse> => {
+
+  return apiFetch<getCatalogIndexResponse>(getGetCatalogIndexUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type installItemResponse201 = {
+  data: InstallResult
+  status: 201
+}
+
+export type installItemResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type installItemResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type installItemResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type installItemResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type installItemResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type installItemResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type installItemResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type installItemResponseSuccess = (installItemResponse201) & {
+  headers: Headers;
+};
+export type installItemResponseError = (installItemResponse401 | installItemResponse403 | installItemResponse404 | installItemResponse409 | installItemResponse422 | installItemResponse429 | installItemResponse503) & {
+  headers: Headers;
+};
+
+export type installItemResponse = (installItemResponseSuccess | installItemResponseError)
+
+export const getInstallItemUrl = () => {
+
+
+
+
+  return `/catalog/install`
+}
+
+/**
+ * Installs a catalog item in this workspace, or updates it to the given version.
+ *
+ * The server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the
+ * entry changed since you loaded the index. Items it requires are installed first.
+ * @summary Install Item
+ */
+export const installItem = async (installRequest: InstallRequest, options?: Parameters<typeof apiFetch>[1]): Promise<installItemResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<installItemResponse>(getInstallItemUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(installRequest)
+  }
+);}
+
+
+
+export type listInstalledResponse200 = {
+  data: InstalledList
+  status: 200
+}
+
+export type listInstalledResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listInstalledResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listInstalledResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listInstalledResponseSuccess = (listInstalledResponse200) & {
+  headers: Headers;
+};
+export type listInstalledResponseError = (listInstalledResponse401 | listInstalledResponse403 | listInstalledResponse429) & {
+  headers: Headers;
+};
+
+export type listInstalledResponse = (listInstalledResponseSuccess | listInstalledResponseError)
+
+export const getListInstalledUrl = () => {
+
+
+
+
+  return `/catalog/installed`
+}
+
+/**
+ * Lists the Marketplace items installed in this workspace, with their versions.
+ * @summary List Installed
+ */
+export const listInstalled = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listInstalledResponse> => {
+
+  return apiFetch<listInstalledResponse>(getListInstalledUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type uninstallItemResponse204 = {
+  data: void
+  status: 204
+}
+
+export type uninstallItemResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type uninstallItemResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type uninstallItemResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type uninstallItemResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type uninstallItemResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type uninstallItemResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type uninstallItemResponseSuccess = (uninstallItemResponse204) & {
+  headers: Headers;
+};
+export type uninstallItemResponseError = (uninstallItemResponse401 | uninstallItemResponse403 | uninstallItemResponse404 | uninstallItemResponse409 | uninstallItemResponse422 | uninstallItemResponse429) & {
+  headers: Headers;
+};
+
+export type uninstallItemResponse = (uninstallItemResponseSuccess | uninstallItemResponseError)
+
+export const getUninstallItemUrl = (kind: 'connection-type' | 'node-template',
+    itemId: string,) => {
+
+
+
+
+  return `/catalog/installed/${kind}/${itemId}`
+}
+
+/**
+ * Removes an installed item. Things already made from it keep their copied settings.
+ *
+ * 409 `type_in_use` if connections still use a connection type, and 409 `required_by` if
+ * another installed item needs it.
+ * @summary Uninstall Item
+ */
+export const uninstallItem = async (kind: 'connection-type' | 'node-template',
+    itemId: string, options?: Parameters<typeof apiFetch>[1]): Promise<uninstallItemResponse> => {
+
+  return apiFetch<uninstallItemResponse>(getUninstallItemUrl(kind,itemId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type refreshCatalogIndexResponse200 = {
+  data: CatalogListing
+  status: 200
+}
+
+export type refreshCatalogIndexResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type refreshCatalogIndexResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type refreshCatalogIndexResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type refreshCatalogIndexResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type refreshCatalogIndexResponseSuccess = (refreshCatalogIndexResponse200) & {
+  headers: Headers;
+};
+export type refreshCatalogIndexResponseError = (refreshCatalogIndexResponse401 | refreshCatalogIndexResponse403 | refreshCatalogIndexResponse429 | refreshCatalogIndexResponse503) & {
+  headers: Headers;
+};
+
+export type refreshCatalogIndexResponse = (refreshCatalogIndexResponseSuccess | refreshCatalogIndexResponseError)
+
+export const getRefreshCatalogIndexUrl = () => {
+
+
+
+
+  return `/catalog/refresh`
+}
+
+/**
+ * Fetches the index again now.
+ *
+ * Within 30 seconds of the last attempt the saved copy is returned instead.
+ * @summary Refresh Catalog Index
+ */
+export const refreshCatalogIndex = async ( options?: Parameters<typeof apiFetch>[1]): Promise<refreshCatalogIndexResponse> => {
+
+  return apiFetch<refreshCatalogIndexResponse>(getRefreshCatalogIndexUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export type configResponse200 = {
   data: AppConfig
   status: 200
@@ -1715,6 +2064,76 @@ export const getMeUrl = () => {
 export const me = async ( options?: Parameters<typeof apiFetch>[1]): Promise<meResponse> => {
 
   return apiFetch<meResponse>(getMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listNodeTemplatesResponse200 = {
+  data: NodeTemplateList
+  status: 200
+}
+
+export type listNodeTemplatesResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listNodeTemplatesResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listNodeTemplatesResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listNodeTemplatesResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listNodeTemplatesResponseSuccess = (listNodeTemplatesResponse200) & {
+  headers: Headers;
+};
+export type listNodeTemplatesResponseError = (listNodeTemplatesResponse401 | listNodeTemplatesResponse403 | listNodeTemplatesResponse422 | listNodeTemplatesResponse429) & {
+  headers: Headers;
+};
+
+export type listNodeTemplatesResponse = (listNodeTemplatesResponseSuccess | listNodeTemplatesResponseError)
+
+export const getListNodeTemplatesUrl = (params?: ListNodeTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/node-templates?${stringifiedParams}` : `/node-templates`
+}
+
+/**
+ * Lists the ready-made settings for a node, such as an HTTP Request.
+ *
+ * The built-in templates plus the ones installed from the Marketplace. A template this server
+ * could not run is left out: its node type is turned off, or its URL points at a host the
+ * server does not allow. Applying one copies its settings into the node; nothing stays linked.
+ * @summary List Node Templates
+ */
+export const listNodeTemplates = async (params?: ListNodeTemplatesParams, options?: Parameters<typeof apiFetch>[1]): Promise<listNodeTemplatesResponse> => {
+
+  return apiFetch<listNodeTemplatesResponse>(getListNodeTemplatesUrl(params),
   {
     ...options,
     method: 'GET'

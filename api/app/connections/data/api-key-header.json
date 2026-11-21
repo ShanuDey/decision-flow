@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "version": "1.0.0",
   "id": "api_key_header",
   "name": "API key in a header",
   "description": "Sends your key in a header you name, to the hosts you list.",

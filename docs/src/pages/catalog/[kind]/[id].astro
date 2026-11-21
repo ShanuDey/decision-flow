@@ -1,0 +1,309 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { getEntry, render } from "astro:content";
+
+import { type CatalogItem, itemPath, KINDS, loadCatalog } from "../../../lib/catalog";
+
+export function getStaticPaths() {
+  const items = loadCatalog();
+  return items.map((entry) => ({
+    params: { kind: KINDS[entry.kind].dir, id: entry.id },
+    props: { entry, items },
+  }));
+}
+
+const { entry, items } = Astro.props as { entry: CatalogItem; items: CatalogItem[] };
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const appUrl = (import.meta.env.PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+const body = entry.body;
+const href = (other: CatalogItem) => `${base}/${itemPath(other)}`;
+
+let openInApp: { href: string; note: string } | null = null;
+if (appUrl && entry.source === "marketplace") {
+  openInApp = {
+    href: `${appUrl}/marketplace`,
+    note: "Opens the Marketplace in your workspace. You need to be signed in to install it.",
+  };
+} else if (appUrl && entry.kind === "connection-type") {
+  openInApp = { href: `${appUrl}/connections`, note: "Built in, so there is nothing to install. Add it from Connections." };
+}
+
+const readme = entry.readme ? await getEntry("catalogReadmes", entry.readme) : undefined;
+const Readme = readme ? (await render(readme)).Content : null;
+
+const fieldLabel = (name: string) => body.fields?.find((f: any) => f.name === name)?.label ?? name;
+const connectionType: CatalogItem | undefined =
+  entry.kind === "node-template" && body.connection
+    ? items.find((i) => i.kind === "connection-type" && i.id === body.connection.type)
+    : undefined;
+const usedBy =
+  entry.kind === "connection-type"
+    ? items.filter((i) => i.kind === "node-template" && i.body.connection?.type === entry.id)
+    : [];
+
+let sends = "";
+let reach = "";
+let test = "";
+if (entry.kind === "connection-type") {
+  const auth = body.auth;
+  sends =
+    auth.kind === "bearer"
+      ? `Authorization: Bearer <${fieldLabel(auth.token)}>`
+      : auth.kind === "basic"
+        ? `Authorization: Basic <${fieldLabel(auth.username)}:${fieldLabel(auth.password)}>`
+        : `<${fieldLabel(auth.name_field)}>: <${fieldLabel(auth.value)}>`;
+  reach = body.fixed_hosts?.length
+    ? `Only to ${body.fixed_hosts.join(", ")}.`
+    : body.hosts_from
+      ? `Only to the host of the ${fieldLabel(body.hosts_from)} you enter.`
+      : "Only to the hosts you list when you add a connection.";
+  test = body.test_url ?? (body.hosts_from && body.test_path ? `<${fieldLabel(body.hosts_from)}>${body.test_path}` : "");
+}
+
+const data = body.data ?? {};
+const headerNames = Object.keys(data.headers ?? {});
+const bodyText =
+  data.body === undefined ? "" : typeof data.body === "string" ? data.body : JSON.stringify(data.body, null, 2);
+let calls = "";
+try {
+  calls = data.url ? new URL(String(data.url)).hostname : "";
+} catch {
+  calls = "";
+}
+---
+
+<StarlightPage
+  frontmatter={{
+    title: entry.name,
+    description: entry.description,
+    tableOfContents: false,
+    editUrl: false,
+    lastUpdated: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <p class="crumbs">
+    <a href={`${base}/catalog`}>Catalog</a> › {KINDS[entry.kind].plural}
+  </p>
+  <p class="badges">
+    <span class="badge">{KINDS[entry.kind].label}</span>
+    <span class={entry.source === "builtin" ? "badge ok" : "badge mk"}>
+      {entry.source === "builtin" ? "Built-in" : "Marketplace"}
+    </span>
+    <span class="badge">v{entry.version}</span>
+    {entry.tags.map((tag) => <span class="badge">{tag}</span>)}
+  </p>
+  <p>{entry.description}</p>
+  {
+    openInApp && (
+      <p>
+        <a class="btn" href={openInApp.href}>
+          Open in the app
+        </a>
+        <br />
+        <small>{openInApp.note}</small>
+      </p>
+    )
+  }
+  {
+    entry.docsUrl && (
+      <p>
+        <a href={entry.docsUrl} target="_blank" rel="noopener noreferrer">
+          Provider documentation
+        </a>
+      </p>
+    )
+  }
+
+  {
+    entry.kind === "connection-type" ? (
+      <>
+        <h2 id="fields">Fields</h2>
+        <table>
+          <tbody>
+            {body.fields.map((f: any) => (
+              <tr>
+                <th scope="row">{f.label}</th>
+                <td>
+                  {f.secret ? "Secret. Encrypted, never shown again." : f.required === false ? "Optional." : "Required."}
+                  {f.default && (
+                    <>
+                      {" "}
+                      Default <code>{f.default}</code>.
+                    </>
+                  )}
+                  {f.help && <> {f.help}</>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h2 id="reach">Where the secret can go</h2>
+        <p>{reach} If a node's URL points anywhere else, the run stops before anything is sent.</p>
+        <h2 id="sends">What it sends</h2>
+        <pre>
+          <code>{sends}</code>
+        </pre>
+        {test && (
+          <>
+            <h2 id="test">Test</h2>
+            <p>
+              The Connections page can test it with a call to <code>{test}</code>.
+            </p>
+          </>
+        )}
+        {usedBy.length > 0 && (
+          <>
+            <h2 id="templates">Templates that use it</h2>
+            <ul>
+              {usedBy.map((t) => (
+                <li>
+                  <a href={href(t)}>{t.name}</a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </>
+    ) : (
+      <>
+        <h2 id="sends">What it sends</h2>
+        <table>
+          <tbody>
+            <tr>
+              <th scope="row">Request</th>
+              <td>
+                <code>
+                  {data.method ?? "GET"} {data.url}
+                </code>
+              </td>
+            </tr>
+            {headerNames.length > 0 && (
+              <tr>
+                <th scope="row">Headers</th>
+                <td>
+                  {headerNames.map((name, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <code>{name}</code>
+                    </>
+                  ))}
+                </td>
+              </tr>
+            )}
+            {data.body_type && (
+              <tr>
+                <th scope="row">Body</th>
+                <td>{data.body_type}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {bodyText && (
+          <pre>
+            <code>{bodyText}</code>
+          </pre>
+        )}
+        <h2 id="before">Before you use it</h2>
+        <table>
+          <tbody>
+            {body.connection && (
+              <tr>
+                <th scope="row">Connection</th>
+                <td>
+                  Needs a{" "}
+                  {connectionType ? <a href={href(connectionType)}>{connectionType.name}</a> : <code>{body.connection.type}</code>}{" "}
+                  connection.
+                  {connectionType?.source === "marketplace" && " Installing this template installs that type too."}
+                </td>
+              </tr>
+            )}
+            {body.inputs?.length > 0 && (
+              <tr>
+                <th scope="row">Reads inputs</th>
+                <td>
+                  {body.inputs.map((input: any, n: number) => (
+                    <>
+                      {n > 0 && ", "}
+                      <code>{input.name}</code> ({input.type})
+                    </>
+                  ))}
+                  . Add them on the Start node, or change the references.
+                </td>
+              </tr>
+            )}
+            {calls && (
+              <tr>
+                <th scope="row">Calls</th>
+                <td>
+                  <code>{calls}</code>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        <p>
+          <small>Applying a template copies its settings into the node. Nothing stays linked to it.</small>
+        </p>
+      </>
+    )
+  }
+
+  {
+    Readme && (
+      <>
+        <h2 id="notes">Notes</h2>
+        <div class="sl-markdown-content readme">
+          <Readme />
+        </div>
+      </>
+    )
+  }
+</StarlightPage>
+
+<style>
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+  .badge {
+    display: inline-block;
+    font-size: var(--sl-text-xs);
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+  }
+  .badge.ok {
+    border-color: transparent;
+    background: var(--sl-color-green-low);
+    color: var(--sl-color-green-high);
+  }
+  .badge.mk {
+    border-color: transparent;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+  }
+  .crumbs {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  th {
+    width: 10rem;
+    color: var(--sl-color-gray-2);
+  }
+  table {
+    width: 100%;
+  }
+</style>

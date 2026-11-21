@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  apiKeyHeader,
-  bearerHeader,
   bodyOnTypeChange,
   headerNameCheck,
   jsonText,
@@ -11,7 +9,6 @@ import {
   recordOf,
   rowProblem,
   rowsOf,
-  withHeader,
 } from "./http-request";
 
 describe("rows", () => {
@@ -66,27 +63,6 @@ describe("rows", () => {
     }
     expect(headerNameCheck("Content-Type")).toBeNull();
     expect(headerNameCheck("Authorization")).toBeNull();
-  });
-});
-
-describe("authentication presets", () => {
-  it("builds a bearer header and an API key header from a secret name", () => {
-    expect(bearerHeader("STRIPE_KEY")).toEqual({
-      name: "Authorization",
-      value: "Bearer {{ secrets.STRIPE_KEY }}",
-    });
-    expect(apiKeyHeader("SCORE_KEY")).toEqual({ name: "X-Api-Key", value: "{{ secrets.SCORE_KEY }}" });
-    expect(apiKeyHeader("SCORE_KEY", "X-Token").name).toBe("X-Token");
-  });
-
-  it("adds a header, or replaces the one with the same name whatever its case", () => {
-    const rows = [{ name: "authorization", value: "old" }, { name: "Accept", value: "json" }];
-    expect(withHeader(rows, bearerHeader("K"))).toEqual([
-      { name: "Authorization", value: "Bearer {{ secrets.K }}" },
-      { name: "Accept", value: "json" },
-    ]);
-    expect(withHeader([], bearerHeader("K"))).toHaveLength(1);
-    expect(withHeader(rows, apiKeyHeader("K"))).toHaveLength(3);
   });
 });
 
