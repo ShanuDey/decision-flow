@@ -19,6 +19,7 @@ tests/
     errors/                limits.spec.ts (429 and 409 messages, mocked in the browser)
     settings/              appearance, account, system, navigation
     editor/                top-bar, node-picker, config-panel, expand-dialog, validate, leave-guard, run
+  docs/                    public docs site specs (own config: playwright.docs.config.ts, `make e2e-docs`; starts the docs dev server, needs no stack)
   api/                     HTTP tests through the web proxy (project: api)
     flows.spec.ts, expressions.spec.ts
 ```

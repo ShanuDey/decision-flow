@@ -1,0 +1,145 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+
+import { APP_URL } from "../lib/app-url";
+
+// The /docs build is served by the app itself, so its own origin is the app; every other build asks.
+const sameOrigin = import.meta.env.PROD && import.meta.env.BASE_URL.replace(/\/$/, "") === "/docs";
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Open in your app",
+    description: "Choose which Decision Flow app these links open.",
+    head: [
+      { tag: "meta", attrs: { name: "referrer", content: "no-referrer" } },
+      { tag: "meta", attrs: { name: "robots", content: "noindex" } },
+    ],
+    tableOfContents: false,
+    editUrl: false,
+    lastUpdated: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <div id="open-in-app" data-same-origin={String(sameOrigin)}>
+    <p id="status" role="status">Opening your app…</p>
+
+    <form id="ask" class="not-content" hidden novalidate>
+      <p>
+        Links in these docs open pages in your own Decision Flow app. Enter its address once. It is saved in
+        this browser only and never sent anywhere.
+      </p>
+      <label for="app-url">App address</label>
+      <div class="row">
+        <input id="app-url" name="app-url" type="url" autocomplete="url" placeholder={APP_URL} />
+        <button type="submit">Continue</button>
+      </div>
+      <p id="error" role="alert" hidden></p>
+    </form>
+
+    <noscript>
+      <p>This page needs JavaScript. Open <a href={APP_URL}>{APP_URL}</a> or your own app directly.</p>
+    </noscript>
+  </div>
+</StarlightPage>
+
+<script>
+  import { normalizeAppUrl, resolve, STORAGE_KEY, targetPath } from "../lib/open-in-app.mjs";
+
+  const root = document.getElementById("open-in-app") as HTMLElement;
+  const status = document.getElementById("status") as HTMLElement;
+  const form = document.getElementById("ask") as HTMLFormElement;
+  const input = document.getElementById("app-url") as HTMLInputElement;
+  const error = document.getElementById("error") as HTMLElement;
+
+  const params = new URLSearchParams(location.search);
+  const target = params.get("to") ?? "home";
+  const sameOrigin = root.dataset.sameOrigin === "true";
+
+  function read(): string | null {
+    try {
+      return localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function save(origin: string) {
+    try {
+      localStorage.setItem(STORAGE_KEY, origin);
+    } catch {
+      // Storage is blocked: the link still works, it just asks again next time.
+    }
+  }
+
+  function ask(current: string | null) {
+    status.hidden = true;
+    form.hidden = false;
+    input.value = normalizeAppUrl(current) ?? "";
+    input.focus();
+  }
+
+  const saved = sameOrigin ? location.origin : read();
+  const next = resolve(target, saved);
+
+  if (next.kind === "go" && (sameOrigin || !params.has("change"))) {
+    status.textContent = `Opening ${new URL(next.url).origin}…`;
+    location.replace(next.url);
+  } else {
+    ask(saved);
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const origin = normalizeAppUrl(input.value);
+    if (!origin) {
+      error.textContent = "Enter a full address such as https://flows.example.com.";
+      error.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    save(origin);
+    location.replace(origin + targetPath(target));
+  });
+</script>
+
+<style>
+  form label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-weight: 600;
+  }
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .row input {
+    flex: 1;
+    min-width: 14rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-text);
+    font: inherit;
+  }
+  .row input[aria-invalid="true"] {
+    border-color: var(--sl-color-red);
+  }
+  .row button {
+    padding: 0.5rem 1rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #error {
+    margin-top: 0.5rem;
+    color: var(--sl-color-red-high);
+  }
+</style>
