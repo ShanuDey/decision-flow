@@ -149,8 +149,13 @@ class FakeFlowStore:
                 None,
             )
             nodes = version.graph.get("nodes", []) if version else []
+            target = str(flow_id)
             if any(
-                n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == str(flow_id)
+                (n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == target)
+                or (
+                    n.get("type") == "agent"
+                    and any(t.get("flow_id") == target for t in n.get("data", {}).get("tools", []))
+                )
                 for n in nodes
             ):
                 found.append(flow)

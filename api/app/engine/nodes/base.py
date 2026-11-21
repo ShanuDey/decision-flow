@@ -62,6 +62,10 @@ class NodeModel(StrictBaseModel):
         """Connections this node sends, so a run can load them before it starts."""
         return set()
 
+    def called_flow_ids(self) -> list[str]:
+        """Flows this node may run, so callers can be listed and loops refused."""
+        return []
+
     def secret_fields(self) -> set[str]:
         """Template fields that may use `{{ secrets.NAME }}`; every other field rejects it."""
         return set()

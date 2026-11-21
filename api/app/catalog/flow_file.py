@@ -41,8 +41,10 @@ class CatalogFlow(FrozenBaseModel):
         graph, issues = parse_graph(self.draft)
         problems += [issue.message for issue in issues]
         if graph is not None:
-            if any(node.type == "subflow" for node in graph.nodes):
-                problems.append("a subflow node needs a flow of the installer's workspace")
+            if any(node.called_flow_ids() for node in graph.nodes):
+                problems.append(
+                    "a node that runs another flow needs a flow of the installer's workspace"
+                )
             used = {cid for n in graph.nodes for cid in n.connection_ids()}
             if undeclared := sorted(used - set(self.connections)):
                 problems.append(f"connection {undeclared[0]} is used but not declared")

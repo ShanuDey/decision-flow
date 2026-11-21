@@ -1,11 +1,13 @@
 """Model calls for nodes. Only this package imports the chat libraries."""
 
 from app.engine.llm.agent import (
+    TOOL_NAME,
     AgentLimits,
     AgentResult,
     ToolRunner,
     ToolSpec,
     ToolStep,
+    input_schema,
     run_agent,
 )
 from app.engine.llm.chat import ChatReply, chat_completion, require_base_url
@@ -21,6 +23,7 @@ from app.engine.llm.urls import split_base_url
 
 __all__ = [
     "SUPPORTED_TYPES",
+    "TOOL_NAME",
     "AgentLimits",
     "AgentResult",
     "ChatReply",
@@ -29,6 +32,7 @@ __all__ = [
     "ToolSpec",
     "ToolStep",
     "chat_completion",
+    "input_schema",
     "json_instruction",
     "json_schema",
     "parse_answer",

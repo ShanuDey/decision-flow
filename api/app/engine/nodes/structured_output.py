@@ -1,6 +1,5 @@
 """Asks a chat model a question and returns its answer as typed fields."""
 
-import json
 import re
 import uuid
 from typing import Any, Literal
@@ -19,7 +18,7 @@ from app.engine.llm import (
     response_format,
 )
 from app.engine.nodes.base import NodeContext, NodeModel
-from app.engine.templates import TemplateError, render
+from app.engine.nodes.prompt import render_text
 
 FIELD_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -96,16 +95,16 @@ class StructuredOutputNode(NodeModel):
             "nodes": state.get("nodes", {}),
             "connection": connection.values,
         }
-        model = _text(d.model, scopes, "model").strip() or connection.values.get(
+        model = render_text(d.model, scopes, "model").strip() or connection.values.get(
             "default_model", ""
         )
         if not model:
             raise ValueError("no model: set one in the node or a default model on the connection")
-        system = _text(d.system, scopes, "system").strip() if d.system.strip() else ""
+        system = render_text(d.system, scopes, "system").strip() if d.system.strip() else ""
         if d.mode == "json":
             system = f"{system}\n\n{json_instruction(d.fields)}".strip()
         messages = [{"role": "system", "content": system}] if system else []
-        messages.append({"role": "user", "content": _text(d.prompt, scopes, "prompt")})
+        messages.append({"role": "user", "content": render_text(d.prompt, scopes, "prompt")})
         policy = ctx.outbound
         if d.timeout_seconds:
             policy = policy.model_copy(
@@ -121,11 +120,3 @@ class StructuredOutputNode(NodeModel):
             response_format=response_format(d.fields, d.mode),
         )
         return {"nodes": {self.id: {"output": parse_answer(reply.text, d.fields)}}}
-
-
-def _text(template: str, scopes: dict[str, Any], field: str) -> str:
-    try:
-        value = render(template, scopes)
-    except TemplateError as exc:
-        raise ValueError(f"{field}: {exc}") from None
-    return value if isinstance(value, str) else json.dumps(value)

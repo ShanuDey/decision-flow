@@ -68,15 +68,15 @@ class PromptNode(NodeModel):
             "nodes": state.get("nodes", {}),
             "connection": connection.values,
         }
-        model = _text(d.model, scopes, "model").strip() or connection.values.get(
+        model = render_text(d.model, scopes, "model").strip() or connection.values.get(
             "default_model", ""
         )
         if not model:
             raise ValueError("no model: set one in the node or a default model on the connection")
         messages = []
         if d.system.strip():
-            messages.append({"role": "system", "content": _text(d.system, scopes, "system")})
-        messages.append({"role": "user", "content": _text(d.prompt, scopes, "prompt")})
+            messages.append({"role": "system", "content": render_text(d.system, scopes, "system")})
+        messages.append({"role": "user", "content": render_text(d.prompt, scopes, "prompt")})
         policy = ctx.outbound
         if d.timeout_seconds:
             policy = policy.model_copy(
@@ -93,7 +93,7 @@ class PromptNode(NodeModel):
         return {"nodes": {self.id: {"output": reply.model_dump()}}}
 
 
-def _text(template: str, scopes: dict[str, Any], field: str) -> str:
+def render_text(template: str, scopes: dict[str, Any], field: str) -> str:
     try:
         value = render(template, scopes)
     except TemplateError as exc:

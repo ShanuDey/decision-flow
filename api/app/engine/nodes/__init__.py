@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import Field
 
+from app.engine.nodes.agent import AgentNode
 from app.engine.nodes.assign import AssignNode
 from app.engine.nodes.base import NodeContext, NodeModel
 from app.engine.nodes.condition import ConditionNode
@@ -21,6 +22,7 @@ NODE_TYPES: tuple[type[NodeModel], ...] = (
     HttpRequestNode,
     PromptNode,
     StructuredOutputNode,
+    AgentNode,
     SubflowNode,
     EndNode,
 )
@@ -33,6 +35,7 @@ Node = Annotated[
     | HttpRequestNode
     | PromptNode
     | StructuredOutputNode
+    | AgentNode
     | SubflowNode
     | EndNode,
     Field(discriminator="type"),
@@ -40,6 +43,7 @@ Node = Annotated[
 
 __all__ = [
     "NODE_TYPES",
+    "AgentNode",
     "AssignNode",
     "ConditionNode",
     "EndNode",

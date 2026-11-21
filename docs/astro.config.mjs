@@ -64,6 +64,7 @@ export default defineConfig({
             "nodes/http-request",
             "nodes/prompt",
             "nodes/structured-output",
+            "nodes/agent",
             "nodes/subflow",
             "nodes/end",
           ],

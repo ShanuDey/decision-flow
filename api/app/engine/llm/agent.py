@@ -11,6 +11,7 @@ from pydantic import Field
 
 from app.engine.base import FrozenBaseModel
 from app.engine.connections import ResolvedConnection
+from app.engine.fields import FieldDef
 from app.engine.llm.chat import OUT_OF_TOKENS, _reply, failure, open_chat
 from app.security.ssrf import OutboundPolicy
 
@@ -52,6 +53,18 @@ class AgentResult(FrozenBaseModel):
     steps: tuple[ToolStep, ...]
     model: str
     usage: dict[str, int]
+
+
+def input_schema(inputs: list[FieldDef]) -> dict[str, Any]:
+    """The JSON schema a model fills in to call a flow with these start inputs."""
+    properties: dict[str, Any] = {}
+    for field in inputs:
+        schema: dict[str, Any] = {"type": "string" if field.type == "enum" else field.type}
+        if field.type == "enum":
+            schema["enum"] = field.values
+        properties[field.name] = schema
+    required = [f.name for f in inputs if f.required and f.default is None]
+    return {"type": "object", "properties": properties, "required": required}
 
 
 def _check_tools(tools: list[ToolSpec]) -> set[str]:
