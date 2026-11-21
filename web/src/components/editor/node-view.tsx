@@ -21,6 +21,7 @@ function summary(node: FlowNode, flowName?: string): string {
   if ("outputs" in config) return count(config.outputs.length, "output");
   if ("expression" in config) return config.expression.trim() || "No expression yet";
   if ("url" in config) return config.url.trim() ? `${config.method} ${config.url}` : "No URL yet";
+  if ("prompt" in config) return config.prompt.trim() || "No prompt yet";
   return count(config.assignments.length, "assignment");
 }
 
@@ -127,6 +128,7 @@ export const nodeTypes = {
   assign: NodeView,
   condition: NodeView,
   http_request: NodeView,
+  prompt: NodeView,
   subflow: NodeView,
   end: NodeView,
 };

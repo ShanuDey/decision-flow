@@ -66,6 +66,13 @@ export function outputKeys(
         { name: "body", type: "unknown" },
         { name: "duration_ms", type: "number" },
       ];
+    case "prompt":
+      return [
+        { name: "text", type: "string" },
+        { name: "model", type: "string" },
+        { name: "finish_reason", type: "string" },
+        { name: "usage", type: "object" },
+      ];
     case "subflow":
       return contracts[node.data.flow_id]?.outputs ?? [];
     case "end":

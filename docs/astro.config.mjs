@@ -62,6 +62,7 @@ export default defineConfig({
             "nodes/assign",
             "nodes/condition",
             "nodes/http-request",
+            "nodes/prompt",
             "nodes/subflow",
             "nodes/end",
           ],

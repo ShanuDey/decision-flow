@@ -2,7 +2,7 @@
 title: "Connections"
 ---
 
-A connection holds the credentials for a service, such as an API key. Pick it in an [HTTP Request](nodes/http-request) node and the credentials are added to the request for you, so you do not write them into the flow. Connections belong to a workspace. Their credentials are stored encrypted, and once saved they cannot be read back: you can replace them or delete the connection.
+A connection holds the credentials for a service, such as an API key. Pick it in an [HTTP Request](nodes/http-request) node, or in a [Prompt](nodes/prompt) node with an OpenAI-compatible connection, and the credentials are added to the request for you, so you do not write them into the flow. Connections belong to a workspace. Their credentials are stored encrypted, and once saved they cannot be read back: you can replace them or delete the connection.
 
 ## Add a connection
 

@@ -67,6 +67,18 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     handles: [],
     pickable: true,
   },
+  prompt: {
+    label: "Prompt",
+    group: "Data",
+    source: "builtin",
+    description: "Ask a chat model a question and use its text",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
   subflow: {
     label: "Subflow",
     group: "Data",
@@ -176,6 +188,16 @@ export function defaultData(type: NodeType): NodeData {
         timeout_seconds: null,
         fail_on_error_status: false,
         connection_id: "",
+      };
+    case "prompt":
+      return {
+        connection_id: "",
+        model: "",
+        system: "",
+        prompt: "",
+        temperature: null,
+        max_tokens: null,
+        timeout_seconds: null,
       };
     case "subflow":
       return { flow_id: "", inputs: {} };

@@ -7,7 +7,6 @@ from typing import Any, Literal, Self
 from pydantic import Field, model_validator
 
 from app.engine.base import FrozenBaseModel
-from app.engine.nodes import HttpRequestNode
 from app.engine.validate import parse_graph
 
 FLOW_ID = re.compile(r"[a-z][a-z0-9_]{0,63}")
@@ -44,8 +43,7 @@ class CatalogFlow(FrozenBaseModel):
         if graph is not None:
             if any(node.type == "subflow" for node in graph.nodes):
                 problems.append("a subflow node needs a flow of the installer's workspace")
-            used = {n.data.connection_id for n in graph.nodes if isinstance(n, HttpRequestNode)}
-            used.discard("")
+            used = {cid for n in graph.nodes for cid in n.connection_ids()}
             if undeclared := sorted(used - set(self.connections)):
                 problems.append(f"connection {undeclared[0]} is used but not declared")
             if unused := sorted(set(self.connections) - used):

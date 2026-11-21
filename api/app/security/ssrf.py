@@ -35,6 +35,12 @@ FRAMING_HEADERS = frozenset(
 # Says who is calling, so a site that sees abuse can find and report the server.
 USER_AGENT = "decision-flow (+https://github.com/ShanuDey/decision-flow)"
 NAT64 = ipaddress.ip_network("64:ff9b::/96")
+# Cloud metadata services outside link-local: never a wanted target, even on a private network.
+METADATA = tuple(
+    ipaddress.ip_network(n)
+    for n in ("100.100.100.200/32", "192.0.0.192/32", "fd00:ec2::254/128", "64:ff9b:1::/48")
+)
+SITE_LOCAL = ipaddress.ip_network("fec0::/10")
 SIX_TO_FOUR = ipaddress.ip_network("2002::/16")
 
 
@@ -82,7 +88,9 @@ def is_blocked(ip: Address, allow_private: bool) -> bool:
     # Link-local covers cloud metadata; none of these is ever a wanted target.
     if ip.is_link_local or ip.is_unspecified or ip.is_multicast or ip.is_reserved:
         return True
-    return not allow_private and not ip.is_global
+    if any(ip in network for network in METADATA):
+        return True
+    return not allow_private and (not ip.is_global or ip in SITE_LOCAL)
 
 
 def host_allowed(host: str, allowed: tuple[str, ...]) -> bool:
@@ -194,6 +202,19 @@ async def _read_capped(response: httpx.Response, max_bytes: int) -> bytes:
     return bytes(body)
 
 
+async def pin(
+    policy: OutboundPolicy, url: str, resolver: Resolver = system_resolver
+) -> tuple[httpx.URL, httpx.URL, str, dict[str, str]]:
+    """Checks `url`, resolves it once, and returns (target, pinned, host, extensions)."""
+    target, host, port = _parse(url, policy)
+    address = await _pick_address(host, port, policy, resolver)
+    pinned = target.copy_with(host=address, userinfo=b"", fragment=None)
+    # The URL names the IP; Host and the TLS name stay the real host.
+    literal = _is_ip(host)
+    extensions = {} if literal or target.scheme != "https" else {"sni_hostname": host}
+    return target, pinned, host, extensions
+
+
 def _transport_error(exc: httpx.TransportError) -> OutboundError:
     if isinstance(exc, httpx.TimeoutException):
         return OutboundError("timeout", "The request timed out")
@@ -217,14 +238,9 @@ async def fetch(
     ssl_context: ssl.SSLContext | None = None,
 ) -> FetchResponse:
     """One request: the name is resolved once, every answer checked, and only that IP is used."""
-    target, host, port = _parse(url, policy)
     try:
         async with asyncio.timeout(policy.timeout_seconds):
-            address = await _pick_address(host, port, policy, resolver)
-            pinned = target.copy_with(host=address, userinfo=b"", fragment=None)
-            # The URL names the IP; Host and the TLS name stay the real host.
-            literal = _is_ip(host)
-            extensions = {} if literal or target.scheme != "https" else {"sni_hostname": host}
+            target, pinned, host, extensions = await pin(policy, url, resolver)
             async with httpx.AsyncClient(
                 trust_env=False,
                 follow_redirects=False,

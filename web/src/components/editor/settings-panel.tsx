@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { deleteFromCanvas } from "./actions";
 import { ExpandableInput } from "./expand-field";
 import { HttpRequestForm } from "./http-request-form";
+import { PromptForm } from "./prompt-form";
 import { SubflowForm } from "./subflow-form";
 import { ExpressionInput } from "./expression-input";
 import {
@@ -438,6 +439,7 @@ export function SettingsPanel() {
                 {node.type === "assign" && <AssignForm node={node} />}
                 {node.type === "condition" && <ConditionForm node={node} />}
                 {node.type === "http_request" && <HttpRequestForm node={node} />}
+                {node.type === "prompt" && <PromptForm node={node} />}
                 {node.type === "subflow" && <SubflowForm node={node} />}
               </TabsContent>
               <TabsContent value="test" className="overflow-y-auto p-4">

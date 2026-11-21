@@ -63,12 +63,24 @@ export interface SubflowData {
   inputs: Record<string, string>;
 }
 
+export interface PromptData {
+  connection_id: string;
+  // Empty: the connection's default model.
+  model: string;
+  system: string;
+  prompt: string;
+  temperature: number | null;
+  max_tokens: number | null;
+  timeout_seconds: number | null;
+}
+
 export interface NodeDataByType {
   start: StartData;
   end: EndData;
   assign: AssignData;
   condition: ConditionData;
   http_request: HttpRequestData;
+  prompt: PromptData;
   subflow: SubflowData;
 }
 

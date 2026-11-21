@@ -9,7 +9,7 @@ describe("the HTTP Request node in the editor", () => {
   it("is offered in the picker under Data", () => {
     expect(NODE_SPECS.http_request.pickable).toBe(true);
     const data = pickerGroups("", "all").find((g) => g.group === "Data");
-    expect(data?.types).toEqual(["assign", "http_request", "subflow"]);
+    expect(data?.types).toEqual(["assign", "http_request", "prompt", "subflow"]);
     expect(flatTypes(pickerGroups("http", "all"))).toEqual(["http_request"]);
     expect(flatTypes(pickerGroups("", "all"))).toEqual([
       "start",
@@ -17,6 +17,7 @@ describe("the HTTP Request node in the editor", () => {
       "condition",
       "assign",
       "http_request",
+      "prompt",
       "subflow",
     ]);
   });
