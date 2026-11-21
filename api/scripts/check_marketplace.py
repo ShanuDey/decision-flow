@@ -8,6 +8,7 @@ from app.catalog.remote import ID, MAX_FILE_BYTES, MAX_INDEX_BYTES, MAX_README_B
 from app.catalog.source import DIRECTORIES, load_files
 from scripts.build_catalog_index import MARKETPLACE, index_text
 from scripts.export_connection_type_schema import schema_text as connection_schema_text
+from scripts.export_flow_schema import schema_text as flow_schema_text
 from scripts.export_node_template_schema import schema_text as template_schema_text
 
 
@@ -60,6 +61,7 @@ def check(root: Path = MARKETPLACE) -> list[str]:
         root / "index.json": index_text(root),
         root / "schemas" / "connection-type.schema.json": connection_schema_text(),
         root / "schemas" / "node-template.schema.json": template_schema_text(),
+        root / "schemas" / "flow.schema.json": flow_schema_text(),
     }
     for path, text in expected.items():
         if not path.is_file() or _text(path) != text:

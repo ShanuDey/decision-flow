@@ -42,6 +42,7 @@ const FILTERS: { label: string; kinds: Kind[] | null }[] = [
   { label: "All", kinds: null },
   { label: "Connections", kinds: ["connection-type"] },
   { label: "Templates", kinds: ["node-template"] },
+  { label: "Flows", kinds: ["flow"] },
 ];
 
 function sameKinds(a: Kind[] | null, b: Kind[] | null): boolean {

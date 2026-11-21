@@ -4,9 +4,10 @@ The items every installation can install from its Marketplace page. The API fetc
 
 ```
 index.json                                        generated list of the newest version of each item
-schemas/                                          generated JSON Schemas for the two file kinds
+schemas/                                          generated JSON Schemas for the three file kinds
 catalog/connection-types/<id>/<version>.json      a connection type
 catalog/node-templates/<id>/<version>.json        a request template
+catalog/flows/<id>/<version>.json                 a flow: a graph plus the connections it needs
 catalog/<kind>/<id>/README.md                     optional notes shown on the docs page of the item
 ```
 
@@ -16,7 +17,7 @@ Built-in items live in `api/app/connections/data` and `api/app/node_templates/da
 
 1. Add `catalog/<kind>/<id>/<version>.json`. The id is lower case letters, digits and `_`, starting with a letter; the version is `major.minor.patch`; the path must match the `id` and `version` inside the file. Check your file against `schemas/`.
 2. A published version never changes: to change an item, add a new version file. Older versions stay readable.
-3. Do not reuse the id of a built-in item. A template's connection type must be built in or in this catalog.
+3. Do not reuse the id of a built-in item. The connection type of a template or flow must be built in or in this catalog.
 4. Optionally add a `README.md` next to the version files: setup steps and anything a user should know. Keep the JSON `description` to one line.
 5. From the repo root, regenerate the derived files and check everything:
 
@@ -24,8 +25,15 @@ Built-in items live in `api/app/connections/data` and `api/app/node_templates/da
 uv --directory api run python -m scripts.build_catalog_index
 uv --directory api run python -m scripts.export_connection_type_schema
 uv --directory api run python -m scripts.export_node_template_schema
+uv --directory api run python -m scripts.export_flow_schema
 make check-marketplace
 ```
+
+### Flows
+
+A flow file holds `id`, `version`, `name`, `description`, `tags`, a `draft` (the same graph a `.flow.json` file holds) and `connections`. A request node that signs its request with a connection sets `connection_id` to a UUID of your choosing, and `connections` maps each such UUID to `{ "type": ..., "name": ... }`, the connection type it needs and the name to suggest. Every UUID a node uses must be declared and every declared one must be used. The installer picks their own connection for each when they start a flow from it, so no credential or host is ever in the file.
+
+A flow must be a valid graph and must not contain subflow nodes, because a subflow points at a flow of the installer's own workspace.
 
 Pull requests that touch this folder run `check-marketplace` in CI. It loads every file with the app's own loaders, checks paths, ids and requirements, caps file sizes, and fails when `index.json` or `schemas/` are out of date. Files must stay under 256 KB.
 

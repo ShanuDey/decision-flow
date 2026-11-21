@@ -2,20 +2,25 @@
 title: "Marketplace"
 ---
 
-The Marketplace lists connection types and request templates you can add to a workspace. Each one is a small file of settings. It holds no code and no credentials.
+The Marketplace lists connection types, request templates and whole flows you can add to a workspace. Each one is a small file of settings or a flow graph. It holds no code and no credentials.
 
 ## Install something
 
 1. Open **Marketplace** in the sidebar, or choose **Browse the Marketplace** in the Add connection list or the HTTP Request node's template list. Those links open it on top of what you are doing.
-2. Search, or filter by **Connections** or **Templates**. Search looks at names, descriptions and tags, matches the start of a word, forgives a small typo, and lists the best matches first.
+2. Search, or filter by **Connections**, **Templates** or **Flows**. Search looks at names, descriptions and tags, matches the start of a word, forgives a small typo, and lists the best matches first.
 3. Choose **Details** on a card to read its notes, such as how to get a token or what the connection test calls. The notes show as plain text and links only, with no images or scripts. Choose **Install** on the card or in the details.
 
 Installing copies the item into your workspace. It then appears under **Installed** in the pickers:
 
 - An installed **connection type** is offered when you add a connection, next to the built-in ones.
 - An installed **template** is offered under **Use a template** in an HTTP Request node. See [Start from a request template](nodes/http-request#start-from-a-request-template).
+- An installed **flow** is offered in **New flow**, under the **Marketplace** category, next to the built-in templates. **Browse the Marketplace** in that window opens the list of flows.
 
-A template can need a connection type. Installing the template installs that type too, and the card says so ("Also installs GitHub").
+A template or a flow can need a connection type. Installing it installs that type too, and the card says so ("Also installs GitHub").
+
+## Start a flow from a Marketplace flow
+
+Installing a flow does not create one. It makes the flow available in **New flow**. Pick it there, name your copy and choose **Create flow**. If the flow signs requests with a connection, a **Match connections** window lets you choose one of your own connections of that type for each, as described in [Export and import a flow](import-export#connections). Nothing is applied until you confirm, and your copy is not linked to the Marketplace: updating or removing the item later does not change flows you already made.
 
 ## Open it from these docs
 
@@ -27,7 +32,7 @@ When you read these docs from inside the app, there is nothing to enter: the but
 
 When the Marketplace lists a newer version of something you installed, its card shows **Update**. Choose it to replace your copy.
 
-**Remove** takes an item out of the workspace. Things you already made from it keep their settings, because applying a template copies it. You cannot remove a connection type while connections of that type exist, or while an installed template needs it. The error says which.
+**Remove** takes an item out of the workspace. Things you already made from it keep their settings, because applying a template or starting a flow copies it. You cannot remove a connection type while connections of that type exist, or while an installed template or flow needs it. The error says which.
 
 ## Where the list comes from
 

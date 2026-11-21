@@ -11,4 +11,5 @@ export type ListedEntryKind = typeof ListedEntryKind[keyof typeof ListedEntryKin
 export const ListedEntryKind = {
   'connection-type': 'connection-type',
   'node-template': 'node-template',
+  flow: 'flow',
 } as const;

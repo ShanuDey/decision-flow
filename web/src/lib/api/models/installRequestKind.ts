@@ -11,4 +11,5 @@ export type InstallRequestKind = typeof InstallRequestKind[keyof typeof InstallR
 export const InstallRequestKind = {
   'connection-type': 'connection-type',
   'node-template': 'node-template',
+  flow: 'flow',
 } as const;

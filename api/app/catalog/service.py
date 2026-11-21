@@ -4,6 +4,7 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from app.catalog.flow_file import CatalogFlow
 from app.catalog.health import EntryHealth, HealthSource
 from app.catalog.index import IndexEntry, file_hash
 from app.catalog.models import InstalledItem
@@ -17,13 +18,15 @@ from app.catalog.remote import (
 from app.catalog.schemas import (
     CatalogListing,
     CatalogReadme,
+    InstalledFlow,
+    InstalledFlowList,
     InstalledList,
     InstalledSummary,
     InstallRequest,
     InstallResult,
     ListedEntry,
 )
-from app.catalog.source import CatalogFile, Kind
+from app.catalog.source import CatalogFile, Kind, flow_problem
 from app.catalog.store import InstalledStore, ItemDraft
 from app.connections.catalog import BY_ID as BUILT_IN_TYPES
 from app.connections.store import ConnectionStore
@@ -73,6 +76,34 @@ async def installed_templates(store: InstalledStore, member: Member) -> list[Nod
         except ValidationError:
             continue
     return found
+
+
+def _flow_of(item: InstalledItem) -> CatalogFlow | None:
+    try:
+        return CatalogFlow.model_validate(item.definition)
+    except ValidationError:
+        return None
+
+
+async def installed_flows(store: InstalledStore, member: Member) -> InstalledFlowList:
+    found: list[InstalledFlow] = []
+    for item in await store.list_items(member, "flow"):
+        if (flow := _flow_of(item)) is None:
+            continue
+        found.append(
+            InstalledFlow(
+                id=flow.id,
+                name=flow.name,
+                description=flow.description,
+                icon=flow.icon,
+                version=item.version,
+                inputs=flow.input_names(),
+                outputs=flow.output_names(),
+                connections=flow.connections,
+                draft=flow.draft,
+            )
+        )
+    return InstalledFlowList(items=found)
 
 
 def _draft(file: CatalogFile) -> ItemDraft:
@@ -209,6 +240,13 @@ async def install(
         }
         if problem := connection_problem(file.body, types):
             raise ApiError(422, "invalid_catalog_item", problem)
+    if isinstance(file.body, CatalogFlow):
+        have_types = {
+            *(await connection_types(store, member)),
+            *(f.id for f in required if isinstance(f.body, ConnectionType)),
+        }
+        if problem := flow_problem(file.body, have_types):
+            raise ApiError(422, "invalid_catalog_item", problem)
 
     saved = await store.put_all(member, [_draft(f) for f in files])
     *also, item = saved
@@ -237,12 +275,16 @@ async def uninstall(
             t.name
             for t in await installed_templates(store, member)
             if t.connection and t.connection.type == item_id
+        ] + [
+            f.name
+            for item in await store.list_items(member, "flow")
+            if (f := _flow_of(item)) and any(c.type == item_id for c in f.connections.values())
         ]
         if needing:
             raise ApiError(
                 409,
                 "required_by",
-                f"Installed templates need this type: {', '.join(needing)}",
+                f"Installed templates and flows need this type: {', '.join(needing)}",
                 {"names": needing},
             )
     await store.delete(member, kind, item_id)

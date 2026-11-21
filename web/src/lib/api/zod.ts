@@ -7,6 +7,31 @@
 import * as zod from 'zod';
 
 /**
+ * Lists the flows installed from the Marketplace, with their graphs, for starting a new flow.
+ *
+ * Each flow's `connections` maps the placeholder ids in its request nodes to the connection type
+ * and name they stand for; the client matches them to the user's own connections.
+ * @summary List Installed Flows
+ */
+export const ListInstalledFlowsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "connections": zod.record(zod.string(), zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "description": zod.string(),
+  "draft": zod.record(zod.string(), zod.unknown()),
+  "icon": zod.string(),
+  "id": zod.string(),
+  "inputs": zod.array(zod.string()),
+  "name": zod.string(),
+  "outputs": zod.array(zod.string()),
+  "version": zod.string()
+}))
+})
+
+
+/**
  * Lists what the Marketplace offers: a summary per item, newest version only.
  *
  * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
@@ -27,7 +52,7 @@ export const GetCatalogIndexResponse = zod.object({
   "health_reason": zod.string().default(getCatalogIndexResponseEntriesItemHealthReasonDefault),
   "icon": zod.string(),
   "id": zod.string(),
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "name": zod.string(),
   "path": zod.string(),
   "requires": zod.array(zod.string()),
@@ -50,7 +75,7 @@ export const GetCatalogIndexResponse = zod.object({
 export const InstallItemBody = zod.object({
   "hash": zod.string(),
   "id": zod.string(),
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "version": zod.string()
 })
 
@@ -59,7 +84,7 @@ export const InstallItemResponse = zod.object({
   "hash": zod.string(),
   "id": zod.string(),
   "installed_at": zod.iso.datetime({"offset":true}),
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "name": zod.string(),
   "version": zod.string()
 }))
@@ -75,7 +100,7 @@ export const ListInstalledResponse = zod.object({
   "hash": zod.string(),
   "id": zod.string(),
   "installed_at": zod.iso.datetime({"offset":true}),
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "name": zod.string(),
   "version": zod.string()
 }))
@@ -86,11 +111,11 @@ export const ListInstalledResponse = zod.object({
  * Removes an installed item. Things already made from it keep their copied settings.
  *
  * 409 `type_in_use` if connections still use a connection type, and 409 `required_by` if
- * another installed item needs it.
+ * another installed template or flow needs it.
  * @summary Uninstall Item
  */
 export const UninstallItemParams = zod.object({
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "item_id": zod.string()
 })
 
@@ -105,7 +130,7 @@ export const UninstallItemResponse = zod.void()
  * @summary Get Catalog Readme
  */
 export const GetCatalogReadmeParams = zod.object({
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "item_id": zod.string()
 })
 
@@ -132,7 +157,7 @@ export const RefreshCatalogIndexResponse = zod.object({
   "health_reason": zod.string().default(refreshCatalogIndexResponseEntriesItemHealthReasonDefault),
   "icon": zod.string(),
   "id": zod.string(),
-  "kind": zod.enum(['connection-type', 'node-template']),
+  "kind": zod.enum(['connection-type', 'node-template', 'flow']),
   "name": zod.string(),
   "path": zod.string(),
   "requires": zod.array(zod.string()),

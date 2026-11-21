@@ -296,7 +296,7 @@ async def test_a_built_in_item_has_no_readme_page(client: httpx.AsyncClient) -> 
 
 
 async def test_a_readme_kind_must_be_a_known_kind(client: httpx.AsyncClient) -> None:
-    assert (await client.get("/catalog/readme/flow/github")).status_code == 422
+    assert (await client.get("/catalog/readme/workflow/github")).status_code == 422
 
 
 def report_source(entries: dict[str, EntryHealth]) -> HealthSource:

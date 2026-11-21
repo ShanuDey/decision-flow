@@ -14,8 +14,9 @@ from fastapi import Depends
 from pydantic import ConfigDict, ValidationError
 
 from app.catalog.fetcher import CatalogUnavailable, Fetcher, build_fetcher
+from app.catalog.flow_file import CatalogFlow
 from app.catalog.index import CatalogIndex, IndexEntry
-from app.catalog.source import DIRECTORIES, CatalogFile, Kind, parse_file
+from app.catalog.source import DIRECTORIES, CatalogFile, Kind, flow_problem, parse_file
 from app.connections.catalog import BY_ID as BUILT_IN_TYPES
 from app.engine.base import FrozenBaseModel
 from app.node_templates.schemas import NodeTemplate
@@ -157,11 +158,14 @@ class CatalogSource:
             raise CatalogItemInvalid(f"{path}: {exc}") from None
         if (body.id, body.version) != (item_id, version):
             raise CatalogItemInvalid(f"{path}: the file's id and version do not match its path")
+        known = {e.id for e in listing.index.entries if e.kind == "connection-type"}
         if isinstance(body, NodeTemplate) and body.connection:
             wanted = body.connection.type
-            known = {e.id for e in listing.index.entries if e.kind == "connection-type"}
             if wanted not in BUILT_IN_TYPES and wanted not in known:
                 raise CatalogItemInvalid(f"connection type '{wanted}' does not exist")
+        if isinstance(body, CatalogFlow):
+            if problem := flow_problem(body, BUILT_IN_TYPES.keys() | known):
+                raise CatalogItemInvalid(f"{path}: {problem}")
         return CatalogFile(kind=kind, id=item_id, version=version, path=path, body=body)
 
     async def readme(self, kind: Kind, item_id: str) -> str:

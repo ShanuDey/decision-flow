@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "github_issue_from_report",
+  "name": "Open a GitHub issue from a report",
+  "description": "Creates an issue in a repository from a title and text, and returns its number and link.",
+  "icon": "plug",
+  "tags": [
+    "github",
+    "issues"
+  ],
+  "connections": {
+    "7c2e9d3f-4b5a-4f7b-8d2c-1e3f9a5b7c02": {
+      "type": "github",
+      "name": "GitHub"
+    }
+  },
+  "draft": {
+    "schema_version": 1,
+    "variables": [],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": {
+          "x": 0,
+          "y": 100
+        },
+        "data": {
+          "inputs": [
+            {
+              "name": "owner",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "repo",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "title",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "body",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      {
+        "id": "issue",
+        "type": "http_request",
+        "name": "Create issue",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "headers": {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+          },
+          "query": {},
+          "timeout_seconds": 15,
+          "fail_on_error_status": true,
+          "connection_id": "7c2e9d3f-4b5a-4f7b-8d2c-1e3f9a5b7c02",
+          "method": "POST",
+          "url": "https://api.github.com/repos/{{ input.owner }}/{{ input.repo }}/issues",
+          "body_type": "json",
+          "body": {
+            "title": "{{ input.title }}",
+            "body": "{{ input.body }}"
+          }
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": {
+          "x": 600,
+          "y": 100
+        },
+        "data": {
+          "outputs": [
+            {
+              "name": "number",
+              "type": "number",
+              "value": "{{ nodes.issue.output.body.number }}"
+            },
+            {
+              "name": "url",
+              "type": "string",
+              "value": "{{ nodes.issue.output.body.html_url }}"
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "issue",
+        "sourceHandle": null
+      },
+      {
+        "id": "e2",
+        "source": "issue",
+        "target": "end",
+        "sourceHandle": null
+      }
+    ]
+  }
+}

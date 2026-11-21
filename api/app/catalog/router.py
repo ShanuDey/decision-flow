@@ -10,6 +10,7 @@ from app.catalog.remote import CatalogSource, get_catalog_source
 from app.catalog.schemas import (
     CatalogListing,
     CatalogReadme,
+    InstalledFlowList,
     InstalledList,
     InstallRequest,
     InstallResult,
@@ -68,6 +69,16 @@ async def list_installed(store: Store, member: CurrentMember) -> InstalledList:
     return await service.list_installed(store, member)
 
 
+@router.get("/catalog/flows")
+async def list_installed_flows(store: Store, member: CurrentMember) -> InstalledFlowList:
+    """Lists the flows installed from the Marketplace, with their graphs, for starting a new flow.
+
+    Each flow's `connections` maps the placeholder ids in its request nodes to the connection type
+    and name they stand for; the client matches them to the user's own connections.
+    """
+    return await service.installed_flows(store, member)
+
+
 @router.post(
     "/catalog/install",
     status_code=status.HTTP_201_CREATED,
@@ -100,6 +111,6 @@ async def uninstall_item(
     """Removes an installed item. Things already made from it keep their copied settings.
 
     409 `type_in_use` if connections still use a connection type, and 409 `required_by` if
-    another installed item needs it.
+    another installed template or flow needs it.
     """
     await service.uninstall(store, connections, member, kind, item_id)

@@ -53,6 +53,63 @@
       "version": "1.0.0"
     },
     {
+      "description": "Posts a message to a Slack channel when the severity is high, and skips it otherwise.",
+      "has_readme": true,
+      "hash": "sha256-65aca130a4d9dd206a62c716f2775f108faf4dca6148f67b045bd878618f0836",
+      "icon": "plug",
+      "id": "slack_alert_on_severity",
+      "kind": "flow",
+      "name": "Alert Slack on high severity",
+      "path": "flows/slack_alert_on_severity/1.0.0.json",
+      "requires": [
+        "connection-type/slack"
+      ],
+      "tags": [
+        "slack",
+        "alerts",
+        "messaging"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Creates an issue in a repository from a title and text, and returns its number and link.",
+      "has_readme": true,
+      "hash": "sha256-df9b4ce4fe771b295b4d3a1c3eaab0697e804bf9ff5a2a306b1e7277253b7eed",
+      "icon": "plug",
+      "id": "github_issue_from_report",
+      "kind": "flow",
+      "name": "Open a GitHub issue from a report",
+      "path": "flows/github_issue_from_report/1.0.0.json",
+      "requires": [
+        "connection-type/github"
+      ],
+      "tags": [
+        "github",
+        "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends a text to an OpenAI chat model and returns a short summary.",
+      "has_readme": true,
+      "hash": "sha256-75ef44783f67dc065ffe6af56176752ba1b03b872642afe1d4d864a09c753ea7",
+      "icon": "sparkles",
+      "id": "openai_summarize_text",
+      "kind": "flow",
+      "name": "Summarize text with OpenAI",
+      "path": "flows/openai_summarize_text/1.0.0.json",
+      "requires": [
+        "connection-type/openai"
+      ],
+      "tags": [
+        "ai",
+        "llm",
+        "openai",
+        "summary"
+      ],
+      "version": "1.0.0"
+    },
+    {
       "description": "Opens an issue in a repository. Replace OWNER and REPO in the URL.",
       "has_readme": true,
       "hash": "sha256-729da332cab30e11ae2d2c0c3f097fb093aa54835a6f7921ff63cd4f1e44a902",

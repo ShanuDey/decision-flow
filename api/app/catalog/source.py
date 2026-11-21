@@ -1,11 +1,13 @@
 """Catalog files: their shapes, parsing, and loading a catalog folder from disk."""
 
 import json
+from collections.abc import Collection
 from pathlib import Path
 from typing import Literal
 
 from pydantic import ValidationError
 
+from app.catalog.flow_file import CatalogFlow
 from app.connections.catalog import BY_ID as BUILT_IN_TYPES
 from app.connections.types import ConnectionType
 from app.engine.base import FrozenBaseModel
@@ -13,10 +15,16 @@ from app.node_templates.catalog import BY_ID as BUILT_IN_TEMPLATES
 from app.node_templates.catalog import connection_problem
 from app.node_templates.schemas import NodeTemplate
 
-Kind = Literal["connection-type", "node-template"]
+Kind = Literal["connection-type", "node-template", "flow"]
 DIRECTORIES: dict[Kind, str] = {
     "connection-type": "connection-types",
     "node-template": "node-templates",
+    "flow": "flows",
+}
+_MODELS: dict[Kind, type[ConnectionType | NodeTemplate | CatalogFlow]] = {
+    "connection-type": ConnectionType,
+    "node-template": NodeTemplate,
+    "flow": CatalogFlow,
 }
 
 
@@ -26,17 +34,21 @@ class CatalogFile(FrozenBaseModel):
     version: str
     # Under the catalog root; the file is immutable once published.
     path: str
-    body: ConnectionType | NodeTemplate
+    body: ConnectionType | NodeTemplate | CatalogFlow
     has_readme: bool = False
+
+
+def flow_problem(flow: CatalogFlow, type_ids: Collection[str]) -> str | None:
+    missing = sorted({c.type for c in flow.connections.values()} - set(type_ids))
+    return f"connection type '{missing[0]}' does not exist" if missing else None
 
 
 def _version_key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version.split("."))
 
 
-def parse_file(kind: Kind, text: str) -> ConnectionType | NodeTemplate:
-    raw = json.loads(text)
-    return (ConnectionType if kind == "connection-type" else NodeTemplate).model_validate(raw)
+def parse_file(kind: Kind, text: str) -> ConnectionType | NodeTemplate | CatalogFlow:
+    return _MODELS[kind].model_validate(json.loads(text))
 
 
 def load_files(root: Path) -> list[CatalogFile]:
@@ -63,7 +75,9 @@ def load_files(root: Path) -> list[CatalogFile]:
             )
 
     for file in found:
-        built_in = BUILT_IN_TYPES if file.kind == "connection-type" else BUILT_IN_TEMPLATES
+        built_in = {"connection-type": BUILT_IN_TYPES, "node-template": BUILT_IN_TEMPLATES}.get(
+            file.kind, {}
+        )
         if file.id in built_in:
             raise ValueError(f"{file.path}: '{file.id}' is a built-in id and cannot be reused")
 
@@ -74,6 +88,10 @@ def load_files(root: Path) -> list[CatalogFile]:
     for file in found:
         if isinstance(file.body, NodeTemplate) and (
             problem := connection_problem(file.body, types)
+        ):
+            raise ValueError(f"{file.path}: {problem}")
+        if isinstance(file.body, CatalogFlow) and (
+            problem := flow_problem(file.body, types.keys())
         ):
             raise ValueError(f"{file.path}: {problem}")
     return found

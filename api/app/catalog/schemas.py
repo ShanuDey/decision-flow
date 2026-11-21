@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
+from app.catalog.flow_file import FlowConnection
 from app.catalog.index import IndexEntry
 from app.catalog.source import Kind
 from app.engine.base import FrozenBaseModel
@@ -25,6 +26,23 @@ class InstalledSummary(FrozenBaseModel):
 
 class InstalledList(FrozenBaseModel):
     items: list[InstalledSummary]
+
+
+class InstalledFlow(FrozenBaseModel):
+    id: str
+    name: str
+    description: str
+    icon: str
+    version: str
+    inputs: list[str]
+    outputs: list[str]
+    # Placeholder connection ids used by the draft's request nodes, and what each one stands for.
+    connections: dict[str, FlowConnection]
+    draft: dict[str, Any]
+
+
+class InstalledFlowList(FrozenBaseModel):
+    items: list[InstalledFlow]
 
 
 class InstallResult(FrozenBaseModel):

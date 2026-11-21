@@ -4,6 +4,7 @@ import hashlib
 import json
 from typing import Literal
 
+from app.catalog.flow_file import CatalogFlow
 from app.catalog.source import CatalogFile, Kind, latest
 from app.connections.types import ConnectionType
 from app.engine.base import FrozenBaseModel
@@ -42,12 +43,15 @@ def file_hash(file: CatalogFile) -> str:
 
 
 def _entry(file: CatalogFile, catalog_types: set[str]) -> IndexEntry:
-    """A template requires the connection type it uses when that type is also in the catalog."""
+    """An item requires the connection types it uses when those types are also in the catalog."""
     body = file.body
-    tags = body.tags if isinstance(body, NodeTemplate) else []
-    requires: list[str] = []
-    if isinstance(body, NodeTemplate) and body.connection and body.connection.type in catalog_types:
-        requires = [f"connection-type/{body.connection.type}"]
+    tags = body.tags if isinstance(body, NodeTemplate | CatalogFlow) else []
+    wanted: list[str] = []
+    if isinstance(body, NodeTemplate) and body.connection:
+        wanted = [body.connection.type]
+    elif isinstance(body, CatalogFlow):
+        wanted = sorted({c.type for c in body.connections.values()})
+    requires = [f"connection-type/{t}" for t in wanted if t in catalog_types]
     return IndexEntry(
         id=file.id,
         kind=file.kind,

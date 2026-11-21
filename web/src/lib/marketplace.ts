@@ -15,6 +15,7 @@ export interface MarketEntry extends ListedEntry {
 export const KIND_LABELS: Record<Kind, string> = {
   "connection-type": "Connection",
   "node-template": "Template",
+  flow: "Flow",
 };
 
 const keyOf = (kind: string, id: string) => `${kind}/${id}`;

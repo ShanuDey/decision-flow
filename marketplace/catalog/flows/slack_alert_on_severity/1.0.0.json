@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "slack_alert_on_severity",
+  "name": "Alert Slack on high severity",
+  "description": "Posts a message to a Slack channel when the severity is high, and skips it otherwise.",
+  "icon": "plug",
+  "tags": [
+    "slack",
+    "alerts",
+    "messaging"
+  ],
+  "connections": {
+    "5b1d7c2e-3a4f-4e6a-9c1b-0d2e8f4a6b01": {
+      "type": "slack",
+      "name": "Slack"
+    }
+  },
+  "draft": {
+    "schema_version": 1,
+    "variables": [
+      {
+        "name": "status",
+        "type": "string",
+        "initial": "skipped"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": {
+          "x": 0,
+          "y": 100
+        },
+        "data": {
+          "inputs": [
+            {
+              "name": "severity",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "channel",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "message",
+              "type": "string",
+              "required": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "is_high",
+        "type": "condition",
+        "name": "High severity?",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "expression": "input.severity == \"high\""
+        }
+      },
+      {
+        "id": "post",
+        "type": "http_request",
+        "name": "Post to Slack",
+        "position": {
+          "x": 600,
+          "y": 0
+        },
+        "data": {
+          "headers": {},
+          "query": {},
+          "timeout_seconds": 15,
+          "fail_on_error_status": true,
+          "connection_id": "5b1d7c2e-3a4f-4e6a-9c1b-0d2e8f4a6b01",
+          "method": "POST",
+          "url": "https://slack.com/api/chat.postMessage",
+          "body_type": "json",
+          "body": {
+            "channel": "{{ input.channel }}",
+            "text": "{{ input.message }}"
+          }
+        }
+      },
+      {
+        "id": "sent",
+        "type": "assign",
+        "name": "Mark sent",
+        "position": {
+          "x": 900,
+          "y": 0
+        },
+        "data": {
+          "assignments": [
+            {
+              "variable": "status",
+              "value": "sent"
+            }
+          ]
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": {
+          "x": 1200,
+          "y": 100
+        },
+        "data": {
+          "outputs": [
+            {
+              "name": "status",
+              "type": "string",
+              "value": "{{ vars.status }}"
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "is_high",
+        "sourceHandle": null
+      },
+      {
+        "id": "e2",
+        "source": "is_high",
+        "target": "post",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e3",
+        "source": "post",
+        "target": "sent",
+        "sourceHandle": null
+      },
+      {
+        "id": "e4",
+        "source": "sent",
+        "target": "end",
+        "sourceHandle": null
+      },
+      {
+        "id": "e5",
+        "source": "is_high",
+        "target": "end",
+        "sourceHandle": "false"
+      }
+    ]
+  }
+}
