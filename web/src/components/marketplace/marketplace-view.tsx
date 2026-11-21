@@ -20,8 +20,11 @@ import type { CatalogListing, InstalledSummary } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { call, errorText } from "@/lib/call";
 import {
+  canInstall,
   filterEntries,
+  healthNote,
   installBody,
+  isBroken,
   joinCatalog,
   KIND_LABELS,
   type Kind,
@@ -73,7 +76,8 @@ function Actions({
         type="button"
         size="sm"
         variant={entry.status === "available" || entry.status === "update" ? "default" : "outline"}
-        disabled={busy || entry.status === "installed"}
+        disabled={busy || !canInstall(entry)}
+        title={isBroken(entry) && entry.status !== "installed" ? (healthNote(entry) ?? undefined) : undefined}
         onClick={onInstall}
       >
         {entry.status === "installed" ? "Installed" : entry.status === "update" ? "Update" : "Install"}
@@ -105,10 +109,16 @@ function Card({
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium">{entry.name}</span>
             <Badge variant="secondary">{KIND_LABELS[entry.kind]}</Badge>
+            {isBroken(entry) && <Badge variant="destructive">Broken</Badge>}
           </span>
           <span className="text-xs text-muted-foreground">{entry.description}</span>
         </div>
       </div>
+      {healthNote(entry) && (
+        <p role="note" className="text-xs text-destructive">
+          {healthNote(entry)}
+        </p>
+      )}
       {entry.alsoInstalls.length > 0 && (
         <p className="text-xs text-muted-foreground">Also installs {entry.alsoInstalls.join(", ")}.</p>
       )}
@@ -178,9 +188,15 @@ function Detail({
           <span className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">{entry.name}</h3>
             <Badge variant="secondary">{KIND_LABELS[entry.kind]}</Badge>
+            {isBroken(entry) && <Badge variant="destructive">Broken</Badge>}
             <span className="text-xs text-muted-foreground">{versionLabel(entry)}</span>
           </span>
           <span className="text-xs text-muted-foreground">{entry.description}</span>
+          {healthNote(entry) && (
+            <span role="note" className="text-xs text-destructive">
+              {healthNote(entry)}
+            </span>
+          )}
           {entry.alsoInstalls.length > 0 && (
             <span className="text-xs text-muted-foreground">Also installs {entry.alsoInstalls.join(", ")}.</span>
           )}

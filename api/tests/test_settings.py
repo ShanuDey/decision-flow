@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.settings import Settings
+from app.settings import DEFAULT_CATALOG_HEALTH_URL, Settings
 
 
 def test_default_origin(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -78,3 +78,25 @@ def test_mlflow_experiment_default_and_env_override(monkeypatch: pytest.MonkeyPa
     assert Settings(_env_file=None).mlflow_set_experiment == "decision-flow"
     monkeypatch.setenv("MLFLOW_SET_EXPERIMENT", "my-exp")
     assert Settings(_env_file=None).mlflow_set_experiment == "my-exp"
+
+
+class TestCatalogHealthUrl:
+    @pytest.fixture(autouse=True)
+    def clean(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CATALOG_URL", raising=False)
+        monkeypatch.delenv("CATALOG_HEALTH_URL", raising=False)
+
+    def test_this_projects_report_goes_with_this_projects_catalog(self) -> None:
+        assert Settings(_env_file=None).effective_catalog_health_url == DEFAULT_CATALOG_HEALTH_URL
+
+    def test_a_different_catalog_gets_no_report_unless_one_is_given(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CATALOG_URL", "https://mirror.test/marketplace")
+        assert Settings(_env_file=None).effective_catalog_health_url == ""
+        monkeypatch.setenv("CATALOG_HEALTH_URL", "https://mirror.test/health")
+        assert Settings(_env_file=None).effective_catalog_health_url == "https://mirror.test/health"
+
+    def test_empty_switches_the_report_off(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CATALOG_HEALTH_URL", "")
+        assert Settings(_env_file=None).effective_catalog_health_url == ""

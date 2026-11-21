@@ -13,6 +13,7 @@ from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
 from app.catalog import router as catalog
+from app.catalog.health import get_health_source
 from app.catalog.remote import get_catalog_source
 from app.connections import router as connections
 from app.db import get_engine
@@ -58,6 +59,7 @@ async def _lifespan(app: FastAPI) -> AsyncGenerator[None]:
             await retention_task
     await tracing.shutdown()
     await get_catalog_source(get_settings()).aclose()
+    await get_health_source(get_settings()).aclose()
     await app.state.authenticator.aclose()
 
 

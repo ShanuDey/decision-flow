@@ -11,6 +11,8 @@ on:
       - api/openapi.json
       - web/src/lib/docs/**
       - .github/workflows/docs.yml
+  schedule:
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,12 +20,56 @@ permissions:
   pages: write
   id-token: write
 
+# Never cancelled: a push must not cancel the nightly health check.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
 jobs:
+  # Separate from deploy, so a failure in one never stops the other.
+  health:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+      - run: uv --directory api sync --frozen
+
+      - name: Load the last report
+        run: curl -fsSL -o "$RUNNER_TEMP/previous.json" "$SITE/health.json" || true
+
+      - name: Check the published catalog
+        id: check
+        run: |
+          args=(--catalog-url "https://raw.githubusercontent.com/${{ github.repository }}/main/marketplace" --out "$RUNNER_TEMP/health.json")
+          if [ -s "$RUNNER_TEMP/previous.json" ]; then args+=(--previous "$RUNNER_TEMP/previous.json"); fi
+          set +e
+          uv --directory api run python -m scripts.check_catalog_health "${args[@]}"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      # Exit code 1 means the catalog could not be read, so no report was written.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: health
+          path: ${{ runner.temp }}/health.json
+          if-no-files-found: ignore
+
+      # A red run is the alert: something in the catalog needs a person.
+      - name: Fail when an item is broken or the catalog could not be read
+        if: steps.check.outputs.code != '0'
+        run: exit 1
+
   deploy:
+    needs: health
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -55,6 +101,22 @@ jobs:
           mkdir -p _site/embed
           cp -r docs/dist-direct/. _site/
           cp -r docs/dist _site/embed/docs
+
+      - uses: actions/download-artifact@v8
+        if: needs.health.result != 'skipped'
+        continue-on-error: true
+        with:
+          name: health
+          path: ${{ runner.temp }}/fresh
+      # A fresh report when the health job made one, otherwise the live one; none if there is none.
+      - name: Add the health report
+        run: |
+          if [ -s "$RUNNER_TEMP/fresh/health.json" ]; then
+            cp "$RUNNER_TEMP/fresh/health.json" _site/health.json
+          else
+            curl -fsSL -o _site/health.json "$SITE/health.json" || rm -f _site/health.json
+          fi
+
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

@@ -1,11 +1,11 @@
 import MiniSearch from "minisearch";
 
-import type { IndexEntry, InstalledSummary } from "@/lib/api/models";
+import type { InstalledSummary, ListedEntry } from "@/lib/api/models";
 
-export type Kind = IndexEntry["kind"];
+export type Kind = ListedEntry["kind"];
 export type Status = "available" | "installed" | "update";
 
-export interface MarketEntry extends IndexEntry {
+export interface MarketEntry extends ListedEntry {
   status: Status;
   installedVersion: string | null;
   // Names of the entries this one needs that are not installed yet.
@@ -19,7 +19,20 @@ export const KIND_LABELS: Record<Kind, string> = {
 
 const keyOf = (kind: string, id: string) => `${kind}/${id}`;
 
-export function joinCatalog(entries: IndexEntry[], installed: InstalledSummary[]): MarketEntry[] {
+export const isBroken = (entry: ListedEntry) => entry.health === "broken";
+
+// Installing or updating is paused for a broken item; removing and what is installed are not.
+export const canInstall = (entry: MarketEntry) => entry.status !== "installed" && !isBroken(entry);
+
+export function healthNote(entry: MarketEntry): string | null {
+  if (!isBroken(entry)) return null;
+  const why = entry.health_reason ? ` (${entry.health_reason})` : "";
+  return entry.status === "installed"
+    ? `Reported broken upstream${why}. Your installed copy keeps working.`
+    : `Reported broken${why}. Installing is paused until a later check passes.`;
+}
+
+export function joinCatalog(entries: ListedEntry[], installed: InstalledSummary[]): MarketEntry[] {
   const have = new Map(installed.map((i) => [keyOf(i.kind, i.id), i]));
   const names = new Map(entries.map((e) => [keyOf(e.kind, e.id), e.name]));
   return entries.map((entry) => {

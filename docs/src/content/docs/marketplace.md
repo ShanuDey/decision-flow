@@ -33,6 +33,17 @@ When the Marketplace lists a newer version of something you installed, its card 
 
 The list is read from a public folder on GitHub (see `CATALOG_URL` in [configuration](configuration#marketplace-source)), so it can change without upgrading the app. The page shows when the list was last updated and has a **Refresh** button. If the list cannot be loaded, the Marketplace says it is unavailable; items you installed keep working. The full list is also on the [catalog pages](catalog).
 
+## Health checks
+
+Every night the project reads the published list the way your server does: it fetches each file, checks it against the list, and checks that the current version of the app can still read it. An item that fails two nights in a row is marked **Broken**.
+
+- A broken item shows a **Broken** badge and the reason, and **Install** and **Update** are paused for it, and for any template that needs it. The server checks again when you install, so a stale page cannot get around it.
+- Something you already installed keeps working. Its card says the item is reported broken upstream, and **Remove** is still available.
+- It clears by itself: the first night an item passes again, the badge goes away.
+- If the report cannot be reached, is older than three days, or is switched off, every item is shown as healthy. A missing report never blocks an install.
+
+A server that uses its own `CATALOG_URL` does not read this project's report. See `CATALOG_HEALTH_URL` in [configuration](configuration#marketplace-source) to use one of your own.
+
 ## What this server offers
 
 Which items work on a server depends on its settings. A server that turns off the HTTP Request node (`DISABLED_NODE_TYPES`) does not offer request templates, and one with an allowed-host list (`HTTP_ALLOWED_HOSTS`) leaves out templates it could not run.

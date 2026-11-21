@@ -12,6 +12,7 @@ from app.auth.config import ProviderConfig
 ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 MLFLOW_SCHEMA_OPTION = "-csearch_path=mlflow"
 DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/ShanuDey/decision-flow/main/marketplace"
+DEFAULT_CATALOG_HEALTH_URL = "https://shanudey.github.io/decision-flow"
 
 
 def query_options(url: URL) -> str:
@@ -81,9 +82,17 @@ class Settings(BaseSettings):
 
     # Marketplace catalog: an https URL or a local folder; empty switches the Marketplace off.
     catalog_url: str = DEFAULT_CATALOG_URL
+    # Unset: this project's health report, only with the default CATALOG_URL. Empty: none.
+    catalog_health_url: str | None = None
 
     # /docs, /redoc and /openapi.json list every endpoint: opt in locally, leave off when deployed.
     api_docs_enabled: bool = False
+
+    @property
+    def effective_catalog_health_url(self) -> str:
+        if self.catalog_health_url is not None:
+            return self.catalog_health_url
+        return DEFAULT_CATALOG_HEALTH_URL if self.catalog_url == DEFAULT_CATALOG_URL else ""
 
     @field_validator("auth_providers", mode="after")
     @classmethod

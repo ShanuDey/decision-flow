@@ -78,5 +78,5 @@ def build_fetcher(url: str, transport: httpx.AsyncBaseTransport | None = None) -
     if not url.lower().startswith(("http://", "https://")):
         return FolderFetcher(url)
     if not url.lower().startswith("https://"):
-        raise CatalogUnavailable("CATALOG_URL must use https")
+        raise CatalogUnavailable("The catalog address must use https")
     return HttpFetcher(url, transport)

@@ -5,10 +5,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type IndexEntryKind = typeof IndexEntryKind[keyof typeof IndexEntryKind];
+export type ListedEntryKind = typeof ListedEntryKind[keyof typeof ListedEntryKind];
 
 
-export const IndexEntryKind = {
+export const ListedEntryKind = {
   'connection-type': 'connection-type',
   'node-template': 'node-template',
 } as const;

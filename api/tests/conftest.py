@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from app.auth.models import Principal
+from app.catalog.health import HealthSource, get_health_source
 from app.catalog.models import InstalledItem
 from app.catalog.remote import CatalogSource, get_catalog_source
 from app.catalog.store import ItemDraft, get_installed_store
@@ -533,6 +534,11 @@ def catalog_source() -> CatalogSource:
 
 
 @pytest.fixture
+def health_source() -> HealthSource:
+    return HealthSource("")
+
+
+@pytest.fixture
 def connection_store(flow_store: FakeFlowStore) -> FakeConnectionStore:
     return FakeConnectionStore(flow_store)
 
@@ -551,12 +557,14 @@ async def client(
     connection_store: FakeConnectionStore,
     installed_store: FakeInstalledStore,
     catalog_source: CatalogSource,
+    health_source: HealthSource,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_connection_store] = lambda: connection_store
     app.dependency_overrides[get_installed_store] = lambda: installed_store
     app.dependency_overrides[get_catalog_source] = lambda: catalog_source
+    app.dependency_overrides[get_health_source] = lambda: health_source
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     app.dependency_overrides[get_observer_factory] = lambda: lambda _name: StubObserver()
@@ -571,6 +579,7 @@ async def client(
         get_connection_store,
         get_installed_store,
         get_catalog_source,
+        get_health_source,
         get_run_store,
         get_workspace_store,
         get_observer_factory,
@@ -587,12 +596,14 @@ async def anon_client(
     connection_store: FakeConnectionStore,
     installed_store: FakeInstalledStore,
     catalog_source: CatalogSource,
+    health_source: HealthSource,
 ):
     app.dependency_overrides[get_store] = lambda: flow_store
     app.dependency_overrides[get_secret_store] = lambda: secret_store
     app.dependency_overrides[get_connection_store] = lambda: connection_store
     app.dependency_overrides[get_installed_store] = lambda: installed_store
     app.dependency_overrides[get_catalog_source] = lambda: catalog_source
+    app.dependency_overrides[get_health_source] = lambda: health_source
     app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_workspace_store] = lambda: workspace_store
     transport = httpx.ASGITransport(app=app)
@@ -604,6 +615,7 @@ async def anon_client(
         get_connection_store,
         get_installed_store,
         get_catalog_source,
+        get_health_source,
         get_run_store,
         get_workspace_store,
     ):

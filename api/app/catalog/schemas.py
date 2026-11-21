@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from app.catalog.index import IndexEntry
 from app.catalog.source import Kind
@@ -31,8 +32,14 @@ class InstallResult(FrozenBaseModel):
     installed: list[InstalledSummary]
 
 
+class ListedEntry(IndexEntry):
+    # From the nightly check; "broken" items cannot be installed until a later run passes.
+    health: Literal["ok", "broken"] = "ok"
+    health_reason: str = ""
+
+
 class CatalogListing(FrozenBaseModel):
-    entries: list[IndexEntry]
+    entries: list[ListedEntry]
     fetched_at: datetime
     # True when the latest refresh failed and these entries are the previous copy.
     stale: bool

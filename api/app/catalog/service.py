@@ -4,6 +4,7 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from app.catalog.health import EntryHealth, HealthSource
 from app.catalog.index import IndexEntry, file_hash
 from app.catalog.models import InstalledItem
 from app.catalog.remote import (
@@ -20,6 +21,7 @@ from app.catalog.schemas import (
     InstalledSummary,
     InstallRequest,
     InstallResult,
+    ListedEntry,
 )
 from app.catalog.source import CatalogFile, Kind
 from app.catalog.store import InstalledStore, ItemDraft
@@ -83,9 +85,21 @@ def _draft(file: CatalogFile) -> ItemDraft:
     )
 
 
-def _listing(listing: Listing) -> CatalogListing:
+def _listed(entry: IndexEntry, health: dict[str, EntryHealth]) -> ListedEntry:
+    found = health.get(f"{entry.kind}/{entry.id}")
+    problem = found is not None and found.status == "broken"
+    return ListedEntry(
+        **entry.model_dump(),
+        health="broken" if problem else "ok",
+        health_reason=found.reason if found and problem else "",
+    )
+
+
+def _listing(listing: Listing, health: dict[str, EntryHealth]) -> CatalogListing:
     return CatalogListing(
-        entries=listing.index.entries, fetched_at=listing.fetched_at, stale=listing.stale
+        entries=[_listed(e, health) for e in listing.index.entries],
+        fetched_at=listing.fetched_at,
+        stale=listing.stale,
     )
 
 
@@ -98,11 +112,14 @@ def _unavailable(exc: CatalogUnavailable) -> ApiError:
     )
 
 
-async def catalog_listing(source: CatalogSource, *, force: bool = False) -> CatalogListing:
+async def catalog_listing(
+    source: CatalogSource, health: HealthSource, *, force: bool = False
+) -> CatalogListing:
     try:
-        return _listing(await source.index(force=force))
+        listing = await source.index(force=force)
     except CatalogUnavailable as exc:
         raise _unavailable(exc) from None
+    return _listing(listing, await health.statuses())
 
 
 async def catalog_readme(source: CatalogSource, kind: Kind, item_id: str) -> CatalogReadme:
@@ -140,9 +157,9 @@ async def _fetch(source: CatalogSource, entry: IndexEntry) -> CatalogFile:
 
 
 def _missing_requirements(
-    entry: IndexEntry, listed: dict[str, IndexEntry], have: set[str]
-) -> list[IndexEntry]:
-    missing: list[IndexEntry] = []
+    entry: ListedEntry, listed: dict[str, ListedEntry], have: set[str]
+) -> list[ListedEntry]:
+    missing: list[ListedEntry] = []
     for need in entry.requires:
         if need in have:
             continue
@@ -152,11 +169,27 @@ def _missing_requirements(
     return missing
 
 
+def _refuse_broken(entries: list[ListedEntry]) -> None:
+    for entry in entries:
+        if entry.health == "broken":
+            raise ApiError(
+                409,
+                "catalog_item_broken",
+                f"{entry.name} failed the nightly check ({entry.health_reason}). "
+                "It cannot be installed until a later check passes.",
+                {"name": entry.name, "reason": entry.health_reason},
+            )
+
+
 async def install(
-    store: InstalledStore, source: CatalogSource, member: Member, request: InstallRequest
+    store: InstalledStore,
+    source: CatalogSource,
+    health: HealthSource,
+    member: Member,
+    request: InstallRequest,
 ) -> InstallResult:
     """Fetches and checks everything first, then writes the item and what it needs together."""
-    listed = {f"{e.kind}/{e.id}": e for e in (await catalog_listing(source)).entries}
+    listed = {f"{e.kind}/{e.id}": e for e in (await catalog_listing(source, health)).entries}
     entry = listed.get(f"{request.kind}/{request.id}")
     if entry is None:
         raise ApiError(404, "catalog_item_not_found", "That catalog entry does not exist")
@@ -165,6 +198,7 @@ async def install(
 
     have = {f"{i.kind}/{i.item_id}" for i in await store.list_items(member)}
     needs = _missing_requirements(entry, listed, have)
+    _refuse_broken([entry, *needs])
     files = [await _fetch(source, e) for e in (*needs, entry)]
     *required, file = files
 

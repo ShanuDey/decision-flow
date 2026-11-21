@@ -11,14 +11,20 @@ import * as zod from 'zod';
  *
  * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
  * is cached for a few minutes; `stale` is true when the latest refresh failed and this is the
- * previous copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.
+ * previous copy. Each entry carries its nightly `health`. 503 `catalog_unavailable` when the
+ * catalog cannot be read and nothing is cached.
  * @summary Get Catalog Index
  */
+export const getCatalogIndexResponseEntriesItemHealthDefault = `ok`;
+export const getCatalogIndexResponseEntriesItemHealthReasonDefault = ``;
+
 export const GetCatalogIndexResponse = zod.object({
   "entries": zod.array(zod.object({
   "description": zod.string(),
   "has_readme": zod.boolean(),
   "hash": zod.string(),
+  "health": zod.enum(['ok', 'broken']).default(getCatalogIndexResponseEntriesItemHealthDefault),
+  "health_reason": zod.string().default(getCatalogIndexResponseEntriesItemHealthReasonDefault),
   "icon": zod.string(),
   "id": zod.string(),
   "kind": zod.enum(['connection-type', 'node-template']),
@@ -37,7 +43,8 @@ export const GetCatalogIndexResponse = zod.object({
  * Installs a catalog item in this workspace, or updates it to the given version.
  *
  * The server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the
- * entry changed since you loaded the index. Items it requires are installed first.
+ * entry changed since you loaded the index. Items it requires are installed first. 409
+ * `catalog_item_broken` when the nightly check reports the item, or one it requires, as broken.
  * @summary Install Item
  */
 export const InstallItemBody = zod.object({
@@ -113,11 +120,16 @@ export const GetCatalogReadmeResponse = zod.object({
  * Within 30 seconds of the last attempt the saved copy is returned instead.
  * @summary Refresh Catalog Index
  */
+export const refreshCatalogIndexResponseEntriesItemHealthDefault = `ok`;
+export const refreshCatalogIndexResponseEntriesItemHealthReasonDefault = ``;
+
 export const RefreshCatalogIndexResponse = zod.object({
   "entries": zod.array(zod.object({
   "description": zod.string(),
   "has_readme": zod.boolean(),
   "hash": zod.string(),
+  "health": zod.enum(['ok', 'broken']).default(refreshCatalogIndexResponseEntriesItemHealthDefault),
+  "health_reason": zod.string().default(refreshCatalogIndexResponseEntriesItemHealthReasonDefault),
   "icon": zod.string(),
   "id": zod.string(),
   "kind": zod.enum(['connection-type', 'node-template']),

@@ -102,7 +102,8 @@ export const getGetCatalogIndexUrl = () => {
  *
  * Each entry has the `hash` to send when installing it, and the entries it `requires`. The list
  * is cached for a few minutes; `stale` is true when the latest refresh failed and this is the
- * previous copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.
+ * previous copy. Each entry carries its nightly `health`. 503 `catalog_unavailable` when the
+ * catalog cannot be read and nothing is cached.
  * @summary Get Catalog Index
  */
 export const getCatalogIndex = async ( options?: Parameters<typeof apiFetch>[1]): Promise<getCatalogIndexResponse> => {
@@ -179,7 +180,8 @@ export const getInstallItemUrl = () => {
  * Installs a catalog item in this workspace, or updates it to the given version.
  *
  * The server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the
- * entry changed since you loaded the index. Items it requires are installed first.
+ * entry changed since you loaded the index. Items it requires are installed first. 409
+ * `catalog_item_broken` when the nightly check reports the item, or one it requires, as broken.
  * @summary Install Item
  */
 export const installItem = async (installRequest: InstallRequest, options?: Parameters<typeof apiFetch>[1]): Promise<installItemResponse> => {

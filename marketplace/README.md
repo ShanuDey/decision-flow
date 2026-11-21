@@ -29,4 +29,14 @@ make check-marketplace
 
 Pull requests that touch this folder run `check-marketplace` in CI. It loads every file with the app's own loaders, checks paths, ids and requirements, caps file sizes, and fails when `index.json` or `schemas/` are out of date. Files must stay under 256 KB.
 
+## Nightly health
+
+Every night the `health` job in `.github/workflows/docs.yml` reads the published catalog from `main` the way an installing server does, using the app's own loaders. For each item it checks that every listed file exists, matches the hash in `index.json`, and is still readable by the current version of the app, and that a listed `README.md` can be read. A template also fails when a type it needs is failing. The result is `health.json`, published with the docs site at `/health.json`. Nothing is committed to the repository.
+
+An item that fails two nights in a row is `broken`: the Marketplace shows a badge and pauses installing and updating it. Passing once clears it. A red workflow run is the alert. To fix a broken item, add a new version file (a published version never changes). Run the check yourself with:
+
+```
+uv --directory api run python -m scripts.check_catalog_health --catalog-url marketplace --out health.json
+```
+
 Merging to `main` publishes the change: apps pick it up when their cached index expires (5 minutes), and the docs catalog pages are rebuilt.

@@ -52,7 +52,7 @@
         "properties": {
           "entries": {
             "items": {
-              "$ref": "#/components/schemas/IndexEntry"
+              "$ref": "#/components/schemas/ListedEntry"
             },
             "title": "Entries",
             "type": "array"
@@ -931,80 +931,6 @@
         "title": "HttpRequestData",
         "type": "object"
       },
-      "IndexEntry": {
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "title": "Description",
-            "type": "string"
-          },
-          "has_readme": {
-            "title": "Has Readme",
-            "type": "boolean"
-          },
-          "hash": {
-            "title": "Hash",
-            "type": "string"
-          },
-          "icon": {
-            "title": "Icon",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "connection-type",
-              "node-template"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "path": {
-            "title": "Path",
-            "type": "string"
-          },
-          "requires": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Requires",
-            "type": "array"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Tags",
-            "type": "array"
-          },
-          "version": {
-            "title": "Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "name",
-          "description",
-          "icon",
-          "tags",
-          "version",
-          "hash",
-          "path",
-          "requires",
-          "has_readme"
-        ],
-        "title": "IndexEntry",
-        "type": "object"
-      },
       "InstallRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1114,6 +1040,94 @@
           "installed_at"
         ],
         "title": "InstalledSummary",
+        "type": "object"
+      },
+      "ListedEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "has_readme": {
+            "title": "Has Readme",
+            "type": "boolean"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "health": {
+            "default": "ok",
+            "enum": [
+              "ok",
+              "broken"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "health_reason": {
+            "default": "",
+            "title": "Health Reason",
+            "type": "string"
+          },
+          "icon": {
+            "title": "Icon",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "connection-type",
+              "node-template"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "description",
+          "icon",
+          "tags",
+          "version",
+          "hash",
+          "path",
+          "requires",
+          "has_readme"
+        ],
+        "title": "ListedEntry",
         "type": "object"
       },
       "NodeTemplate": {
@@ -2090,7 +2104,7 @@
   "paths": {
     "/catalog/index": {
       "get": {
-        "description": "Lists what the Marketplace offers: a summary per item, newest version only.\n\nEach entry has the `hash` to send when installing it, and the entries it `requires`. The list\nis cached for a few minutes; `stale` is true when the latest refresh failed and this is the\nprevious copy. 503 `catalog_unavailable` when the catalog cannot be read and nothing is cached.",
+        "description": "Lists what the Marketplace offers: a summary per item, newest version only.\n\nEach entry has the `hash` to send when installing it, and the entries it `requires`. The list\nis cached for a few minutes; `stale` is true when the latest refresh failed and this is the\nprevious copy. Each entry carries its nightly `health`. 503 `catalog_unavailable` when the\ncatalog cannot be read and nothing is cached.",
         "operationId": "get_catalog_index",
         "responses": {
           "200": {
@@ -2157,7 +2171,7 @@
     },
     "/catalog/install": {
       "post": {
-        "description": "Installs a catalog item in this workspace, or updates it to the given version.\n\nThe server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the\nentry changed since you loaded the index. Items it requires are installed first.",
+        "description": "Installs a catalog item in this workspace, or updates it to the given version.\n\nThe server fetches the file itself and checks it against `hash`; 409 `hash_mismatch` means the\nentry changed since you loaded the index. Items it requires are installed first. 409\n`catalog_item_broken` when the nightly check reports the item, or one it requires, as broken.",
         "operationId": "install_item",
         "requestBody": {
           "content": {
