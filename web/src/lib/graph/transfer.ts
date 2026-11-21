@@ -142,10 +142,16 @@ export function flowFileName(name: string): string {
   return `${slug || "flow"}.flow.json`;
 }
 
-// Subflow ids belong to the exporting workspace, so an import must not keep them.
+// Subflow and agent tool ids belong to the exporting workspace, so an import must not keep them.
 function clearSubflows(graph: Graph): { graph: Graph; cleared: number } {
   let cleared = 0;
   const nodes = graph.nodes.map((node) => {
+    if (node.type === "agent") {
+      const used = node.data.tools.filter((t) => t.flow_id).length;
+      if (used === 0) return node;
+      cleared += used;
+      return { ...node, data: { ...node.data, tools: node.data.tools.map((t) => ({ ...t, flow_id: "" })) } };
+    }
     if (node.type !== "subflow" || !node.data.flow_id) return node;
     cleared += 1;
     return { ...node, data: { ...node.data, flow_id: "" } };

@@ -95,6 +95,28 @@ export interface StructuredOutputData {
   timeout_seconds: number | null;
 }
 
+export interface AgentTool {
+  flow_id: string;
+  // What the model sees; the flow's own name is not shown to it.
+  name: string;
+  description: string;
+}
+
+export interface AgentData {
+  connection_id: string;
+  // Empty: the connection's default model.
+  model: string;
+  instructions: string;
+  prompt: string;
+  tools: AgentTool[];
+  max_iterations: number;
+  max_total_tokens: number | null;
+  max_seconds: number | null;
+  temperature: number | null;
+  max_tokens: number | null;
+  timeout_seconds: number | null;
+}
+
 export interface NodeDataByType {
   start: StartData;
   end: EndData;
@@ -103,6 +125,7 @@ export interface NodeDataByType {
   http_request: HttpRequestData;
   prompt: PromptData;
   structured_output: StructuredOutputData;
+  agent: AgentData;
   subflow: SubflowData;
 }
 

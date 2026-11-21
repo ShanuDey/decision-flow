@@ -73,6 +73,14 @@ export function outputKeys(
         { name: "finish_reason", type: "string" },
         { name: "usage", type: "object" },
       ];
+    case "agent":
+      return [
+        { name: "text", type: "string" },
+        { name: "steps", type: "array" },
+        { name: "iterations", type: "number" },
+        { name: "usage", type: "object" },
+        { name: "model", type: "string" },
+      ];
     case "structured_output":
       return node.data.fields.filter((f) => f.name).map((f) => ({ name: f.name, type: f.type }));
     case "subflow":

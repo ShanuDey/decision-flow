@@ -218,7 +218,7 @@ export function TemplatePicker({ trigger }: { trigger: React.ReactElement }) {
       return;
     }
     if (parsed.clearedSubflows) {
-      toast.info(`Pick the flow again in ${parsed.clearedSubflows} subflow node(s); ids are not carried over.`);
+      toast.info(`Pick the flow again in ${parsed.clearedSubflows} subflow or agent tool(s); ids are not carried over.`);
     }
     const unset = needs.filter((n) => !choices[n.fileId]).reduce((total, n) => total + n.nodes, 0);
     if (unset) toast.info(`Pick a connection in ${unset} request node(s); the file's ids are not carried over.`);
