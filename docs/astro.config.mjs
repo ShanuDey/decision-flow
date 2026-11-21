@@ -52,6 +52,7 @@ export default defineConfig({
             "concepts/templates",
             "concepts/expressions",
             "flow-templates",
+            "import-export",
           ],
         },
         {

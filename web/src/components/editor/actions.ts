@@ -181,8 +181,8 @@ export function configureNode(id: string, { select = false }: { select?: boolean
 }
 
 export function exportFlow(): void {
-  const { name, toGraph } = useEditor.getState();
-  const file = buildFlowFile(name, toGraph());
+  const { name, toGraph, connections } = useEditor.getState();
+  const file = buildFlowFile(name, toGraph(), connections);
   const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;
