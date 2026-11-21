@@ -25,6 +25,7 @@ MAX_PROVIDER_MESSAGE = 300
 USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens")
 # The SDK adds these from the server's environment; they belong to the operator, not the provider.
 ENVIRONMENT_HEADERS = ("openai-organization", "openai-project")
+OUT_OF_TOKENS = "the model ran out of tokens before it answered; raise max tokens or leave it empty"
 STATUS_HINTS = {
     401: "the provider rejected the key",
     402: "the provider needs payment or credit",
@@ -72,7 +73,7 @@ def _blocked(exc: BaseException | None) -> BlockedRequest | None:
     return None
 
 
-def _failure(exc: Exception, connection: ResolvedConnection) -> ValueError:
+def failure(exc: Exception, connection: ResolvedConnection) -> ValueError:
     if (blocked := _blocked(exc)) is not None:
         return ValueError(f"request failed ({blocked.error.code}): {blocked.error.message}")
     if isinstance(exc, openai.APITimeoutError | TimeoutError):
@@ -124,17 +125,15 @@ def _reply(message: BaseMessage, requested: str) -> ChatReply:
     )
 
 
-async def chat_completion(
+async def open_chat(
     policy: OutboundPolicy,
     connection: ResolvedConnection,
     *,
     model: str,
-    messages: list[dict[str, str]],
     temperature: float | None = None,
     max_tokens: int | None = None,
-    response_format: dict[str, Any] | None = None,
-) -> ChatReply:
-    """Raises ValueError with a message a flow author can act on. Unset options are not sent."""
+) -> tuple[ChatOpenAI, httpx.AsyncClient]:
+    """The caller closes the client. Raises ValueError with a message a flow author can act on."""
     base, query = split_base_url(require_base_url(connection))
     host = httpx.URL(base).host
     if not host_allowed(host, connection.hosts):
@@ -170,17 +169,32 @@ async def chat_completion(
         await client.aclose()
         logger.exception("model client could not be set up", exc_info=exc)
         raise ValueError(f"the model call could not be set up ({type(exc).__name__})") from None
+    return chat, client
+
+
+async def chat_completion(
+    policy: OutboundPolicy,
+    connection: ResolvedConnection,
+    *,
+    model: str,
+    messages: list[dict[str, str]],
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    response_format: dict[str, Any] | None = None,
+) -> ChatReply:
+    """Raises ValueError with a message a flow author can act on. Unset options are not sent."""
+    chat, client = await open_chat(
+        policy, connection, model=model, temperature=temperature, max_tokens=max_tokens
+    )
     try:
         async with asyncio.timeout(policy.timeout_seconds):
             extra = {"response_format": response_format} if response_format else {}
             message = await chat.ainvoke(messages, **extra)
     except Exception as exc:
-        raise _failure(exc, connection) from None
+        raise failure(exc, connection) from None
     finally:
         await client.aclose()
     reply = _reply(message, model)
     if not reply.text.strip() and reply.finish_reason == "length":
-        raise ValueError(
-            "the model ran out of tokens before it answered; raise max tokens or leave it empty"
-        )
+        raise ValueError(OUT_OF_TOKENS)
     return reply
