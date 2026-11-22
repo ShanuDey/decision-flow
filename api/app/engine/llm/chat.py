@@ -132,6 +132,7 @@ async def open_chat(
     model: str,
     temperature: float | None = None,
     max_tokens: int | None = None,
+    stream_usage: bool = False,
 ) -> tuple[ChatOpenAI, httpx.AsyncClient]:
     """The caller closes the client. Raises ValueError with a message a flow author can act on."""
     base, query = split_base_url(require_base_url(connection))
@@ -162,6 +163,7 @@ async def open_chat(
             http_client=httpx.Client(verify=shared_ssl_context()),
             max_retries=0,
             openai_proxy=None,
+            stream_usage=stream_usage,
             timeout=policy.timeout_seconds,
             **{k: v for k, v in options.items() if v is not None},
         )

@@ -28,6 +28,8 @@ BAD_ARGUMENTS = "error: the arguments were not valid JSON"
 Stop = Literal["answer", "max_iterations", "max_tokens", "timeout"]
 ToolRunner = Callable[[str, dict[str, Any]], Awaitable[str]]
 StepListener = Callable[["ToolStep"], Awaitable[None]]
+# Model call number (1, 2, ...) and a piece of its text.
+TokenListener = Callable[[int, str], Awaitable[None]]
 
 
 class ModelListener(Protocol):
@@ -178,6 +180,7 @@ async def run_agent(
     response_format: dict[str, Any] | None = None,
     on_step: StepListener | None = None,
     on_model: ModelListener | None = None,
+    on_token: TokenListener | None = None,
 ) -> AgentResult:
     """Raises ValueError with a message a flow author can act on. A tool's own failure is not
     raised: the model is told and can try something else. Hitting a limit is a `stop` value.
@@ -191,7 +194,12 @@ async def run_agent(
     limits = limits or AgentLimits()
     names = _check_tools(tools)
     chat, client = await open_chat(
-        policy, connection, model=model, temperature=temperature, max_tokens=max_tokens
+        policy,
+        connection,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream_usage=on_token is not None,
     )
     steps: list[ToolStep] = []
     stop = {"reason": "answer"}
@@ -259,6 +267,8 @@ async def run_agent(
         middleware=[guard],
     )
     config: dict[str, Any] = {"recursion_limit": limits.max_iterations * 6 + 20}
+    # Streaming text makes the provider answer in pieces, so only on request.
+    modes = ["updates", "messages"] if on_token else ["updates"]
     hooks = _ModelHooks(on_model, model, connection) if on_model is not None else None
     if hooks:
         config["callbacks"] = [hooks]
@@ -271,10 +281,21 @@ async def run_agent(
     try:
         try:
             async with asyncio.timeout(limits.max_seconds) as deadline:
-                async for update in agent.astream(
-                    {"messages": messages}, config=config, stream_mode="updates"
+                async for mode, payload in agent.astream(
+                    {"messages": messages}, config=config, stream_mode=modes
                 ):
-                    for node, data in update.items():
+                    if mode == "messages":
+                        chunk, meta = payload
+                        text = chunk.content
+                        if (
+                            on_token
+                            and meta.get("langgraph_node") == "model"
+                            and isinstance(text, str)
+                            and text
+                        ):
+                            await on_token(iterations + 1, text)
+                        continue
+                    for node, data in payload.items():
                         for message in (data or {}).get("messages") or []:
                             produced.append(message)
                             if node == "tools" and getattr(message, "status", "") == "error":

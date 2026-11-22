@@ -3812,7 +3812,7 @@
     },
     "/agents/{agent_id}/threads/{thread_id}/messages/stream": {
       "post": {
-        "description": "Like sending a message, but as server-sent events.\n\n`tool` events arrive as the agent runs each flow (`name`, `arguments`, `result`, `is_error`),\nthen one `message` event holds the stored answer, or one `error` event holds what the plain\nendpoint would have returned as an error. The answer itself is not streamed word by word.",
+        "description": "Like sending a message, but as server-sent events.\n\n`token` events carry the model's text as it is written (`index` is the number of the model\ncall, `text` a piece of it): show the text of the latest `index` only, because a call that\nasks for a flow may write a few words before it. `tool` events arrive as the agent runs each\nflow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored\nanswer, which replaces the streamed text, or one `error` event holds what the plain endpoint\nwould have returned as an error.",
         "operationId": "stream_message",
         "parameters": [
           {

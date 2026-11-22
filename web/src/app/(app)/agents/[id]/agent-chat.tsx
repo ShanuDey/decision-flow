@@ -11,7 +11,7 @@ import { createThread, deleteThread, getMessageSteps, getThread } from "@/lib/ap
 import type { MessageInfo, ThreadSummary, ToolCallInfo } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { streamTurn } from "@/lib/agent-stream";
-import { stepSummary } from "@/lib/agents";
+import { addToken, type Streaming, stepSummary } from "@/lib/agents";
 import { call } from "@/lib/call";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -99,7 +99,11 @@ export function AgentChat({
   const [messages, setMessages] = useState<MessageInfo[]>([]);
   const [loading, setLoading] = useState(initialThreads.length > 0);
   const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState<{ content: string; steps: ToolCallInfo[] } | null>(null);
+  const [pending, setPending] = useState<{
+    content: string;
+    steps: ToolCallInfo[];
+    answer: Streaming | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -167,14 +171,19 @@ export function AgentChat({
     const threadId = activeId ?? (await start());
     if (!threadId) return;
     setDraft("");
-    setPending({ content, steps: [] });
+    setPending({ content, steps: [], answer: null });
     const controller = new AbortController();
     abort.current = controller;
     const outcome = await streamTurn(
       agentId,
       threadId,
       content,
-      (step) => setPending((p) => (p ? { ...p, steps: [...p.steps, step] } : p)),
+      {
+        // A flow ran: the text written before it belongs to a call that is over.
+        onTool: (step) => setPending((p) => (p ? { ...p, steps: [...p.steps, step], answer: null } : p)),
+        onToken: (index, text) =>
+          setPending((p) => (p ? { ...p, answer: addToken(p.answer, index, text) } : p)),
+      },
       controller.signal,
     );
     if (controller.signal.aborted) return;
@@ -275,9 +284,15 @@ export function AgentChat({
               </div>
               <div className="flex flex-col items-start gap-1.5" aria-live="polite">
                 <Steps steps={pending.steps} />
-                <span className="text-xs text-muted-foreground">
-                  {pending.steps.length === 0 ? "Thinking…" : "Working…"}
-                </span>
+                {pending.answer ? (
+                  <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl border bg-card px-3.5 py-2 text-sm">
+                    {pending.answer.text}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {pending.steps.length === 0 ? "Thinking…" : "Working…"}
+                  </span>
+                )}
               </div>
             </>
           )}

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from typing import Any
 
 import pytest
@@ -335,3 +336,73 @@ async def test_the_iteration_limit_still_counts_this_runs_model_calls_after_a_lo
         )
 
     assert (result.stop, result.iterations, len(seen)) == ("max_iterations", 2, 2)
+
+
+class Tokens:
+    def __init__(self) -> None:
+        self.pieces: list[tuple[int, str]] = []
+        self.first_at: float | None = None
+
+    async def __call__(self, index: int, text: str) -> None:
+        if self.first_at is None:
+            self.first_at = time.perf_counter()
+        self.pieces.append((index, text))
+
+
+async def test_text_is_passed_on_as_it_is_written_with_the_number_of_the_model_call() -> None:
+    tokens = Tokens()
+    thinking = asks(("add", '{"a": 1}')) | {"content": "Let me check"}
+    async with chat_server(script=[thinking, says("It is three")]) as (port, _):
+        result = await agent(port, Tools(), on_token=tokens)
+
+    assert tokens.pieces == [
+        (1, "Let "),
+        (1, "me "),
+        (1, "check"),
+        (2, "It "),
+        (2, "is "),
+        (2, "three"),
+    ]
+    assert result.text == "It is three"
+
+
+async def test_tool_results_are_not_passed_on_as_text() -> None:
+    tokens = Tokens()
+    async with chat_server(script=[asks(("add", "{}")), says("Done")]) as (port, _):
+        await agent(port, Tools("SECRET-RESULT"), on_token=tokens)
+
+    assert all("SECRET-RESULT" not in text for _, text in tokens.pieces)
+
+
+async def test_streaming_still_reports_token_usage() -> None:
+    async with chat_server(script=[asks(("add", "{}")), says("Done")]) as (port, seen):
+        result = await agent(port, Tools(), on_token=Tokens())
+
+    assert result.usage["total_tokens"] == 10
+    assert seen[0].body["stream"] is True and seen[0].body["stream_options"] == {
+        "include_usage": True
+    }
+
+
+async def test_without_a_token_listener_the_provider_is_not_asked_to_stream() -> None:
+    async with chat_server("hi") as (port, seen):
+        await agent(port, Tools(), tools=[])
+
+    assert not seen[0].body.get("stream") and "stream_options" not in seen[0].body
+
+
+async def test_the_first_text_arrives_while_the_model_is_still_writing() -> None:
+    tokens = Tokens()
+    started = time.perf_counter()
+    async with chat_server("a b c d e f g h", pace=0.05) as (port, _):
+        await agent(port, Tools(), tools=[], on_token=tokens)
+    finished = time.perf_counter()
+
+    assert tokens.first_at is not None
+    assert tokens.first_at - started < (finished - started) - 0.2
+
+
+async def test_a_failure_while_streaming_is_still_our_wording() -> None:
+    async with chat_server(status=401, raw=b'{"error": {"message": "bad key"}}') as (port, _):
+        with pytest.raises(ValueError, match="rejected the key"):
+            await agent(port, Tools(), tools=[], on_token=Tokens())

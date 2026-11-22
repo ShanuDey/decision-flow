@@ -19,6 +19,7 @@ from app.connections.store import ConnectionStore
 from app.engine.agent_tools import AgentTool, FlowTools, check_tools
 from app.engine.compiler import compile_graph
 from app.engine.llm import AgentLimits, ChatReply, ToolStep, require_base_url, run_agent
+from app.engine.llm.agent import TokenListener
 from app.engine.nodes.agent import STOPPED
 from app.engine.observer import Observer, ScopedObserver
 from app.engine.redact import Redactor
@@ -264,6 +265,7 @@ async def run_turn(
     thread: AgentThread,
     content: str,
     on_step: StepListener | None = None,
+    on_token: TokenListener | None = None,
 ) -> tuple[AgentMessage, AgentMessage]:
     """Answers one user message and stores both messages; nothing is stored if it fails."""
     if agent.connection_id is None:
@@ -341,6 +343,7 @@ async def run_turn(
             max_tokens=settings.get("max_tokens"),
             on_step=on_step,
             on_model=_ModelSpans(tracer, redactor),
+            on_token=on_token,
         )
     except ValueError as exc:
         raise await fail(ApiError(502, "model_failed", _redact(str(exc), secrets))) from None

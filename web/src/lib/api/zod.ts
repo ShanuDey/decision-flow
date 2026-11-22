@@ -480,9 +480,12 @@ export const SendMessageResponse = zod.object({
 /**
  * Like sending a message, but as server-sent events.
  *
- * `tool` events arrive as the agent runs each flow (`name`, `arguments`, `result`, `is_error`),
- * then one `message` event holds the stored answer, or one `error` event holds what the plain
- * endpoint would have returned as an error. The answer itself is not streamed word by word.
+ * `token` events carry the model's text as it is written (`index` is the number of the model
+ * call, `text` a piece of it): show the text of the latest `index` only, because a call that
+ * asks for a flow may write a few words before it. `tool` events arrive as the agent runs each
+ * flow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored
+ * answer, which replaces the streamed text, or one `error` event holds what the plain endpoint
+ * would have returned as an error.
  * @summary Stream Message
  */
 export const StreamMessageParams = zod.object({

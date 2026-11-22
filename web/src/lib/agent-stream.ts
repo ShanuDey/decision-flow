@@ -6,12 +6,17 @@ export type TurnOutcome = { ok: true; turn: TurnResponse } | { ok: false; error:
 const LOST: ApiErrorBody = { code: "network_error", message: "Cannot reach the API" };
 const CUT: ApiErrorBody = { code: "stream_ended", message: "The connection ended before the agent answered" };
 
-// Sends one message and reports each flow the agent runs while it works.
+export interface TurnHandlers {
+  onTool: (step: ToolCallInfo) => void;
+  // A piece of the model's text; `index` is the number of the model call writing it.
+  onToken?: (index: number, text: string) => void;
+}
+
 export async function streamTurn(
   agentId: string,
   threadId: string,
   content: string,
-  onTool: (step: ToolCallInfo) => void,
+  { onTool, onToken }: TurnHandlers,
   signal?: AbortSignal,
 ): Promise<TurnOutcome> {
   let response: Response;
@@ -46,6 +51,7 @@ export async function streamTurn(
       buffer = parsed.rest;
       for (const event of parsed.events) {
         if (event.type === "tool") onTool(event.step);
+        else if (event.type === "token") onToken?.(event.index, event.text);
         else if (event.type === "message") return { ok: true, turn: event.turn };
         else return { ok: false, error: event.error };
       }

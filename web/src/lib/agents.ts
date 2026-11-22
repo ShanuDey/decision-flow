@@ -28,6 +28,7 @@ export interface ApiErrorBody {
 
 export type AgentEvent =
   | { type: "tool"; step: ToolCallInfo }
+  | { type: "token"; index: number; text: string }
   | { type: "message"; turn: TurnResponse }
   | { type: "error"; error: ApiErrorBody };
 
@@ -91,6 +92,10 @@ function parseBlock(block: string): AgentEvent | null {
     return null;
   }
   if (name === "tool") return { type: "tool", step: body as ToolCallInfo };
+  if (name === "token") {
+    const { index, text } = body as { index: number; text: string };
+    return { type: "token", index, text };
+  }
   if (name === "message") return { type: "message", turn: body as TurnResponse };
   if (name === "error") return { type: "error", error: body as ApiErrorBody };
   return null;
@@ -105,6 +110,16 @@ export function parseEvents(buffer: string): { events: AgentEvent[]; rest: strin
     return event ? [event] : [];
   });
   return { events, rest };
+}
+
+// A new model call replaces the text: a call that asks for a flow may write a few words first.
+export interface Streaming {
+  index: number;
+  text: string;
+}
+
+export function addToken(current: Streaming | null, index: number, text: string): Streaming {
+  return current && current.index === index ? { index, text: current.text + text } : { index, text };
 }
 
 export function stepSummary(step: ToolCallInfo): string {

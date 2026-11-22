@@ -211,9 +211,12 @@ async def stream_message(
 ) -> StreamingResponse:
     """Like sending a message, but as server-sent events.
 
-    `tool` events arrive as the agent runs each flow (`name`, `arguments`, `result`, `is_error`),
-    then one `message` event holds the stored answer, or one `error` event holds what the plain
-    endpoint would have returned as an error. The answer itself is not streamed word by word.
+    `token` events carry the model's text as it is written (`index` is the number of the model
+    call, `text` a piece of it): show the text of the latest `index` only, because a call that
+    asks for a flow may write a few words before it. `tool` events arrive as the agent runs each
+    flow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored
+    answer, which replaces the streamed text, or one `error` event holds what the plain endpoint
+    would have returned as an error.
     """
     agent = await service.require_agent(store, member, agent_id)
     thread = await service.require_thread(store, member, agent_id, thread_id)
@@ -225,10 +228,15 @@ async def stream_message(
         async def on_step(step: ToolStep) -> None:
             await queue.put(("tool", step.model_dump()))
 
+        async def on_token(index: int, text: str) -> None:
+            await queue.put(("token", {"index": index, "text": text}))
+
         async def work() -> None:
             try:
                 async with slots.hold(member.workspace_id):
-                    user, reply = await service.run_turn(ctx, agent, thread, body.content, on_step)
+                    user, reply = await service.run_turn(
+                        ctx, agent, thread, body.content, on_step, on_token
+                    )
                 done = TurnResponse(user_message=service.info(user), reply=service.info(reply))
                 await queue.put(("message", done.model_dump(mode="json")))
             except ApiError as exc:
