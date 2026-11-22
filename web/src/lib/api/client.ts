@@ -409,6 +409,69 @@ return apiFetch<updateAgentResponse>(getUpdateAgentUrl(agentId),
 
 
 
+export type runAgUiResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type runAgUiResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type runAgUiResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type runAgUiResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type runAgUiResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+;
+export type runAgUiResponseError = (runAgUiResponse401 | runAgUiResponse403 | runAgUiResponse404 | runAgUiResponse422 | runAgUiResponse429) & {
+  headers: Headers;
+};
+
+export type runAgUiResponse = (runAgUiResponseError)
+
+export const getRunAgUiUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/ag-ui`
+}
+
+/**
+ * Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+ *
+ * The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
+ * the agent, and only the last user message in `messages` is used: the server keeps the
+ * history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
+ * they happen, then a `message.stored` custom event holding the stored messages, then
+ * `RUN_FINISHED`, or `RUN_ERROR` instead.
+ * @summary Run Ag Ui
+ */
+export const runAgUi = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<runAgUiResponse> => {
+
+  return apiFetch<runAgUiResponse>(getRunAgUiUrl(agentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export type listThreadsResponse200 = {
   data: ThreadList
   status: 200

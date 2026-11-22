@@ -3305,6 +3305,91 @@
         ]
       }
     },
+    "/agents/{agent_id}/ag-ui": {
+      "post": {
+        "description": "Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).\n\nThe body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with\nthe agent, and only the last user message in `messages` is used: the server keeps the\nhistory. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as\nthey happen, then a `message.stored` custom event holding the stored messages, then\n`RUN_FINISHED`, or `RUN_ERROR` instead.",
+        "operationId": "run_ag_ui",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Server-sent events"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Ag Ui",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/agents/{agent_id}/threads": {
       "get": {
         "description": "Your conversations with the agent, most recently active first.",

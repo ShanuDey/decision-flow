@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "ag-ui-protocol>=1.0",
     "alembic>=1.20.1",
     "cel-expr-python>=0.1.4,<0.2",
     "cryptography>=46",

@@ -7,10 +7,12 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, status
+from ag_ui.core import RunAgentInput
+from ag_ui.encoder import EventEncoder
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import StreamingResponse
 
-from app.agents import service
+from app.agents import ag_ui, service
 from app.agents.schemas import (
     AgentCreate,
     AgentList,
@@ -279,3 +281,52 @@ async def get_message_steps(
     `pending` while the trace is still being written. A message without a trace has no steps.
     """
     return await service.message_steps(store, member, agent_id, thread_id, message_id, read)
+
+
+@router.post(
+    "/agents/{agent_id}/ag-ui",
+    response_class=StreamingResponse,
+    responses={**EVENT_STREAM, **NOT_FOUND, **INVALID, **TOO_MANY},
+    dependencies=[Depends(limit_runs)],
+)
+async def run_ag_ui(
+    agent_id: uuid.UUID,
+    request: Request,
+    store: Store,
+    flows: Flows,
+    member: CurrentMember,
+    load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
+    new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
+    slots: Annotated[RunSlots, Depends(get_run_slots)],
+    limits: Annotated[Limits, Depends(get_limits)],
+) -> StreamingResponse:
+    """Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+
+    The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
+    the agent, and only the last user message in `messages` is used: the server keeps the
+    history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
+    they happen, then a `message.stored` custom event holding the stored messages, then
+    `RUN_FINISHED`, or `RUN_ERROR` instead.
+    """
+    try:
+        run = RunAgentInput.model_validate(await request.json())
+        thread_id = uuid.UUID(run.thread_id)
+    except ValueError:
+        raise ApiError(
+            422, "invalid_run", "Send an AG-UI run input with the id of a conversation"
+        ) from None
+    agent = await service.require_agent(store, member, agent_id)
+    thread = await service.require_thread(store, member, agent_id, thread_id)
+    content = ag_ui.new_user_text(run)
+    if content is None:
+        raise ApiError(422, "no_message", "The run input has no user message")
+    ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
+    encoder = EventEncoder(accept=request.headers.get("accept"))
+
+    async def events() -> AsyncIterator[str]:
+        async for event in ag_ui.run_events(ctx, agent, thread, content, slots):
+            yield encoder.encode(event)
+
+    return StreamingResponse(
+        events(), media_type=encoder.get_content_type(), headers={"Cache-Control": "no-cache"}
+    )

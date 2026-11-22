@@ -329,6 +329,23 @@ export const UpdateAgentResponse = zod.object({
 
 
 /**
+ * Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+ *
+ * The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
+ * the agent, and only the last user message in `messages` is used: the server keeps the
+ * history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
+ * they happen, then a `message.stored` custom event holding the stored messages, then
+ * `RUN_FINISHED`, or `RUN_ERROR` instead.
+ * @summary Run Ag Ui
+ */
+export const RunAgUiParams = zod.object({
+  "agent_id": zod.uuid()
+})
+
+export const RunAgUiResponse = zod.unknown()
+
+
+/**
  * Your conversations with the agent, most recently active first.
  * @summary List Threads
  */
