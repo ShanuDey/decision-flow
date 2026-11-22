@@ -6,7 +6,11 @@ import re
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal, Protocol
 
+from langchain.agents import create_agent
+from langchain.agents.middleware import after_model
+from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.tools import StructuredTool
 from pydantic import Field
 
 from app.engine.base import FrozenBaseModel
@@ -20,6 +24,7 @@ logger = logging.getLogger(__name__)
 TOOL_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 MAX_TOOLS = 64
 FORMAT_REQUEST = "Now give your final answer again, in the required format."
+BAD_ARGUMENTS = "error: the arguments were not valid JSON"
 Stop = Literal["answer", "max_iterations", "max_tokens", "timeout"]
 ToolRunner = Callable[[str, dict[str, Any]], Awaitable[str]]
 StepListener = Callable[["ToolStep"], Awaitable[None]]
@@ -88,11 +93,6 @@ def _check_tools(tools: list[ToolSpec]) -> set[str]:
     return set(names)
 
 
-def _spec(tool: ToolSpec) -> dict[str, Any]:
-    function = {"name": tool.name, "description": tool.description, "parameters": tool.parameters}
-    return {"type": "function", "function": function}
-
-
 async def _run_tool(
     run_tool: ToolRunner, names: set[str], name: str, arguments: dict[str, Any], limit: int
 ) -> ToolStep:
@@ -117,13 +117,17 @@ async def _ask(
     policy: OutboundPolicy,
     connection: ResolvedConnection,
     response_format: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> BaseMessage:
     extra = {"response_format": response_format} if response_format else {}
     try:
         async with asyncio.timeout(policy.timeout_seconds):
-            return await runnable.ainvoke(thread, **extra)
+            return await runnable.ainvoke(thread, config=config, **extra)
     except Exception as exc:
         raise failure(exc, connection) from None
+
+
+ROLES = {"human": "user", "ai": "assistant"}
 
 
 def _brief(thread: list[Any]) -> list[dict[str, Any]]:
@@ -133,11 +137,30 @@ def _brief(thread: list[Any]) -> list[dict[str, Any]]:
         if isinstance(item, dict):
             brief.append({"role": item.get("role"), "content": item.get("content")})
             continue
-        entry: dict[str, Any] = {"role": item.type, "content": _text(item)}
+        entry: dict[str, Any] = {"role": ROLES.get(item.type, item.type), "content": _text(item)}
         if getattr(item, "tool_calls", None):
             entry["tool_calls"] = [c["name"] for c in item.tool_calls]
         brief.append(entry)
     return brief
+
+
+class _ModelHooks(AsyncCallbackHandler):
+    """Passes LangChain's model callbacks on to a ModelListener, errors in our own wording."""
+
+    def __init__(self, listener: ModelListener, model: str, connection: ResolvedConnection) -> None:
+        self.listener, self.model, self.connection, self.count = listener, model, connection, 0
+
+    async def on_chat_model_start(self, serialized: Any, messages: Any, **kwargs: Any) -> None:
+        self.count += 1
+        await self.listener.started(self.count, _brief(list(messages[0])))
+
+    async def on_llm_end(self, response: Any, **kwargs: Any) -> None:
+        reply = _reply(response.generations[0][0].message, self.model)
+        await self.listener.finished(self.count, reply, None)
+
+    async def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:
+        mapped = failure(error, self.connection) if isinstance(error, Exception) else None
+        await self.listener.finished(self.count, None, str(mapped or error))
 
 
 async def run_agent(
@@ -159,6 +182,10 @@ async def run_agent(
     """Raises ValueError with a message a flow author can act on. A tool's own failure is not
     raised: the model is told and can try something else. Hitting a limit is a `stop` value.
 
+    The loop is LangChain's `create_agent`; what is ours is the guarded client, the limits, the
+    error wording, and answering tool calls the library would drop. Tools run one at a time, in
+    the order the model asked for them, because a flow may change something.
+
     `response_format` costs one extra call without tools after the answer: the SDK refuses a
     response format together with tools that are not strict."""
     limits = limits or AgentLimits()
@@ -166,92 +193,134 @@ async def run_agent(
     chat, client = await open_chat(
         policy, connection, model=model, temperature=temperature, max_tokens=max_tokens
     )
-    bound = chat.bind_tools([_spec(t) for t in tools]) if tools else chat
-    thread: list[Any] = (
-        [{"role": "system", "content": instructions}] if instructions.strip() else []
-    )
-    thread.extend(messages)
     steps: list[ToolStep] = []
+    stop = {"reason": "answer"}
+    one_at_a_time = asyncio.Lock()
+
+    async def record(step: ToolStep) -> None:
+        steps.append(step)
+        if on_step:
+            await on_step(step)
+
+    def make_tool(spec: ToolSpec) -> StructuredTool:
+        async def call(**arguments: Any) -> str:
+            async with one_at_a_time:
+                step = await _run_tool(
+                    run_tool, names, spec.name, arguments, limits.max_tool_result_chars
+                )
+                await record(step)
+            return step.result
+
+        return StructuredTool(
+            name=spec.name,
+            description=spec.description or spec.name,
+            args_schema=spec.parameters,
+            coroutine=call,
+        )
+
+    earlier = sum(1 for m in messages if m.get("role") == "assistant")
+
+    @after_model(can_jump_to=["end", "model"])
+    async def guard(state: Any, runtime: Any) -> dict[str, Any] | None:
+        # Earlier assistant messages of the conversation are input, not work done in this run.
+        ai = [m for m in state["messages"] if m.type == "ai"][earlier:]
+        last = ai[-1]
+        update: dict[str, Any] = {}
+        invalid = list(last.invalid_tool_calls)
+        if invalid:
+            # The library would end the run on these with an empty answer; tell the model instead.
+            replies = []
+            for call in invalid:
+                name = call.get("name") or ""
+                await record(ToolStep(name=name, arguments={}, result=BAD_ARGUMENTS, is_error=True))
+                replies.append(
+                    ToolMessage(
+                        content=BAD_ARGUMENTS, tool_call_id=call.get("id") or "", status="error"
+                    )
+                )
+            update["messages"] = replies
+        if not (last.tool_calls or invalid):
+            return None
+        total = sum((m.usage_metadata or {}).get("total_tokens", 0) for m in ai)
+        if limits.max_total_tokens and total >= limits.max_total_tokens:
+            stop["reason"] = "max_tokens"
+            update["jump_to"] = "end"
+        elif len(ai) >= limits.max_iterations:
+            stop["reason"] = "max_iterations"
+            update["jump_to"] = "end"
+        elif invalid and not last.tool_calls:
+            update["jump_to"] = "model"
+        return update
+
+    agent = create_agent(
+        model=chat,
+        tools=[make_tool(t) for t in tools],
+        system_prompt=instructions if instructions.strip() else None,
+        middleware=[guard],
+    )
+    config: dict[str, Any] = {"recursion_limit": limits.max_iterations * 6 + 20}
+    hooks = _ModelHooks(on_model, model, connection) if on_model is not None else None
+    if hooks:
+        config["callbacks"] = [hooks]
     usage: dict[str, int] = {}
     served = model
-    text, stop, iterations = "", "max_iterations", 0
-    made = 0
-
-    async def ask(runnable: Any, format_: dict[str, Any] | None = None) -> BaseMessage:
-        nonlocal made
-        made += 1
-        if on_model is None:
-            return await _ask(runnable, thread, policy, connection, format_)
-        await on_model.started(made, _brief(thread))
-        try:
-            message = await _ask(runnable, thread, policy, connection, format_)
-        except ValueError as exc:
-            await on_model.finished(made, None, str(exc))
-            raise
-        await on_model.finished(made, _reply(message, model), None)
-        return message
-
+    iterations = 0
+    last_reply: ChatReply | None = None
+    produced: list[Any] = []
+    text = ""
     try:
-        async with asyncio.timeout(limits.max_seconds) as deadline:
-            for iterations in range(1, limits.max_iterations + 1):
-                message = await ask(bound)
-                reply = _reply(message, model)
-                served = reply.model
-                for key, value in reply.usage.items():
-                    usage[key] = usage.get(key, 0) + value
-                thread.append(message)
-                calls = [
-                    *((c["id"], c["name"], c["args"]) for c in message.tool_calls),
-                    *(
-                        (c.get("id") or "", c.get("name") or "", None)
-                        for c in message.invalid_tool_calls
-                    ),
-                ]
-                if not calls:
-                    if not reply.text.strip() and reply.finish_reason == "length":
-                        raise ValueError(OUT_OF_TOKENS)
-                    text, stop = reply.text, "answer"
-                    if response_format:
-                        thread.append({"role": "user", "content": FORMAT_REQUEST})
-                        final = await ask(chat, response_format)
-                        shaped = _reply(final, model)
-                        text = shaped.text
-                        for key, value in shaped.usage.items():
-                            usage[key] = usage.get(key, 0) + value
-                    break
-                if (
-                    limits.max_total_tokens
-                    and usage.get("total_tokens", 0) >= limits.max_total_tokens
+        try:
+            async with asyncio.timeout(limits.max_seconds) as deadline:
+                async for update in agent.astream(
+                    {"messages": messages}, config=config, stream_mode="updates"
                 ):
-                    stop = "max_tokens"
-                    break
-                if iterations == limits.max_iterations:
-                    break
-                for call_id, name, arguments in calls:
-                    if arguments is None:
-                        step = ToolStep(
-                            name=name,
-                            arguments={},
-                            result="error: the arguments were not valid JSON",
-                            is_error=True,
-                        )
-                    else:
-                        step = await _run_tool(
-                            run_tool, names, name, arguments, limits.max_tool_result_chars
-                        )
-                    steps.append(step)
-                    if on_step:
-                        await on_step(step)
-                    thread.append(ToolMessage(content=step.result, tool_call_id=call_id))
-    except TimeoutError:
-        if not deadline.expired():
-            raise
-        stop = "timeout"
+                    for node, data in update.items():
+                        for message in (data or {}).get("messages") or []:
+                            produced.append(message)
+                            if node == "tools" and getattr(message, "status", "") == "error":
+                                # The library answered a call it could not run (an unknown tool).
+                                await record(
+                                    ToolStep(
+                                        name=message.name or "",
+                                        arguments={},
+                                        result=str(message.content),
+                                        is_error=True,
+                                    )
+                                )
+                            if node == "model":
+                                iterations += 1
+                                last_reply = _reply(message, model)
+                                served = last_reply.model
+                                for key, value in last_reply.usage.items():
+                                    usage[key] = usage.get(key, 0) + value
+        except TimeoutError:
+            if not deadline.expired():
+                raise
+            stop["reason"] = "timeout"
+        except Exception as exc:
+            raise failure(exc, connection) from None
+        if stop["reason"] == "answer" and last_reply is not None:
+            if not last_reply.text.strip() and last_reply.finish_reason == "length":
+                raise ValueError(OUT_OF_TOKENS)
+            text = last_reply.text
+            if response_format:
+                thread: list[Any] = (
+                    [{"role": "system", "content": instructions}] if instructions.strip() else []
+                )
+                thread.extend(messages)
+                thread.extend(produced)
+                thread.append({"role": "user", "content": FORMAT_REQUEST})
+                config_final = {"callbacks": [hooks]} if hooks else None
+                final = await _ask(chat, thread, policy, connection, response_format, config_final)
+                shaped = _reply(final, model)
+                text = shaped.text
+                for key, value in shaped.usage.items():
+                    usage[key] = usage.get(key, 0) + value
     finally:
         await client.aclose()
     return AgentResult(
-        text=text,
-        stop=stop,  # type: ignore[arg-type]
+        text=text if stop["reason"] == "answer" else "",
+        stop=stop["reason"],  # type: ignore[arg-type]
         iterations=iterations,
         steps=tuple(steps),
         model=served,

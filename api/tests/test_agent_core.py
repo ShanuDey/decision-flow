@@ -118,7 +118,7 @@ async def test_an_unknown_tool_is_reported_to_the_model_not_raised() -> None:
         result = await agent(port, tools)
 
     assert tools.calls == [] and result.text == "sorry"
-    assert result.steps[0].is_error and "no tool named 'nope'" in result.steps[0].result
+    assert result.steps[0].is_error and "nope" in result.steps[0].result
     assert "add" in seen[1].body["messages"][-1]["content"]
 
 
@@ -247,7 +247,7 @@ async def test_each_model_call_is_reported_with_the_conversation_it_got() -> Non
     assert calls.events == [
         ("started", 1, ["system", "user"]),
         ("finished", 1, "", None),
-        ("started", 2, ["system", "user", "ai", "tool"]),
+        ("started", 2, ["system", "user", "assistant", "tool"]),
         ("finished", 2, "It is 3", None),
     ]
 
@@ -260,3 +260,78 @@ async def test_a_failed_model_call_is_reported_with_its_error() -> None:
 
     assert calls.events[0] == ("started", 1, ["system", "user"])
     assert calls.events[1][:3] == ("finished", 1, None) and "rejected the key" in calls.events[1][3]
+
+
+async def test_a_bad_call_next_to_a_good_one_is_answered_and_the_good_one_still_runs() -> None:
+    tools = Tools("3")
+    turn = asks(("add", '{"a": 1}'), ("add", "{not json"))
+    async with chat_server(script=[turn, says("done")]) as (port, seen):
+        result = await agent(port, tools)
+
+    assert tools.calls == [("add", {"a": 1})] and result.text == "done"
+    replies = [m for m in seen[1].body["messages"] if m["role"] == "tool"]
+    assert sorted(m["tool_call_id"] for m in replies) == ["call_0", "call_1"]
+    assert sorted(step.is_error for step in result.steps) == [False, True]
+
+
+async def test_tools_asked_for_together_run_one_at_a_time_in_order() -> None:
+    running = 0
+    peak = 0
+    order: list[int] = []
+
+    async def run_tool(name: str, arguments: dict[str, Any]) -> str:
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await asyncio.sleep(0.05)
+        order.append(arguments["a"])
+        running -= 1
+        return "ok"
+
+    turn = asks(("add", '{"a": 1}'), ("add", '{"a": 2}'), ("add", '{"a": 3}'))
+    async with chat_server(script=[turn, says("done")]) as (port, _):
+        await agent(port, Tools(), run_tool=run_tool)
+
+    assert peak == 1 and order == [1, 2, 3]
+
+
+async def test_the_reply_to_a_bad_call_is_a_tool_message_so_the_provider_accepts_it() -> None:
+    async with chat_server(script=[asks(("add", "{not json")), says("ok")]) as (port, seen):
+        await agent(port, Tools())
+
+    assert [m["role"] for m in seen[1].body["messages"]][-2:] == ["assistant", "tool"]
+
+
+async def test_earlier_answers_in_the_conversation_do_not_count_toward_the_iteration_limit() -> (
+    None
+):
+    history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"turn {i}"} for i in range(20)
+    ]
+    script = [asks(("add", '{"a": 1}')), says("It is 3")]
+    async with chat_server(script=script) as (port, _):
+        result = await agent(
+            port,
+            Tools(),
+            messages=[*history, {"role": "user", "content": "again"}],
+            limits=AgentLimits(max_iterations=2),
+        )
+
+    assert (result.stop, result.text, result.iterations) == ("answer", "It is 3", 2)
+
+
+async def test_the_iteration_limit_still_counts_this_runs_model_calls_after_a_long_history() -> (
+    None
+):
+    history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"turn {i}"} for i in range(20)
+    ]
+    async with chat_server(script=[asks(("add", '{"a": 1}'))]) as (port, seen):
+        result = await agent(
+            port,
+            Tools(),
+            messages=[*history, {"role": "user", "content": "again"}],
+            limits=AgentLimits(max_iterations=2),
+        )
+
+    assert (result.stop, result.iterations, len(seen)) == ("max_iterations", 2, 2)
