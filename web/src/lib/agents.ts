@@ -1,4 +1,5 @@
-import type { AgentUpdate, ToolCallInfo, TurnResponse } from "@/lib/api/models";
+import type { AgentUpdate, ThreadSummary } from "@/lib/api/models";
+import { parseApiDate } from "@/lib/format";
 
 export interface ToolForm {
   flow_id: string;
@@ -20,17 +21,6 @@ export interface AgentForm {
   max_tokens: number | null;
   timeout_seconds: number | null;
 }
-
-export interface ApiErrorBody {
-  code: string;
-  message: string;
-}
-
-export type AgentEvent =
-  | { type: "tool"; step: ToolCallInfo }
-  | { type: "token"; index: number; text: string }
-  | { type: "message"; turn: TurnResponse }
-  | { type: "error"; error: ApiErrorBody };
 
 // The whole form is sent, so a cleared limit becomes null and the API clears it.
 export function updateBody(form: AgentForm): AgentUpdate {
@@ -77,54 +67,32 @@ export function formProblem(form: AgentForm): string | null {
   return null;
 }
 
-function parseBlock(block: string): AgentEvent | null {
-  let name = "";
-  const data: string[] = [];
-  for (const line of block.split("\n")) {
-    if (line.startsWith("event:")) name = line.slice(6).trim();
-    else if (line.startsWith("data:")) data.push(line.slice(5).trim());
+// What a tool was called with, short enough for one line: "income 45000 · credit_score 720".
+export function argsSummary(args: Record<string, unknown> | undefined): string {
+  return Object.entries(args ?? {})
+    .map(([key, value]) => `${key} ${typeof value === "string" ? value : JSON.stringify(value)}`)
+    .join(" · ");
+}
+
+export interface ThreadGroup {
+  label: "Today" | "Yesterday" | "Earlier";
+  items: ThreadSummary[];
+}
+
+function dayStart(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+// The conversation list by the day each was last active, in the viewer's time zone, newest first.
+export function groupByDay(threads: ThreadSummary[], now: Date = new Date()): ThreadGroup[] {
+  const today = dayStart(now);
+  const day = 24 * 60 * 60 * 1000;
+  const buckets: Record<ThreadGroup["label"], ThreadSummary[]> = { Today: [], Yesterday: [], Earlier: [] };
+  for (const thread of threads) {
+    const started = dayStart(parseApiDate(thread.updated_at));
+    buckets[started >= today ? "Today" : started >= today - day ? "Yesterday" : "Earlier"].push(thread);
   }
-  if (!name || data.length === 0) return null;
-  let body: unknown;
-  try {
-    body = JSON.parse(data.join("\n"));
-  } catch {
-    return null;
-  }
-  if (name === "tool") return { type: "tool", step: body as ToolCallInfo };
-  if (name === "token") {
-    const { index, text } = body as { index: number; text: string };
-    return { type: "token", index, text };
-  }
-  if (name === "message") return { type: "message", turn: body as TurnResponse };
-  if (name === "error") return { type: "error", error: body as ApiErrorBody };
-  return null;
-}
-
-// Takes the text received so far; returns the events that are complete and the rest.
-export function parseEvents(buffer: string): { events: AgentEvent[]; rest: string } {
-  const parts = buffer.replace(/\r\n/g, "\n").split("\n\n");
-  const rest = parts.pop() ?? "";
-  const events = parts.flatMap((block) => {
-    const event = parseBlock(block);
-    return event ? [event] : [];
-  });
-  return { events, rest };
-}
-
-// A new model call replaces the text: a call that asks for a flow may write a few words first.
-export interface Streaming {
-  index: number;
-  text: string;
-}
-
-export function addToken(current: Streaming | null, index: number, text: string): Streaming {
-  return current && current.index === index ? { index, text: current.text + text } : { index, text };
-}
-
-export function stepSummary(step: ToolCallInfo): string {
-  const args = Object.entries(step.arguments)
-    .map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`)
-    .join(", ");
-  return args ? `${step.name}(${args})` : step.name;
+  return (["Today", "Yesterday", "Earlier"] as const)
+    .filter((label) => buckets[label].length > 0)
+    .map((label) => ({ label, items: buckets[label] }));
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { addToken, type AgentForm, formProblem, parseEvents, sameForm, stepSummary, uniqueName, updateBody } from "./agents";
+import type { ThreadSummary } from "@/lib/api/models";
+
+import { type AgentForm, argsSummary, formProblem, groupByDay, sameForm, uniqueName, updateBody } from "./agents";
 
 const FLOW = "0a6c2f7e-4b1d-4e0a-8c55-3d1e9f2a7b64";
 
@@ -60,49 +62,30 @@ describe("formProblem", () => {
   });
 });
 
-describe("parseEvents", () => {
-  const tool = 'event: tool\ndata: {"name":"a","arguments":{},"result":"1","is_error":false}\n\n';
-  it("returns the complete events and keeps the unfinished text", () => {
-    const { events, rest } = parseEvents(`${tool}event: message\ndata: {"rep`);
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "tool", step: { name: "a" } });
-    expect(rest).toBe('event: message\ndata: {"rep');
-  });
-  it("reads message and error events, even with CRLF line ends", () => {
-    const text =
-      'event: message\r\ndata: {"reply":{"content":"hi"}}\r\n\r\nevent: error\r\ndata: {"code":"x","message":"m"}\r\n\r\n';
-    const { events, rest } = parseEvents(text);
-    expect(events.map((e) => e.type)).toEqual(["message", "error"]);
-    expect(rest).toBe("");
-  });
-  it("skips blocks it cannot read", () => {
-    expect(parseEvents("event: tool\ndata: {nope\n\nevent: other\ndata: {}\n\n").events).toEqual([]);
+describe("argsSummary", () => {
+  it("lists each argument on one line", () => {
+    expect(argsSummary({ income: 45000, who: "Ada", tags: ["a"] })).toBe('income 45000 · who Ada · tags ["a"]');
+    expect(argsSummary({})).toBe("");
+    expect(argsSummary(undefined)).toBe("");
   });
 });
 
-describe("token events", () => {
-  it("are read with their model call number and text", () => {
-    const { events } = parseEvents('event: token\ndata: {"index": 2, "text": "It "}\n\n');
-    expect(events).toEqual([{ type: "token", index: 2, text: "It " }]);
-  });
-});
+describe("groupByDay", () => {
+  const thread = (id: string, updated_at: string): ThreadSummary =>
+    ({ id, agent_id: "a", title: id, created_at: updated_at, updated_at }) as ThreadSummary;
+  const now = new Date(2026, 10, 22, 12, 0, 0);
 
-describe("addToken", () => {
-  it("grows the text of one model call", () => {
-    const first = addToken(null, 1, "Hel");
-    expect(addToken(first, 1, "lo")).toEqual({ index: 1, text: "Hello" });
-  });
-  it("starts over when the next model call begins", () => {
-    expect(addToken({ index: 1, text: "Let me check" }, 2, "It")).toEqual({ index: 2, text: "It" });
-  });
-});
-
-describe("stepSummary", () => {
-  it("shows the tool and its arguments", () => {
-    const base = { result: "", is_error: false };
-    expect(stepSummary({ ...base, name: "check", arguments: { income: 5, who: "Ada" } })).toBe(
-      "check(income: 5, who: Ada)",
+  it("puts each conversation under the day it was last active, and drops empty groups", () => {
+    const local = (day: number, hour: number) => new Date(2026, 10, day, hour).toISOString();
+    const groups = groupByDay(
+      [thread("t1", local(22, 9)), thread("t2", local(21, 23)), thread("t3", local(10, 8)), thread("t4", local(22, 1))],
+      now,
     );
-    expect(stepSummary({ ...base, name: "ping", arguments: {} })).toBe("ping");
+    expect(groups.map((g) => [g.label, g.items.map((t) => t.id)])).toEqual([
+      ["Today", ["t1", "t4"]],
+      ["Yesterday", ["t2"]],
+      ["Earlier", ["t3"]],
+    ]);
+    expect(groupByDay([], now)).toEqual([]);
   });
 });

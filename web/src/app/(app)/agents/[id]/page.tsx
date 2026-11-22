@@ -1,6 +1,5 @@
 import { CircleX } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { RetryButton } from "@/components/retry-button";
@@ -45,17 +44,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">
-          <Link href="/agents" className="underline-offset-2 hover:underline">
-            Agents
-          </Link>{" "}
-          /
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">{agent.data.name}</h1>
-        {agent.data.description && <p className="text-sm text-muted-foreground">{agent.data.description}</p>}
-      </div>
+    <div className="flex w-full flex-col gap-4">
       <AgentView
         key={agent.data.id}
         agent={agent.data}
