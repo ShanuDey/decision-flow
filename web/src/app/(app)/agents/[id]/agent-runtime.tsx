@@ -1,7 +1,7 @@
 "use client";
 
 import { HttpAgent } from "@ag-ui/client";
-import { AssistantRuntimeProvider, ExportedMessageRepository } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, ExportedMessageRepository, WebSpeechDictationAdapter } from "@assistant-ui/react";
 import { fromAgUiMessages, useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -15,6 +15,9 @@ export interface StoredTurn {
   user_message: MessageInfo;
   reply: MessageInfo;
 }
+
+// Safe to build where speech is unsupported: only the mic button checks.
+const dictation = new WebSpeechDictationAdapter();
 
 // One conversation: the chat library talks AG-UI to our endpoint through the same-origin proxy,
 // and loads earlier messages from our own thread endpoint, because the server owns the history.
@@ -63,6 +66,7 @@ export function AgentRuntime({
         // The server stores each turn itself.
         async append() {},
       },
+      dictation,
     }),
     [agentId, threadId],
   );

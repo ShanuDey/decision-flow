@@ -18,6 +18,7 @@ import { storedMessageId } from "@/lib/ag-ui-history";
 import { argsSummary } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 
+import { DictationButton, DictationPreview } from "./agent-dictation";
 import type { StoredTurn } from "./agent-runtime";
 
 const Conversation = createContext<{ agentName: string; onTrace: (id: string) => void } | null>(null);
@@ -241,7 +242,10 @@ export function AgentThread({
             placeholder={problem ? "Finish the settings first" : `Message ${agentName}…`}
             className="max-h-48 min-h-6 w-full resize-none bg-transparent text-sm leading-6 outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:opacity-50"
           />
-          <div className="flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <DictationPreview />
+            <div className="ml-auto flex items-center gap-1.5">
+              <DictationButton disabled={problem !== null} />
             <AuiIf condition={(s) => !s.thread.isRunning}>
               <ComposerPrimitive.Send
                 aria-label="Send"
@@ -259,6 +263,7 @@ export function AgentThread({
                 <Square className="size-3.5 fill-current" aria-hidden />
               </ComposerPrimitive.Cancel>
             </AuiIf>
+            </div>
           </div>
         </ComposerPrimitive.Root>
         <p className="text-center text-xs text-muted-foreground">Enter to send · Shift+Enter for a new line</p>
