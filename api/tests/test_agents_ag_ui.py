@@ -60,7 +60,7 @@ def types(events: list[dict[str, Any]]) -> list[str]:
 
 async def post(client: httpx.AsyncClient, agent: dict, body: dict, **kw: Any) -> httpx.Response:
     headers = {**ACCEPT, **kw.pop("headers", {})}
-    return await client.post(f"/agents/{agent['id']}/ag-ui", json=body, headers=headers, **kw)
+    return await client.post(f"/agents/{agent['id']}/invoke", json=body, headers=headers, **kw)
 
 
 async def test_a_text_answer_is_a_standard_run_with_the_text_in_pieces(
@@ -223,7 +223,7 @@ async def test_a_request_that_cannot_be_run_is_refused_before_any_stream(
     thread = await thread_of(client, agent)
     unknown = await post(client, agent, run_input(str(uuid.uuid4()), ("user", "Hi")))
     not_an_id = await post(client, agent, run_input("not-a-uuid", ("user", "Hi")))
-    garbage = await client.post(f"/agents/{agent['id']}/ag-ui", json={"nope": 1}, headers=ACCEPT)
+    garbage = await client.post(f"/agents/{agent['id']}/invoke", json={"nope": 1}, headers=ACCEPT)
     silent = await post(client, agent, run_input(thread, ("assistant", "only me")))
     stranger = await post(client, agent, run_input(thread, ("user", "Hi")), headers=OTHER)
 
@@ -232,3 +232,32 @@ async def test_a_request_that_cannot_be_run_is_refused_before_any_stream(
     assert (garbage.status_code, garbage.json()["code"]) == (422, "invalid_run")
     assert (silent.status_code, silent.json()["code"]) == (422, "no_message")
     assert stranger.status_code == 404
+
+
+async def test_asking_for_json_waits_for_the_stored_answer(
+    client: httpx.AsyncClient, agents: FakeAgentStore
+) -> None:
+    async with chat_server("Hello there") as (port, _):
+        agent, thread = await ready(client, port)
+        response = await post(
+            client, agent, run_input(thread, ("user", "Hi")), headers={"accept": "application/json"}
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    body = response.json()
+    assert (body["user_message"]["content"], body["reply"]["content"]) == ("Hi", "Hello there")
+    detail = (await client.get(f"/agents/{agent['id']}/threads/{thread}")).json()
+    assert [m["content"] for m in detail["messages"]] == ["Hi", "Hello there"]
+
+
+async def test_asking_for_json_gets_the_error_a_plain_message_would(
+    client: httpx.AsyncClient, agents: FakeAgentStore
+) -> None:
+    agent = await make_agent(client)
+    thread = await thread_of(client, agent)
+    response = await post(
+        client, agent, run_input(thread, ("user", "Hi")), headers={"accept": "application/json"}
+    )
+
+    assert (response.status_code, response.json()["code"]) == (422, "agent_not_ready")

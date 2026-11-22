@@ -329,20 +329,55 @@ export const UpdateAgentResponse = zod.object({
 
 
 /**
- * Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+ * Sends a message to the agent and returns its answer.
  *
  * The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
  * the agent, and only the last user message in `messages` is used: the server keeps the
- * history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
- * they happen, then a `message.stored` custom event holding the stored messages, then
- * `RUN_FINISHED`, or `RUN_ERROR` instead.
- * @summary Run Ag Ui
+ * history. Send `Accept: application/json` to wait for the stored `user_message` and `reply`
+ * (errors as in the plain messages endpoint). Otherwise the answer streams as AG-UI events, the
+ * open agent-to-UI standard: `RUN_STARTED`, then text messages and tool calls as they happen,
+ * then a `message.stored` custom event holding the stored messages, then `RUN_FINISHED`, or
+ * `RUN_ERROR` instead.
+ * @summary Invoke Agent
  */
-export const RunAgUiParams = zod.object({
+export const InvokeAgentParams = zod.object({
   "agent_id": zod.uuid()
 })
 
-export const RunAgUiResponse = zod.unknown()
+export const InvokeAgentResponse = zod.object({
+  "reply": zod.object({
+  "content": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "model": zod.union([zod.string(),zod.null()]),
+  "role": zod.enum(['user', 'assistant']),
+  "seq": zod.int(),
+  "steps": zod.union([zod.array(zod.object({
+  "arguments": zod.record(zod.string(), zod.unknown()),
+  "is_error": zod.boolean(),
+  "name": zod.string(),
+  "result": zod.string()
+})),zod.null()]),
+  "traced": zod.boolean(),
+  "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
+}),
+  "user_message": zod.object({
+  "content": zod.string(),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "id": zod.uuid(),
+  "model": zod.union([zod.string(),zod.null()]),
+  "role": zod.enum(['user', 'assistant']),
+  "seq": zod.int(),
+  "steps": zod.union([zod.array(zod.object({
+  "arguments": zod.record(zod.string(), zod.unknown()),
+  "is_error": zod.boolean(),
+  "name": zod.string(),
+  "result": zod.string()
+})),zod.null()]),
+  "traced": zod.boolean(),
+  "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
+})
+})
 
 
 /**
@@ -492,33 +527,6 @@ export const SendMessageResponse = zod.object({
   "usage": zod.union([zod.record(zod.string(), zod.int()),zod.null()])
 })
 })
-
-
-/**
- * Like sending a message, but as server-sent events.
- *
- * `token` events carry the model's text as it is written (`index` is the number of the model
- * call, `text` a piece of it): show the text of the latest `index` only, because a call that
- * asks for a flow may write a few words before it. `tool` events arrive as the agent runs each
- * flow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored
- * answer, which replaces the streamed text, or one `error` event holds what the plain endpoint
- * would have returned as an error.
- * @summary Stream Message
- */
-export const StreamMessageParams = zod.object({
-  "agent_id": zod.uuid(),
-  "thread_id": zod.uuid()
-})
-
-export const streamMessageBodyContentMax = 20000;
-
-
-
-export const StreamMessageBody = zod.object({
-  "content": zod.string().min(1).max(streamMessageBodyContentMax)
-})
-
-export const StreamMessageResponse = zod.unknown()
 
 
 /**

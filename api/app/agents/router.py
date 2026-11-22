@@ -1,7 +1,5 @@
 """HTTP only: parsing, status codes, response shapes. Logic lives in service.py."""
 
-import asyncio
-import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
@@ -10,7 +8,7 @@ from typing import Annotated, Any
 from ag_ui.core import RunAgentInput
 from ag_ui.encoder import EventEncoder
 from fastapi import APIRouter, Depends, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agents import ag_ui, service
 from app.agents.schemas import (
@@ -26,7 +24,6 @@ from app.agents.schemas import (
 )
 from app.agents.store import AgentStore, get_agent_store
 from app.connections.store import ConnectionStore, get_connection_store
-from app.engine.llm import ToolStep
 from app.errors import ApiError, ErrorResponse
 from app.flows.store import FlowStore, get_store
 from app.limits import Limits, get_limits
@@ -185,85 +182,6 @@ async def send_message(
     return TurnResponse(user_message=service.info(user), reply=service.info(reply))
 
 
-def _event(name: str, data: Any) -> str:
-    return f"event: {name}\ndata: {json.dumps(data)}\n\n"
-
-
-@router.post(
-    "/agents/{agent_id}/threads/{thread_id}/messages/stream",
-    response_class=StreamingResponse,
-    responses={
-        **EVENT_STREAM,
-        **NOT_FOUND,
-        **TOO_MANY,
-    },
-    dependencies=[Depends(limit_runs)],
-)
-async def stream_message(
-    agent_id: uuid.UUID,
-    thread_id: uuid.UUID,
-    body: MessageRequest,
-    store: Store,
-    flows: Flows,
-    member: CurrentMember,
-    load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
-    new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
-    slots: Annotated[RunSlots, Depends(get_run_slots)],
-    limits: Annotated[Limits, Depends(get_limits)],
-) -> StreamingResponse:
-    """Like sending a message, but as server-sent events.
-
-    `token` events carry the model's text as it is written (`index` is the number of the model
-    call, `text` a piece of it): show the text of the latest `index` only, because a call that
-    asks for a flow may write a few words before it. `tool` events arrive as the agent runs each
-    flow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored
-    answer, which replaces the streamed text, or one `error` event holds what the plain endpoint
-    would have returned as an error.
-    """
-    agent = await service.require_agent(store, member, agent_id)
-    thread = await service.require_thread(store, member, agent_id, thread_id)
-    ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
-
-    async def events() -> AsyncIterator[str]:
-        queue: asyncio.Queue[tuple[str, Any] | None] = asyncio.Queue()
-
-        async def on_step(step: ToolStep) -> None:
-            await queue.put(("tool", step.model_dump()))
-
-        async def on_token(index: int, text: str) -> None:
-            await queue.put(("token", {"index": index, "text": text}))
-
-        async def work() -> None:
-            try:
-                async with slots.hold(member.workspace_id):
-                    user, reply = await service.run_turn(
-                        ctx, agent, thread, body.content, on_step, on_token
-                    )
-                done = TurnResponse(user_message=service.info(user), reply=service.info(reply))
-                await queue.put(("message", done.model_dump(mode="json")))
-            except ApiError as exc:
-                await queue.put(("error", exc.body.model_dump()))
-            except Exception:
-                logger.exception("agent turn failed unexpectedly")
-                failed = ErrorResponse(
-                    code="internal_error", message="The agent failed unexpectedly"
-                )
-                await queue.put(("error", failed.model_dump()))
-            finally:
-                await queue.put(None)
-
-        task = asyncio.create_task(work())
-        try:
-            while (item := await queue.get()) is not None:
-                yield _event(*item)
-        finally:
-            task.cancel()
-
-    return StreamingResponse(
-        events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
-    )
-
-
 @router.get(
     "/agents/{agent_id}/threads/{thread_id}/messages/{message_id}/steps",
     responses={**NOT_FOUND, 503: {"model": ErrorResponse}},
@@ -284,12 +202,24 @@ async def get_message_steps(
 
 
 @router.post(
-    "/agents/{agent_id}/ag-ui",
+    "/agents/{agent_id}/invoke",
     response_class=StreamingResponse,
-    responses={**EVENT_STREAM, **NOT_FOUND, **INVALID, **TOO_MANY},
+    response_model=None,
+    responses={
+        200: {
+            "model": TurnResponse,
+            "content": {"text/event-stream": {}},
+            "description": "AG-UI events, or JSON when the request accepts only JSON",
+        },
+        **NOT_FOUND,
+        **CONFLICT,
+        **INVALID,
+        **TOO_MANY,
+        **MODEL_FAILED,
+    },
     dependencies=[Depends(limit_runs)],
 )
-async def run_ag_ui(
+async def invoke_agent(
     agent_id: uuid.UUID,
     request: Request,
     store: Store,
@@ -299,14 +229,16 @@ async def run_ag_ui(
     new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
     limits: Annotated[Limits, Depends(get_limits)],
-) -> StreamingResponse:
-    """Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+) -> StreamingResponse | JSONResponse:
+    """Sends a message to the agent and returns its answer.
 
     The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
     the agent, and only the last user message in `messages` is used: the server keeps the
-    history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
-    they happen, then a `message.stored` custom event holding the stored messages, then
-    `RUN_FINISHED`, or `RUN_ERROR` instead.
+    history. Send `Accept: application/json` to wait for the stored `user_message` and `reply`
+    (errors as in the plain messages endpoint). Otherwise the answer streams as AG-UI events, the
+    open agent-to-UI standard: `RUN_STARTED`, then text messages and tool calls as they happen,
+    then a `message.stored` custom event holding the stored messages, then `RUN_FINISHED`, or
+    `RUN_ERROR` instead.
     """
     try:
         run = RunAgentInput.model_validate(await request.json())
@@ -321,7 +253,15 @@ async def run_ag_ui(
     if content is None:
         raise ApiError(422, "no_message", "The run input has no user message")
     ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
-    encoder = EventEncoder(accept=request.headers.get("accept"))
+    accept = request.headers.get("accept") or ""
+
+    if "application/json" in accept and "text/event-stream" not in accept:
+        async with slots.hold(member.workspace_id):
+            user, reply = await service.run_turn(ctx, agent, thread, content)
+        done = TurnResponse(user_message=service.info(user), reply=service.info(reply))
+        return JSONResponse(done.model_dump(mode="json"))
+
+    encoder = EventEncoder(accept=accept)
 
     async def events() -> AsyncIterator[str]:
         async for event in ag_ui.run_events(ctx, agent, thread, content, slots):

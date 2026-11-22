@@ -409,59 +409,78 @@ return apiFetch<updateAgentResponse>(getUpdateAgentUrl(agentId),
 
 
 
-export type runAgUiResponse401 = {
+export type invokeAgentResponse200 = {
+  data: TurnResponse
+  status: 200
+}
+
+export type invokeAgentResponse401 = {
   data: ErrorResponse
   status: 401
 }
 
-export type runAgUiResponse403 = {
+export type invokeAgentResponse403 = {
   data: ErrorResponse
   status: 403
 }
 
-export type runAgUiResponse404 = {
+export type invokeAgentResponse404 = {
   data: ErrorResponse
   status: 404
 }
 
-export type runAgUiResponse422 = {
+export type invokeAgentResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type invokeAgentResponse422 = {
   data: ErrorResponse
   status: 422
 }
 
-export type runAgUiResponse429 = {
+export type invokeAgentResponse429 = {
   data: ErrorResponse
   status: 429
 }
 
-;
-export type runAgUiResponseError = (runAgUiResponse401 | runAgUiResponse403 | runAgUiResponse404 | runAgUiResponse422 | runAgUiResponse429) & {
+export type invokeAgentResponse502 = {
+  data: ErrorResponse
+  status: 502
+}
+
+export type invokeAgentResponseSuccess = (invokeAgentResponse200) & {
+  headers: Headers;
+};
+export type invokeAgentResponseError = (invokeAgentResponse401 | invokeAgentResponse403 | invokeAgentResponse404 | invokeAgentResponse409 | invokeAgentResponse422 | invokeAgentResponse429 | invokeAgentResponse502) & {
   headers: Headers;
 };
 
-export type runAgUiResponse = (runAgUiResponseError)
+export type invokeAgentResponse = (invokeAgentResponseSuccess | invokeAgentResponseError)
 
-export const getRunAgUiUrl = (agentId: string,) => {
-
-
+export const getInvokeAgentUrl = (agentId: string,) => {
 
 
-  return `/agents/${agentId}/ag-ui`
+
+
+  return `/agents/${agentId}/invoke`
 }
 
 /**
- * Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).
+ * Sends a message to the agent and returns its answer.
  *
  * The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
  * the agent, and only the last user message in `messages` is used: the server keeps the
- * history. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as
- * they happen, then a `message.stored` custom event holding the stored messages, then
- * `RUN_FINISHED`, or `RUN_ERROR` instead.
- * @summary Run Ag Ui
+ * history. Send `Accept: application/json` to wait for the stored `user_message` and `reply`
+ * (errors as in the plain messages endpoint). Otherwise the answer streams as AG-UI events, the
+ * open agent-to-UI standard: `RUN_STARTED`, then text messages and tool calls as they happen,
+ * then a `message.stored` custom event holding the stored messages, then `RUN_FINISHED`, or
+ * `RUN_ERROR` instead.
+ * @summary Invoke Agent
  */
-export const runAgUi = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<runAgUiResponse> => {
+export const invokeAgent = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<invokeAgentResponse> => {
 
-  return apiFetch<runAgUiResponse>(getRunAgUiUrl(agentId),
+  return apiFetch<invokeAgentResponse>(getInvokeAgentUrl(agentId),
   {
     ...options,
     method: 'POST'
@@ -825,87 +844,6 @@ export const sendMessage = async (agentId: string,
     return headers;
   };
 return apiFetch<sendMessageResponse>(getSendMessageUrl(agentId,threadId),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(messageRequest)
-  }
-);}
-
-
-
-export type streamMessageResponse401 = {
-  data: ErrorResponse
-  status: 401
-}
-
-export type streamMessageResponse403 = {
-  data: ErrorResponse
-  status: 403
-}
-
-export type streamMessageResponse404 = {
-  data: ErrorResponse
-  status: 404
-}
-
-export type streamMessageResponse422 = {
-  data: HTTPValidationError
-  status: 422
-}
-
-export type streamMessageResponse429 = {
-  data: ErrorResponse
-  status: 429
-}
-
-;
-export type streamMessageResponseError = (streamMessageResponse401 | streamMessageResponse403 | streamMessageResponse404 | streamMessageResponse422 | streamMessageResponse429) & {
-  headers: Headers;
-};
-
-export type streamMessageResponse = (streamMessageResponseError)
-
-export const getStreamMessageUrl = (agentId: string,
-    threadId: string,) => {
-
-
-
-
-  return `/agents/${agentId}/threads/${threadId}/messages/stream`
-}
-
-/**
- * Like sending a message, but as server-sent events.
- *
- * `token` events carry the model's text as it is written (`index` is the number of the model
- * call, `text` a piece of it): show the text of the latest `index` only, because a call that
- * asks for a flow may write a few words before it. `tool` events arrive as the agent runs each
- * flow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored
- * answer, which replaces the streamed text, or one `error` event holds what the plain endpoint
- * would have returned as an error.
- * @summary Stream Message
- */
-export const streamMessage = async (agentId: string,
-    threadId: string,
-    messageRequest: MessageRequest, options?: Parameters<typeof apiFetch>[1]): Promise<streamMessageResponse> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return apiFetch<streamMessageResponse>(getStreamMessageUrl(agentId,threadId),
   {
     ...options,
     method: 'POST',

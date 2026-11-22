@@ -3305,10 +3305,10 @@
         ]
       }
     },
-    "/agents/{agent_id}/ag-ui": {
+    "/agents/{agent_id}/invoke": {
       "post": {
-        "description": "Sends a message and streams the answer as AG-UI events (the open agent-to-UI standard).\n\nThe body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with\nthe agent, and only the last user message in `messages` is used: the server keeps the\nhistory. The answer is a standard run: `RUN_STARTED`, then text messages and tool calls as\nthey happen, then a `message.stored` custom event holding the stored messages, then\n`RUN_FINISHED`, or `RUN_ERROR` instead.",
-        "operationId": "run_ag_ui",
+        "description": "Sends a message to the agent and returns its answer.\n\nThe body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with\nthe agent, and only the last user message in `messages` is used: the server keeps the\nhistory. Send `Accept: application/json` to wait for the stored `user_message` and `reply`\n(errors as in the plain messages endpoint). Otherwise the answer streams as AG-UI events, the\nopen agent-to-UI standard: `RUN_STARTED`, then text messages and tool calls as they happen,\nthen a `message.stored` custom event holding the stored messages, then `RUN_FINISHED`, or\n`RUN_ERROR` instead.",
+        "operationId": "invoke_agent",
         "parameters": [
           {
             "in": "path",
@@ -3324,9 +3324,14 @@
         "responses": {
           "200": {
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              },
               "text/event-stream": {}
             },
-            "description": "Server-sent events"
+            "description": "AG-UI events, or JSON when the request accepts only JSON"
           },
           "401": {
             "content": {
@@ -3358,6 +3363,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3377,6 +3392,16 @@
               }
             },
             "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
           }
         },
         "security": [
@@ -3384,7 +3409,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Run Ag Ui",
+        "summary": "Invoke Agent",
         "tags": [
           "agents"
         ]
@@ -3890,111 +3915,6 @@
           }
         ],
         "summary": "Send Message",
-        "tags": [
-          "agents"
-        ]
-      }
-    },
-    "/agents/{agent_id}/threads/{thread_id}/messages/stream": {
-      "post": {
-        "description": "Like sending a message, but as server-sent events.\n\n`token` events carry the model's text as it is written (`index` is the number of the model\ncall, `text` a piece of it): show the text of the latest `index` only, because a call that\nasks for a flow may write a few words before it. `tool` events arrive as the agent runs each\nflow (`name`, `arguments`, `result`, `is_error`). One `message` event then holds the stored\nanswer, which replaces the streamed text, or one `error` event holds what the plain endpoint\nwould have returned as an error.",
-        "operationId": "stream_message",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "agent_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Agent Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "thread_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Thread Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MessageRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "text/event-stream": {}
-            },
-            "description": "Server-sent events"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          },
-          "429": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Too Many Requests"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Stream Message",
         "tags": [
           "agents"
         ]

@@ -284,49 +284,6 @@ async def test_a_flow_that_is_no_longer_published_stops_the_turn_clearly(
     assert seen == []
 
 
-def events(text: str) -> list[tuple[str, Any]]:
-    found = []
-    for block in text.strip().split("\n\n"):
-        name, data = block.split("\n")
-        found.append((name.removeprefix("event: "), json.loads(data.removeprefix("data: "))))
-    return found
-
-
-async def test_the_stream_reports_each_flow_then_the_answer(
-    client: httpx.AsyncClient, agents: FakeAgentStore
-) -> None:
-    flow_id = await tool_flow(client)
-    script = [asks(("double", '{"amount": 4}')), says("Four")]
-    async with chat_server(script=script) as (port, _):
-        agent, thread = await ready(client, port, tools=[tool(flow_id)])
-        response = await client.post(
-            f"/agents/{agent['id']}/threads/{thread}/messages/stream", json={"content": "Go"}
-        )
-
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/event-stream")
-    got = events(response.text)
-    assert [name for name, _ in got] == ["tool", "token", "message"]
-    assert got[0][1]["name"] == "double" and got[0][1]["is_error"] is False
-    assert got[1][1] == {"index": 2, "text": "Four"}
-    assert got[2][1]["reply"]["content"] == "Four"
-    detail = (await client.get(f"/agents/{agent['id']}/threads/{thread}")).json()
-    assert len(detail["messages"]) == 2
-
-
-async def test_a_failure_in_the_stream_is_an_error_event(
-    client: httpx.AsyncClient, agents: FakeAgentStore
-) -> None:
-    agent = await make_agent(client)
-    thread = await thread_of(client, agent)
-    response = await client.post(
-        f"/agents/{agent['id']}/threads/{thread}/messages/stream", json={"content": "Go"}
-    )
-
-    ((name, body),) = events(response.text)
-    assert name == "error" and body["code"] == "agent_not_ready"
-
-
 async def test_a_connection_that_an_agent_uses_cannot_be_deleted_quietly(
     client: httpx.AsyncClient, agents: FakeAgentStore
 ) -> None:
@@ -491,22 +448,6 @@ async def test_the_steps_of_an_answer_show_model_calls_and_the_flows_it_ran(
     ]
     assert got["items"][2]["parent_id"] == "t"
     assert missing.status_code == 404 and stranger.status_code == 404
-
-
-async def test_the_answer_streams_in_pieces_before_the_final_message(
-    client: httpx.AsyncClient, agents: FakeAgentStore
-) -> None:
-    async with chat_server("one two three four") as (port, _):
-        agent, thread = await ready(client, port)
-        response = await client.post(
-            f"/agents/{agent['id']}/threads/{thread}/messages/stream", json={"content": "Go"}
-        )
-
-    got = events(response.text)
-    assert [name for name, _ in got] == ["token"] * 4 + ["message"]
-    assert "".join(body["text"] for name, body in got if name == "token") == "one two three four"
-    assert {body["index"] for name, body in got if name == "token"} == {1}
-    assert got[-1][1]["reply"]["content"] == "one two three four"
 
 
 async def test_the_plain_endpoint_does_not_ask_the_provider_to_stream(

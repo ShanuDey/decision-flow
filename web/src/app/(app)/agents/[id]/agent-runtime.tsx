@@ -32,7 +32,7 @@ export function AgentRuntime({
   children: React.ReactNode;
 }) {
   const agent = useMemo(
-    () => new HttpAgent({ url: `/backend/agents/${agentId}/ag-ui`, threadId }),
+    () => new HttpAgent({ url: `/backend/agents/${agentId}/invoke`, threadId }),
     [agentId, threadId],
   );
   const latest = useRef({ onStored, onError });
