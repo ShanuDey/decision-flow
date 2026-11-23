@@ -16,8 +16,15 @@ export const maxDuration = 60;
 
 const FLOW_PAGE = 100;
 
-export default async function AgentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AgentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ thread?: string }>;
+}) {
   const { id } = await params;
+  const { thread } = await searchParams;
   const init = await serverApiInit();
   const [agent, connections, types, flows, threads] = await Promise.all([
     call(getAgent(id, init)),
@@ -51,6 +58,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
         connections={connectionOptions(connections.data.items, types.data.items)}
         flows={publishedPage(flows.data.items, flows.data.total).flows}
         threads={threads.data.items}
+        initialThreadId={thread}
       />
     </div>
   );

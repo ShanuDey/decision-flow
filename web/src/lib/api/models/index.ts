@@ -74,6 +74,8 @@ export * from './listNodeTemplatesParams';
 export * from './listRunsParams';
 export * from './listRunsStatus';
 export * from './listThreadsParams';
+export * from './listWorkspaceThreadsParams';
+export * from './listWorkspaceThreadsWho';
 export * from './messageInfo';
 export * from './messageInfoRole';
 export * from './messageInfoUsage';

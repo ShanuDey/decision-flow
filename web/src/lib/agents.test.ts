@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ThreadSummary } from "@/lib/api/models";
 
-import { type AgentForm, argsSummary, formProblem, groupByDay, sameForm, uniqueName, updateBody, whoLabel } from "./agents";
+import { type AgentForm, argsSummary, formProblem, groupByDay, sameForm, uniqueName, updateBody, whoKind, whoLabel, groupByAgent } from "./agents";
 
 const FLOW = "0a6c2f7e-4b1d-4e0a-8c55-3d1e9f2a7b64";
 
@@ -98,5 +98,30 @@ describe("whoLabel", () => {
 
   it("shortens a generated anonymous id", () => {
     expect(whoLabel({ source: "api", external_user_id: "anon-a1b2c3d4e5f6", anonymous: true })).toBe("Anonymous · a1b2c3");
+  });
+});
+
+describe("whoKind", () => {
+  it("tells the team, outside users and anonymous ones apart", () => {
+    expect(whoKind({ source: "web", anonymous: false })).toBe("team");
+    expect(whoKind({ source: "api", anonymous: false })).toBe("external");
+    expect(whoKind({ source: "api", anonymous: true })).toBe("anonymous");
+  });
+});
+
+describe("groupByAgent", () => {
+  const thread = (id: string, agent_id: string) => ({ id, agent_id }) as ThreadSummary;
+
+  it("groups under each agent in the order of the newest conversation and names unknown agents", () => {
+    const groups = groupByAgent([thread("t1", "b"), thread("t2", "a"), thread("t3", "b"), thread("t4", "gone")], {
+      a: "Alpha",
+      b: "Beta",
+    });
+    expect(groups.map((g) => [g.name, g.items.map((t) => t.id)])).toEqual([
+      ["Beta", ["t1", "t3"]],
+      ["Alpha", ["t2"]],
+      ["Unknown agent", ["t4"]],
+    ]);
+    expect(groupByAgent([], {})).toEqual([]);
   });
 });

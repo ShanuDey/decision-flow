@@ -22,6 +22,7 @@ from app.agents.schemas import (
     ThreadList,
     ThreadSummary,
     TurnResponse,
+    Who,
 )
 from app.agents.store import AgentStore, get_agent_store
 from app.connections.store import ConnectionStore, get_connection_store
@@ -127,6 +128,23 @@ async def list_threads(
     """
     await service.require_agent(store, member, agent_id)
     threads = await store.list_threads(member, agent_id, limit, service.listing_filter(caller))
+    return ThreadList(items=[service.summarize_thread(t) for t in threads])
+
+
+@router.get("/threads")
+async def list_workspace_threads(
+    store: Store,
+    member: CurrentMember,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    agent_id: uuid.UUID | None = None,
+    who: Who | None = None,
+) -> ThreadList:
+    """Every conversation with the workspace's agents, most recently active first.
+
+    `who` keeps the team's own (`team`), an outside app's users (`external`) or generated
+    anonymous ids (`anonymous`).
+    """
+    threads = await store.list_workspace_threads(member, limit, agent_id, who)
     return ThreadList(items=[service.summarize_thread(t) for t in threads])
 
 

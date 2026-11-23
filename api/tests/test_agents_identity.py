@@ -140,3 +140,38 @@ async def test_the_same_id_in_another_workspace_is_a_different_person(
 
     assert (await client.get(f"{path}/{maria['id']}", headers=stranger)).status_code == 404
     assert (await client.get(path, headers=stranger)).status_code == 404
+
+
+async def test_the_workspace_list_covers_every_agent_and_narrows_by_who_and_agent(
+    client: httpx.AsyncClient, agents: FakeAgentStore
+) -> None:
+    helper = await make_agent(client)
+    triage = await make_agent(client, name="Triage")
+    team = await start(client, helper)
+    maria = await start(client, helper, as_user("maria"))
+    anon = await start(client, triage, API)
+
+    everything = (await client.get("/threads")).json()["items"]
+    narrowed = {
+        who: {t["id"] for t in (await client.get("/threads", params={"who": who})).json()["items"]}
+        for who in ("team", "external", "anonymous")
+    }
+    by_agent = (await client.get("/threads", params={"agent_id": triage["id"]})).json()["items"]
+
+    assert {t["id"] for t in everything} == {team["id"], maria["id"], anon["id"]}
+    assert narrowed == {
+        "team": {team["id"]},
+        "external": {maria["id"]},
+        "anonymous": {anon["id"]},
+    }
+    assert [t["id"] for t in by_agent] == [anon["id"]]
+
+
+async def test_the_workspace_list_never_shows_another_workspace(
+    client: httpx.AsyncClient, agents: FakeAgentStore
+) -> None:
+    agent = await make_agent(client)
+    await start(client, agent)
+
+    assert (await client.get("/threads", headers=OTHER)).json() == {"items": []}
+    assert (await client.get("/threads", params={"who": "nobody"})).status_code == 422

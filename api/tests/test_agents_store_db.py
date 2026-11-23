@@ -163,6 +163,28 @@ async def test_a_conversation_can_belong_to_an_external_user_and_listing_narrows
         assert await store.list_threads(stranger, made.id, 10, "maria") == []
 
 
+async def test_the_workspace_list_filters_by_agent_and_by_who(sessions: SessionFactory) -> None:
+    member = await make_member(sessions)
+    stranger = await make_member(sessions, "user-2")
+    helper = await make_agent(sessions, member)
+    triage = await make_agent(sessions, member, "Triage")
+    async with sessions() as session:
+        store = AgentStore(session)
+        team = await store.create_thread(member, helper.id)
+        maria = await store.create_thread(member, helper.id, "maria")
+        anon = await store.create_thread(member, triage.id, "anon-abc")
+
+        async def ids(**filters: Any) -> set[uuid.UUID]:
+            return {t.id for t in await store.list_workspace_threads(member, 50, **filters)}
+
+        assert await ids() == {team.id, maria.id, anon.id}
+        assert await ids(who="team") == {team.id}
+        assert await ids(who="external") == {maria.id}
+        assert await ids(who="anonymous") == {anon.id}
+        assert await ids(agent_id=triage.id) == {anon.id}
+        assert await store.list_workspace_threads(stranger, 50) == []
+
+
 async def test_a_thread_outlives_the_person_who_started_it(sessions: SessionFactory) -> None:
     member = await make_member(sessions)
     starter = await make_member(sessions, "user-2")

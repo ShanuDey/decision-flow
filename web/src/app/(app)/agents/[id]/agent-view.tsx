@@ -53,11 +53,13 @@ export function AgentView({
   connections,
   flows,
   threads: initialThreads,
+  initialThreadId,
 }: {
   agent: AgentSummary;
   connections: ConnectionOption[];
   flows: PublishedFlow[];
   threads: ThreadSummary[];
+  initialThreadId?: string;
 }) {
   const router = useRouter();
   const problem = readiness(agent, connections);
@@ -66,7 +68,9 @@ export function AgentView({
   const [form, setForm] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [threads, setThreads] = useState(initialThreads);
-  const [activeId, setActiveId] = useState<string | null>(initialThreads[0]?.id ?? null);
+  const [activeId, setActiveId] = useState<string | null>(
+    initialThreads.find((t) => t.id === initialThreadId)?.id ?? initialThreads[0]?.id ?? null,
+  );
   const set = (change: Partial<AgentForm>) => setForm((f) => ({ ...f, ...change }));
   const dirty = !sameForm(form, saved);
   const invalid = formProblem(form);

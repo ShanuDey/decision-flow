@@ -109,6 +109,31 @@ class FakeAgentStore:
         ]
         return sorted(found, key=lambda t: t.updated_at, reverse=True)[:limit]
 
+    async def list_workspace_threads(
+        self,
+        member: Member,
+        limit: int,
+        agent_id: uuid.UUID | None = None,
+        who: str | None = None,
+    ) -> list[AgentThread]:
+        def keep(t: AgentThread) -> bool:
+            person = t.external_user_id
+            return {
+                None: True,
+                "team": person is None,
+                "anonymous": person is not None and person.startswith("anon-"),
+                "external": person is not None and not person.startswith("anon-"),
+            }[who]
+
+        found = [
+            t
+            for t in self.threads.values()
+            if t.workspace_id == member.workspace_id
+            and (agent_id is None or t.agent_id == agent_id)
+            and keep(t)
+        ]
+        return sorted(found, key=lambda t: t.updated_at, reverse=True)[:limit]
+
     async def get_thread(
         self, member: Member, agent_id: uuid.UUID, thread_id: uuid.UUID
     ) -> AgentThread | None:

@@ -12,6 +12,8 @@ from app.engine.llm import MAX_TOOLS
 AgentName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 MAX_MESSAGE_CHARS = 20_000
 
+Who = Literal["team", "external", "anonymous"]
+
 
 class AgentSettings(FrozenBaseModel):
     """What an agent is; the same fields are sent to create it and returned when it is read."""

@@ -1542,3 +1542,35 @@ export const ListTemplatesResponse = zod.object({
   "title": zod.string()
 }))
 })
+
+
+/**
+ * Every conversation with the workspace's agents, most recently active first.
+ *
+ * `who` keeps the team's own (`team`), an outside app's users (`external`) or generated
+ * anonymous ids (`anonymous`).
+ * @summary List Workspace Threads
+ */
+export const listWorkspaceThreadsQueryLimitDefault = 100;
+export const listWorkspaceThreadsQueryLimitMax = 200;
+
+
+
+export const ListWorkspaceThreadsQueryParams = zod.object({
+  "limit": zod.int().min(1).max(listWorkspaceThreadsQueryLimitMax).default(listWorkspaceThreadsQueryLimitDefault),
+  "agent_id": zod.union([zod.uuid(),zod.null()]).optional(),
+  "who": zod.union([zod.enum(['team', 'external', 'anonymous']),zod.null()]).optional()
+})
+
+export const ListWorkspaceThreadsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "agent_id": zod.uuid(),
+  "anonymous": zod.boolean().describe('True when the id was generated because the caller named nobody.'),
+  "created_at": zod.iso.datetime({"offset":true}),
+  "external_user_id": zod.union([zod.string(),zod.null()]).optional().describe('The outside app\'s user in this conversation. Empty for a team member.'),
+  "id": zod.uuid(),
+  "source": zod.enum(['web', 'api']).describe('`api` when an API key started it, `web` for a team member.'),
+  "title": zod.string(),
+  "updated_at": zod.iso.datetime({"offset":true})
+}))
+})

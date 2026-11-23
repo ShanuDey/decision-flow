@@ -8,7 +8,9 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.caller import ANON_PREFIX
 from app.agents.models import Agent, AgentMessage, AgentThread
+from app.agents.schemas import Who
 from app.db import get_session
 from app.workspaces.schemas import Member
 
@@ -145,6 +147,28 @@ class AgentStore:
         )
         if external_user_id is not None:
             query = query.where(AgentThread.external_user_id == external_user_id)
+        rows = await self.session.scalars(
+            query.order_by(AgentThread.updated_at.desc(), AgentThread.id).limit(limit)
+        )
+        return list(rows)
+
+    async def list_workspace_threads(
+        self,
+        member: Member,
+        limit: int,
+        agent_id: uuid.UUID | None = None,
+        who: Who | None = None,
+    ) -> list[AgentThread]:
+        query = select(AgentThread).where(AgentThread.workspace_id == member.workspace_id)
+        if agent_id is not None:
+            query = query.where(AgentThread.agent_id == agent_id)
+        person = AgentThread.external_user_id
+        if who == "team":
+            query = query.where(person.is_(None))
+        elif who == "anonymous":
+            query = query.where(person.startswith(ANON_PREFIX))
+        elif who == "external":
+            query = query.where(person.is_not(None), ~person.startswith(ANON_PREFIX))
         rows = await self.session.scalars(
             query.order_by(AgentThread.updated_at.desc(), AgentThread.id).limit(limit)
         )

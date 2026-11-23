@@ -41,6 +41,7 @@ import type {
   ListNodeTemplatesParams,
   ListRunsParams,
   ListThreadsParams,
+  ListWorkspaceThreadsParams,
   MessageRequest,
   NodeTemplateList,
   Principal,
@@ -3659,6 +3660,75 @@ export const getListTemplatesUrl = () => {
 export const listTemplates = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listTemplatesResponse> => {
 
   return apiFetch<listTemplatesResponse>(getListTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listWorkspaceThreadsResponse200 = {
+  data: ThreadList
+  status: 200
+}
+
+export type listWorkspaceThreadsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listWorkspaceThreadsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listWorkspaceThreadsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listWorkspaceThreadsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listWorkspaceThreadsResponseSuccess = (listWorkspaceThreadsResponse200) & {
+  headers: Headers;
+};
+export type listWorkspaceThreadsResponseError = (listWorkspaceThreadsResponse401 | listWorkspaceThreadsResponse403 | listWorkspaceThreadsResponse422 | listWorkspaceThreadsResponse429) & {
+  headers: Headers;
+};
+
+export type listWorkspaceThreadsResponse = (listWorkspaceThreadsResponseSuccess | listWorkspaceThreadsResponseError)
+
+export const getListWorkspaceThreadsUrl = (params?: ListWorkspaceThreadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/threads?${stringifiedParams}` : `/threads`
+}
+
+/**
+ * Every conversation with the workspace's agents, most recently active first.
+ *
+ * `who` keeps the team's own (`team`), an outside app's users (`external`) or generated
+ * anonymous ids (`anonymous`).
+ * @summary List Workspace Threads
+ */
+export const listWorkspaceThreads = async (params?: ListWorkspaceThreadsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listWorkspaceThreadsResponse> => {
+
+  return apiFetch<listWorkspaceThreadsResponse>(getListWorkspaceThreadsUrl(params),
   {
     ...options,
     method: 'GET'

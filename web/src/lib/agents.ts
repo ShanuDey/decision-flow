@@ -80,6 +80,29 @@ export function whoLabel(thread: Pick<ThreadSummary, "source" | "external_user_i
   return thread.anonymous ? `Anonymous · ${id.replace(/^anon-/, "").slice(0, 6)}` : `External · ${id}`;
 }
 
+export type WhoKind = "team" | "external" | "anonymous";
+
+export function whoKind(thread: Pick<ThreadSummary, "source" | "anonymous">): WhoKind {
+  return thread.source === "web" ? "team" : thread.anonymous ? "anonymous" : "external";
+}
+
+export interface AgentGroup {
+  agentId: string;
+  name: string;
+  items: ThreadSummary[];
+}
+
+// Conversations under their agent, agents in the order of their most recent conversation.
+export function groupByAgent(threads: ThreadSummary[], names: Record<string, string>): AgentGroup[] {
+  const groups = new Map<string, AgentGroup>();
+  for (const thread of threads) {
+    const group = groups.get(thread.agent_id) ?? { agentId: thread.agent_id, name: names[thread.agent_id] ?? "Unknown agent", items: [] };
+    group.items.push(thread);
+    groups.set(thread.agent_id, group);
+  }
+  return [...groups.values()];
+}
+
 export interface ThreadGroup {
   label: "Today" | "Yesterday" | "Earlier";
   items: ThreadSummary[];
