@@ -56,7 +56,7 @@ describe("judge", () => {
     expect(judge(valid(["run", "read"]))).toEqual({
       ok: true,
       userId: "user-1",
-      actions: ["read", "run"],
+      actions: ["flows:read", "flows:run"],
     });
   });
 
@@ -103,17 +103,17 @@ describe("judge", () => {
 
 describe("requireAction", () => {
   it("allows an action the key holds", () => {
-    expect(requireAction(["read", "run"], "run")).toBeNull();
+    expect(requireAction(["flows:read", "flows:run"], "flows:run")).toBeNull();
   });
 
   it("refuses a missing action with 403 and does not treat write as read", () => {
-    expect(requireAction(["write"], "read")).toMatchObject({
+    expect(requireAction(["flows:write"], "flows:read")).toMatchObject({
       ok: false,
       status: 403,
       code: "insufficient_scope",
-      message: 'This key does not have the "read" scope',
+      message: 'This key does not have the "flows:read" scope',
     });
-    expect(requireAction([], "run")).toMatchObject({ status: 403 });
+    expect(requireAction([], "flows:run")).toMatchObject({ status: 403 });
   });
 });
 
@@ -132,7 +132,7 @@ describe("authenticateKey", () => {
     expect(result).toEqual({
       ok: true,
       user: { id: "user-1", email: "a@acme.com", name: "Alex" },
-      actions: ["read", "write"],
+      actions: ["flows:read", "flows:write"],
     });
     expect(verifyApiKey).toHaveBeenCalledTimes(1);
     expect(verifyApiKey).toHaveBeenCalledWith({ body: { key: KEY } });

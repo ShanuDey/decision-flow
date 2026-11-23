@@ -10,13 +10,18 @@ import pytest
 from app.catalog.flow_file import CatalogFlow
 from app.catalog.index import build_index
 from app.catalog.source import load_files
+from app.connections.catalog import BY_ID as CONNECTION_TYPES
+from app.connections.types import resolve
 from app.engine.compiler import compile_graph
+from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
 from app.engine.templates import render
 from app.engine.validate import parse_graph
 from scripts.build_catalog_index import MARKETPLACE
+from tests.chat_server import chat_server
 from tests.test_catalog_index import put, template_file, type_file
 from tests.test_catalog_router import OTHER, install
+from tests.test_node_http_request import anyio_backend, policy  # noqa: F401
 
 pytestmark = pytest.mark.anyio
 
@@ -211,3 +216,85 @@ def test_the_summary_is_read_from_the_first_choice() -> None:
     value = end["data"]["outputs"][0]["value"]
     answer = {"choices": [{"message": {"content": "Short."}}]}
     assert render(value, {"nodes": {"summarize": {"output": {"body": answer}}}}) == "Short."
+
+
+async def test_the_generic_summarize_flow_follows_the_connection_base_url_and_model() -> None:
+    shipped = next(f for f in SHIPPED if f.id == "openai_compatible_summarize_text")
+    (slot,) = shipped.body.connections
+    draft = json.loads(json.dumps(shipped.body.draft).replace(slot, CONNECTION))
+    graph, issues = parse_graph(draft)
+    assert graph is not None, issues
+
+    async with chat_server("Short summary.") as (port, seen):
+        connection = resolve(
+            CONNECTION_TYPES["openai_compatible"],
+            CONNECTION,
+            "Local",
+            {
+                "api_key": "test-token",
+                "base_url": f"http://127.0.0.1:{port}/v1/",
+                "default_model": "some/model",
+            },
+        )
+        result = await run_flow(
+            compile_graph(graph),
+            {"text": "A long text."},
+            secrets=RunSecrets(connections={CONNECTION: connection}),
+            outbound=policy(),
+        )
+
+    assert result.status == "succeeded", result.error
+    assert result.output == {"summary": "Short summary."}
+    (call,) = seen
+    assert call.target == "/v1/chat/completions"
+    assert call.headers["authorization"] == "Bearer test-token"
+    assert call.body["model"] == "some/model"
+    assert call.body["messages"][-1] == {"role": "user", "content": "A long text."}
+
+
+async def run_shipped(flow_id: str, payload: dict[str, str], reply: str) -> Any:
+    shipped = next(f for f in SHIPPED if f.id == flow_id)
+    (slot,) = shipped.body.connections
+    graph, issues = parse_graph(
+        json.loads(json.dumps(shipped.body.draft).replace(slot, CONNECTION))
+    )
+    assert graph is not None, issues
+    async with chat_server(reply) as (port, _):
+        connection = resolve(
+            CONNECTION_TYPES["openai_compatible"],
+            CONNECTION,
+            "Local",
+            {
+                "api_key": "test-token",
+                "base_url": f"http://127.0.0.1:{port}/v1",
+                "default_model": "some/model",
+            },
+        )
+        return await run_flow(
+            compile_graph(graph),
+            payload,
+            secrets=RunSecrets(connections={CONNECTION: connection}),
+            outbound=policy(),
+        )
+
+
+async def test_the_ask_a_model_flow_returns_the_models_text() -> None:
+    result = await run_shipped("ask_a_model", {"question": "Why is the sky blue?"}, "Scattering.")
+    assert result.status == "succeeded", result.error
+    assert result.output == {"answer": "Scattering."}
+
+
+async def test_the_extract_contact_details_flow_returns_typed_fields() -> None:
+    answer = {"name": "Ada Lovelace", "company": "Analytical", "topic": "billing", "urgent": True}
+    result = await run_shipped(
+        "extract_contact_details", {"message": "Hi, Ada here."}, json.dumps(answer)
+    )
+    assert result.status == "succeeded", result.error
+    assert result.output == answer
+
+
+async def test_the_extract_contact_details_flow_refuses_a_topic_outside_its_list() -> None:
+    answer = {"name": "A", "company": "B", "topic": "weather", "urgent": False}
+    result = await run_shipped("extract_contact_details", {"message": "x"}, json.dumps(answer))
+    assert result.status == "failed" and result.error is not None
+    assert "topic: must be one of" in result.error.message

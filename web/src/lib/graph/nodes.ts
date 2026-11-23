@@ -67,6 +67,42 @@ export const NODE_SPECS: Record<NodeType, NodeSpec> = {
     handles: [],
     pickable: true,
   },
+  prompt: {
+    label: "Prompt",
+    group: "Data",
+    source: "builtin",
+    description: "Ask a chat model a question and use its text",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
+  structured_output: {
+    label: "Structured output",
+    group: "Data",
+    source: "builtin",
+    description: "Ask a chat model for typed fields, such as a name or a score",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
+  agent: {
+    label: "Agent",
+    group: "Data",
+    source: "builtin",
+    description: "Let a chat model run your published flows as tools until it can answer",
+    minCount: 0,
+    maxCount: null,
+    acceptsIncoming: true,
+    acceptsOutgoing: true,
+    handles: [],
+    pickable: true,
+  },
   subflow: {
     label: "Subflow",
     group: "Data",
@@ -176,6 +212,42 @@ export function defaultData(type: NodeType): NodeData {
         timeout_seconds: null,
         fail_on_error_status: false,
         connection_id: "",
+      };
+    case "prompt":
+      return {
+        connection_id: "",
+        model: "",
+        system: "",
+        prompt: "",
+        temperature: null,
+        max_tokens: null,
+        timeout_seconds: null,
+      };
+    case "structured_output":
+      return {
+        connection_id: "",
+        model: "",
+        system: "",
+        prompt: "",
+        fields: [],
+        mode: "schema",
+        temperature: null,
+        max_tokens: null,
+        timeout_seconds: null,
+      };
+    case "agent":
+      return {
+        connection_id: "",
+        model: "",
+        instructions: "",
+        prompt: "",
+        tools: [],
+        max_iterations: 8,
+        max_total_tokens: null,
+        max_seconds: null,
+        temperature: null,
+        max_tokens: null,
+        timeout_seconds: null,
       };
     case "subflow":
       return { flow_id: "", inputs: {} };

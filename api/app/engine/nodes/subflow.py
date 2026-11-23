@@ -24,6 +24,9 @@ class SubflowNode(NodeModel):
     def templates(self) -> dict[str, str]:
         return {f"data.inputs.{name}": value for name, value in self.data.inputs.items()}
 
+    def called_flow_ids(self) -> list[str]:
+        return [self.data.flow_id] if self.data.flow_id else []
+
     def _issue(self, code: str, message: str, field: str) -> Issue:
         return Issue(code=code, message=message, node_id=self.id, field=field)
 

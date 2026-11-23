@@ -12,8 +12,8 @@ MLFLOW_UI_PORT ?= 5000
 	e2e-install e2e e2e-ui e2e-api e2e-docs e2e-report
 
 # containers first (detached), then both dev servers in parallel; Ctrl+C stops only the servers
-start: db adminer
-	$(MAKE) -j2 api web
+start: db
+	$(MAKE) -j3 api web docs
 
 api: setup migrate
 	$(API) fastapi dev

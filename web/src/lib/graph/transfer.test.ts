@@ -101,8 +101,24 @@ const request = (id: string, connectionId: string) => ({
 const ref = (id: string, name: string, typeId: string): ConnectionRef => ({ id, name, typeId });
 const idOf = (g: Graph, index: number) => {
   const node = g.nodes[index];
-  return node.type === "http_request" ? node.data.connection_id : undefined;
+  return node.type === "http_request" || node.type === "prompt" ? node.data.connection_id : undefined;
 };
+
+const prompt = (id: string, connectionId: string) => ({
+  id,
+  type: "prompt",
+  name: "Ask",
+  position: { x: 0, y: 0 },
+  data: {
+    connection_id: connectionId,
+    model: "",
+    system: "",
+    prompt: "Hi",
+    temperature: null,
+    max_tokens: null,
+    timeout_seconds: null,
+  },
+});
 
 describe("connections in a file", () => {
   const g = graph([request("a", "c1"), request("b", "c1"), request("c", "c2"), request("d", "")]);
@@ -196,6 +212,18 @@ describe("applyConnections", () => {
 
   it("clears a connection the user skipped", () => {
     expect(idOf(applyConnections(g, { c2: "" }, here), 1)).toBe("");
+  });
+
+  it("treats a prompt node like a request node", () => {
+    const mixed = graph([request("a", "c1"), prompt("p", "c2"), prompt("q", "c3")]);
+    expect(usedConnectionIds(mixed)).toEqual(["c1", "c2", "c3"]);
+    const needs = planConnections(mixed, { c2: { type: "openai_compatible", name: "Groq" } }, here);
+    expect(needs.map((n) => [n.fileId, n.nodes])).toEqual([
+      ["c2", 1],
+      ["c3", 1],
+    ]);
+    const result = applyConnections(mixed, { c2: "m1" }, here);
+    expect([0, 1, 2].map((i) => idOf(result, i))).toEqual(["c1", "m1", ""]);
   });
 
   it("does not change other nodes or the original graph", () => {

@@ -200,8 +200,8 @@ async def list_runs(
     return page, encode_cursor(page[-1]) if len(rows) > limit else None
 
 
-def _within_grace(run: Run) -> bool:
-    return datetime.now(UTC).replace(tzinfo=None) - run.started_at < TRACE_GRACE
+def within_grace(started_at: datetime) -> bool:
+    return datetime.now(UTC).replace(tzinfo=None) - started_at < TRACE_GRACE
 
 
 def _trace_unavailable() -> ApiError:
@@ -210,22 +210,27 @@ def _trace_unavailable() -> ApiError:
     )
 
 
+async def trace_steps(trace_id: str | None, started_at: datetime, read: TraceReader) -> RunSteps:
+    """The steps of a recorded trace; `pending` while it may still be on its way to the store."""
+    if trace_id is None:
+        return RunSteps(items=[], pending=False)
+    try:
+        spans = await read(trace_id)
+    except TraceIncomplete:
+        if within_grace(started_at):
+            return RunSteps(items=[], pending=True)
+        raise _trace_unavailable() from None
+    except TraceUnavailable:
+        raise _trace_unavailable() from None
+    if spans is None:
+        return RunSteps(items=[], pending=within_grace(started_at))
+    return RunSteps(items=build_steps(spans), pending=False)
+
+
 async def run_steps(
     store: RunStore, member: Member, run_id: uuid.UUID, read: TraceReader
 ) -> RunSteps:
     run = await store.get_run(member, run_id)
     if run is None:
         raise not_found("Run")
-    if run.mlflow_trace_id is None:
-        return RunSteps(items=[], pending=False)
-    try:
-        spans = await read(run.mlflow_trace_id)
-    except TraceIncomplete:
-        if _within_grace(run):
-            return RunSteps(items=[], pending=True)
-        raise _trace_unavailable() from None
-    except TraceUnavailable:
-        raise _trace_unavailable() from None
-    if spans is None:
-        return RunSteps(items=[], pending=_within_grace(run))
-    return RunSteps(items=build_steps(spans), pending=False)
+    return await trace_steps(run.mlflow_trace_id, run.started_at, read)

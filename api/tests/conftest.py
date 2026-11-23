@@ -149,8 +149,13 @@ class FakeFlowStore:
                 None,
             )
             nodes = version.graph.get("nodes", []) if version else []
+            target = str(flow_id)
             if any(
-                n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == str(flow_id)
+                (n.get("type") == "subflow" and n.get("data", {}).get("flow_id") == target)
+                or (
+                    n.get("type") == "agent"
+                    and any(t.get("flow_id") == target for t in n.get("data", {}).get("tools", []))
+                )
                 for n in nodes
             ):
                 found.append(flow)
@@ -346,6 +351,7 @@ class FakeConnectionStore:
     def __init__(self, flows: "FakeFlowStore") -> None:
         self.flows = flows
         self.rows: dict[uuid.UUID, Connection] = {}
+        self.agents: Any = None
 
     def _mine(self, member: Member) -> list[Connection]:
         return [c for c in self.rows.values() if c.workspace_id == member.workspace_id]
@@ -412,6 +418,9 @@ class FakeConnectionStore:
             return False
         del self.rows[connection_id]
         return True
+
+    async def agents_using(self, member: Member, connection_id: uuid.UUID) -> list[Any]:
+        return await self.agents.agents_using(member, connection_id) if self.agents else []
 
     async def flows_using(self, member: Member, connection_id: uuid.UUID) -> list[Flow]:
         wanted = str(connection_id)

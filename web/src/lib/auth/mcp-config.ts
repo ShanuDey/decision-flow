@@ -1,5 +1,5 @@
 import type { CreateKeyBody } from "./key-request";
-import { ACTIONS, type Action } from "./scopes";
+import { type Action, FLOW_ACTIONS } from "./scopes";
 
 export const MCP_SERVER_NAME = "decision-flow";
 
@@ -10,7 +10,7 @@ export const DEFAULT_AGENT_EXPIRY = "30";
 // Defaults to full access, so a first try never hits a missing scope.
 export const agentKey = (
   name: string,
-  actions: readonly Action[] = ACTIONS,
+  actions: readonly Action[] = FLOW_ACTIONS,
   expiresInDays: CreateKeyBody["expiresInDays"] = 30,
 ): CreateKeyBody => ({ name, actions: [...actions], expiresInDays });
 

@@ -209,12 +209,16 @@ async def refuse_if_used(
     store: ConnectionStore, member: Member, connection_id: uuid.UUID, force: bool
 ) -> None:
     flows = [] if force else await store.flows_using(member, connection_id)
-    if flows:
+    agents = [] if force else await store.agents_using(member, connection_id)
+    if flows or agents:
         raise ApiError(
             409,
             "connection_in_use",
-            "Flows use this connection; they will fail until you pick another",
-            {"flows": [{"id": str(f.id), "name": f.name} for f in flows]},
+            "Flows or agents use this connection; they will fail until you pick another",
+            {
+                "flows": [{"id": str(f.id), "name": f.name} for f in flows],
+                "agents": [{"id": str(a.id), "name": a.name} for a in agents],
+            },
         )
 
 

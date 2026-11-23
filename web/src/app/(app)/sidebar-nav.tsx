@@ -2,10 +2,12 @@
 
 import {
   BookOpen,
+  Bot,
   ExternalLink,
   GitBranch,
   LayoutDashboard,
   type LucideIcon,
+  MessagesSquare,
   Play,
   Plug,
   Settings,
@@ -24,8 +26,10 @@ interface Item {
 
 const ITEMS: Item[] = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/agents", label: "Agents", icon: Bot },
   { href: "/flows", label: "Flows", icon: GitBranch },
   { href: "/runs", label: "Runs", icon: Play },
+  { href: "/conversations", label: "Conversations", icon: MessagesSquare },
   { href: "/connections", label: "Connections", icon: Plug },
   { href: "/marketplace", label: "Marketplace", icon: Store },
   { href: "/settings", label: "Settings", icon: Settings },

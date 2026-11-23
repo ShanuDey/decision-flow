@@ -11,7 +11,7 @@ The defaults suit a normal self-hosted install: wide safety bounds and no produc
 | `MAX_REQUEST_BYTES` | `1048576` | Largest request body. A bigger one gets `413` |
 | `MAX_CONCURRENT_RUNS` | `50` | Runs in progress at once, across the whole app |
 | `MAX_CONCURRENT_RUNS_PER_WORKSPACE` | `0` (off) | Runs in progress at once for one workspace |
-| `RUN_TIMEOUT_SECONDS` | `300` | Longest a run may take |
+| `RUN_TIMEOUT_SECONDS` | `300` | Longest a run may take, and the longest one agent answer may take (an agent's own `max_seconds` is held under it) |
 | `MAX_SUBFLOW_DEPTH` | `5` | How many [Subflow](nodes/subflow) calls may be nested inside one another. `0` is no limit |
 | `MAX_NODES` | `500` | Most nodes in one flow |
 | `MAX_EDGES` | `1000` | Most edges in one flow |

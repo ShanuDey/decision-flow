@@ -14,6 +14,19 @@
       "version": "1.0.0"
     },
     {
+      "description": "A Groq API key, sent only to api.groq.com.",
+      "has_readme": true,
+      "hash": "sha256-23944c7d48340d07d1ed7fdb7c90abff9fbd86d88a0e45205eb485b8c7394ffa",
+      "icon": "sparkles",
+      "id": "groq",
+      "kind": "connection-type",
+      "name": "Groq",
+      "path": "connection-types/groq/1.0.0.json",
+      "requires": [],
+      "tags": [],
+      "version": "1.0.0"
+    },
+    {
       "description": "An OpenAI API key, sent only to api.openai.com.",
       "has_readme": true,
       "hash": "sha256-b49498064a20adb2a3270c326b4c2c787370c8ac71fc7f0a859531980dc5f063",
@@ -72,6 +85,40 @@
       "version": "1.0.0"
     },
     {
+      "description": "Sends a question to a chat model and returns its answer, using a Prompt node.",
+      "has_readme": true,
+      "hash": "sha256-255b89479641a4fd95f0ec2497e945652b1c327e3a47a8a838f0c6ce670995d2",
+      "icon": "sparkles",
+      "id": "ask_a_model",
+      "kind": "flow",
+      "name": "Ask a model",
+      "path": "flows/ask_a_model/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "prompt"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Reads a message and returns the sender's name, company, topic and whether it is urgent, using a Structured output node.",
+      "has_readme": true,
+      "hash": "sha256-6a90f30a77e75a4c662e688b46ddbb35a681d05fb3e3f3595d44a5edc8199175",
+      "icon": "braces",
+      "id": "extract_contact_details",
+      "kind": "flow",
+      "name": "Extract contact details",
+      "path": "flows/extract_contact_details/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "extraction"
+      ],
+      "version": "1.0.0"
+    },
+    {
       "description": "Creates an issue in a repository from a title and text, and returns its number and link.",
       "has_readme": true,
       "hash": "sha256-df9b4ce4fe771b295b4d3a1c3eaab0697e804bf9ff5a2a306b1e7277253b7eed",
@@ -86,6 +133,24 @@
       "tags": [
         "github",
         "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends a text to any OpenAI-compatible chat model, at the connection's base URL, and returns a short summary.",
+      "has_readme": true,
+      "hash": "sha256-98daac03f49921e586abd20b3b28eb0cc229d14411a6edb3790ec5b5cae8e4a7",
+      "icon": "sparkles",
+      "id": "openai_compatible_summarize_text",
+      "kind": "flow",
+      "name": "Summarize text (OpenAI-compatible)",
+      "path": "flows/openai_compatible_summarize_text/1.0.0.json",
+      "requires": [],
+      "tags": [
+        "ai",
+        "llm",
+        "openai",
+        "summary"
       ],
       "version": "1.0.0"
     },
@@ -124,6 +189,25 @@
       "tags": [
         "github",
         "issues"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "description": "Sends one prompt to a Groq chat model, using the connection's default model.",
+      "has_readme": true,
+      "hash": "sha256-943016ff9efb695faa833b79037c958f6102f0e81867bb7e7cc54d0e3603496d",
+      "icon": "sparkles",
+      "id": "groq_chat_completion",
+      "kind": "node-template",
+      "name": "Groq: chat completion",
+      "path": "node-templates/groq_chat_completion/1.0.0.json",
+      "requires": [
+        "connection-type/groq"
+      ],
+      "tags": [
+        "ai",
+        "llm",
+        "groq"
       ],
       "version": "1.0.0"
     },

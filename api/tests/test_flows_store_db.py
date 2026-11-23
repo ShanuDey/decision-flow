@@ -352,6 +352,11 @@ def calling(flow_id: uuid.UUID) -> dict:
     return {"nodes": [{"id": "start", "type": "start"}, node]}
 
 
+def using_as_tool(flow_id: uuid.UUID) -> dict:
+    node = {"id": "bot", "type": "agent", "data": {"tools": [{"flow_id": str(flow_id)}]}}
+    return {"nodes": [{"id": "start", "type": "start"}, node]}
+
+
 async def publish_flow(sessions: SessionFactory, member: Member, flow: Flow) -> None:
     async with sessions() as session:
         await FlowStore(session).publish(member, flow.id, flow.draft_version, soft=False)
@@ -370,7 +375,14 @@ async def test_callers_are_the_live_flows_whose_latest_version_calls_it(
         gone = await store.create_flow(member, "Deleted", calling(child.id))
         other = await store.create_flow(stranger, "Other workspace", calling(child.id))
         await store.create_flow(member, "Unrelated", calling(uuid.uuid4()))
-    for flow, owner in ((child, member), (caller, member), (gone, member), (other, stranger)):
+        agent = await store.create_flow(member, "An agent", using_as_tool(child.id))
+    for flow, owner in (
+        (child, member),
+        (caller, member),
+        (agent, member),
+        (gone, member),
+        (other, stranger),
+    ):
         await publish_flow(sessions, owner, flow)
     async with sessions() as session:
         await FlowStore(session).delete_flow(member, gone.id, soft=True)
@@ -378,7 +390,7 @@ async def test_callers_are_the_live_flows_whose_latest_version_calls_it(
 
     async with sessions() as session:
         found = await FlowStore(session).list_callers(member, child.id)
-    assert [f.name for f in found] == ["A caller"]
+    assert [f.name for f in found] == ["A caller", "An agent"]
 
 
 async def test_a_caller_that_stopped_calling_is_no_longer_listed(

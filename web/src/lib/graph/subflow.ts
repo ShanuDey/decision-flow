@@ -26,7 +26,11 @@ export function contractOf(graph: Graph): FlowContract {
 }
 
 export function calledFlowIds(graph: Graph): string[] {
-  const ids = graph.nodes.flatMap((n) => (n.type === "subflow" && n.data.flow_id ? [n.data.flow_id] : []));
+  const ids = graph.nodes.flatMap((n) => {
+    if (n.type === "subflow") return n.data.flow_id ? [n.data.flow_id] : [];
+    if (n.type === "agent") return n.data.tools.flatMap((t) => (t.flow_id ? [t.flow_id] : []));
+    return [];
+  });
   return [...new Set(ids)];
 }
 

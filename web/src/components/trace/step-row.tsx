@@ -35,6 +35,8 @@ export interface TraceContext {
   toggleFold: (id: string) => void;
   toggleFull: (id: string) => void;
   onSelectNode?: (nodeId: string) => void;
+  // Detail shows in its own pane (see `StepDetail`), not under the row.
+  split?: boolean;
 }
 
 const NODE_ICONS: Record<string, LucideIcon> = {
@@ -73,10 +75,10 @@ function StepIcon({ step }: { step: RunStep }) {
   );
 }
 
-function Detail({ step, ctx }: { step: RunStep; ctx: TraceContext }) {
+function Detail({ step, ctx, inline = true }: { step: RunStep; ctx: TraceContext; inline?: boolean }) {
   const input = visibleInput(step, ctx.full.has(step.id));
   return (
-    <div className="mt-1 mb-2 ml-9 grid gap-3 rounded-lg border bg-background p-3 sm:grid-cols-2">
+    <div className={cn("grid gap-3", inline && "mt-1 mb-2 ml-9 rounded-lg border bg-background p-3 sm:grid-cols-2")}>
       <IoBlock
         title="Input"
         value={input.value}
@@ -99,6 +101,20 @@ function Detail({ step, ctx }: { step: RunStep; ctx: TraceContext }) {
           {step.error}
         </p>
       )}
+    </div>
+  );
+}
+
+export function StepDetail({ step, ctx }: { step: RunStep; ctx: TraceContext }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <StepIcon step={step} />
+        <h3 className="text-base font-semibold">{step.name}</h3>
+        {step.node_type && <span className="text-xs text-muted-foreground">{step.node_type}</span>}
+        <span className="text-xs text-muted-foreground tabular-nums">{formatStepDuration(step.duration_ms)}</span>
+      </div>
+      <Detail step={step} ctx={ctx} inline={false} />
     </div>
   );
 }
@@ -171,7 +187,7 @@ export function StepRows({ nodes, ctx, nested = false }: { nodes: StepNode[]; ct
                 {formatStepDuration(step.duration_ms)}
               </span>
             </div>
-            {open && <Detail step={step} ctx={ctx} />}
+            {open && !ctx.split && <Detail step={step} ctx={ctx} />}
             {children.length > 0 && !folded && (
               <div className="ml-3 border-l pl-2">
                 <StepRows nodes={children} ctx={ctx} nested={nested || step.node_type === "subflow"} />

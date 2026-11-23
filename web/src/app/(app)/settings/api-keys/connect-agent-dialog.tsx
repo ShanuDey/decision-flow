@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
@@ -28,9 +27,9 @@ import {
   jsonConfig,
   mcpUrl,
 } from "@/lib/auth/mcp-config";
-import { ACTIONS, type Action } from "@/lib/auth/scopes";
+import { ACTIONS, type Action, FLOW_ACTIONS } from "@/lib/auth/scopes";
 
-import { EXPIRY_CHOICES, SCOPES } from "./create-key-dialog";
+import { EXPIRY_CHOICES, ScopePicker } from "./create-key-dialog";
 
 function CopyBlock({ label, text, hint }: { label: string; text: string; hint?: string }) {
   const [copied, setCopied] = useState(false);
@@ -64,7 +63,7 @@ export function ConnectAgentDialog({ atLimit }: { atLimit: boolean }) {
   const [busy, setBusy] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const [name, setName] = useState(DEFAULT_AGENT_NAME);
-  const [actions, setActions] = useState<Action[]>([...ACTIONS]);
+  const [actions, setActions] = useState<Action[]>([...FLOW_ACTIONS]);
   const [expiry, setExpiry] = useState(DEFAULT_AGENT_EXPIRY);
 
   function change(next: boolean) {
@@ -72,7 +71,7 @@ export function ConnectAgentDialog({ atLimit }: { atLimit: boolean }) {
     if (!next) {
       setSecret(null);
       setName(DEFAULT_AGENT_NAME);
-      setActions([...ACTIONS]);
+      setActions([...FLOW_ACTIONS]);
       setExpiry(DEFAULT_AGENT_EXPIRY);
     }
   }
@@ -174,23 +173,7 @@ export function ConnectAgentDialog({ atLimit }: { atLimit: boolean }) {
                 className="h-10"
               />
             </div>
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-1 text-sm font-medium">Scopes</legend>
-              {ACTIONS.map((action) => (
-                <div key={action} className="flex items-start gap-3">
-                  <Checkbox
-                    id={`agent-scope-${action}`}
-                    checked={actions.includes(action)}
-                    onCheckedChange={(on) => toggle(action, on)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex flex-col">
-                    <Label htmlFor={`agent-scope-${action}`}>{SCOPES[action].title}</Label>
-                    <span className="text-xs text-muted-foreground">{SCOPES[action].hint}</span>
-                  </div>
-                </div>
-              ))}
-            </fieldset>
+            <ScopePicker idPrefix="agent-scope" actions={actions} onToggle={toggle} />
             <div className="flex flex-col gap-2">
               <Label htmlFor="agent-expiry">Expires</Label>
               <SelectField id="agent-expiry" value={expiry} onValueChange={setExpiry} options={EXPIRY_CHOICES} />

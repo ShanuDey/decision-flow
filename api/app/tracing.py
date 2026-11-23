@@ -322,3 +322,26 @@ class MlflowObserver:
         if self._root is not None:
             self._root.end(outputs=_io(outputs), status=_status(status == "succeeded", error))
             self._root = None
+
+
+class MlflowAgentObserver(MlflowObserver):
+    """One trace per agent turn: a span for each model call and for each flow the agent runs.
+
+    A flow's own nodes are reported through a ScopedObserver whose scope is the span's key, so
+    they nest under it.
+    """
+
+    @_guarded
+    async def span_started(self, key: str, name: str, kind: str, inputs: Any) -> None:
+        if self._root is None:
+            return
+        span_type = SpanType.LLM if kind == "llm" else SpanType.TOOL
+        self._spans[key] = mlflow.start_span_no_context(
+            name, span_type=span_type, parent_span=self._root, inputs=_io(inputs)
+        )
+
+    @_guarded
+    async def span_finished(self, key: str, ok: bool, error: str | None, outputs: Any) -> None:
+        span = self._spans.pop(key, None)
+        if span is not None:
+            span.end(outputs=_io(outputs), status=_status(ok, error))

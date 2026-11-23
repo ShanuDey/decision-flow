@@ -8,6 +8,7 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.models import Agent
 from app.connections.models import Connection
 from app.db import get_session
 from app.flows.models import Flow, FlowVersion
@@ -123,6 +124,14 @@ class ConnectionStore:
         )
         await self.session.commit()
         return result.first() is not None
+
+    async def agents_using(self, member: Member, connection_id: uuid.UUID) -> list[Agent]:
+        rows = await self.session.scalars(
+            select(Agent)
+            .where(Agent.workspace_id == member.workspace_id, Agent.connection_id == connection_id)
+            .order_by(Agent.name)
+        )
+        return list(rows)
 
     async def flows_using(self, member: Member, connection_id: uuid.UUID) -> list[Flow]:
         """Live flows whose draft or latest published version has a node using the connection."""

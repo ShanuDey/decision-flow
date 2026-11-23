@@ -9,8 +9,8 @@ import { buildTree, formatStepDuration, totalMs } from "@/lib/trace/tree";
 
 import type { Format } from "./io-block";
 import { Segmented } from "./segmented";
-import { StepRows, type TraceContext, type ViewMode } from "./step-row";
-import { useRunSteps } from "./use-run-steps";
+import { StepDetail, StepRows, type TraceContext, type ViewMode } from "./step-row";
+import { type StepsFetcher, useRunSteps } from "./use-run-steps";
 
 function toggled(set: ReadonlySet<string>, id: string): Set<string> {
   const next = new Set(set);
@@ -27,8 +27,20 @@ function Notice({ children, action }: { children: React.ReactNode; action?: Reac
   );
 }
 
-export function TraceView({ runId, onSelectNode }: { runId: string; onSelectNode?: (nodeId: string) => void }) {
-  const { state, reload } = useRunSteps(runId);
+export function TraceView({
+  runId,
+  onSelectNode,
+  fetchSteps,
+  layout = "stacked",
+}: {
+  // The id of the trace's owner: a run, or an agent message when `fetchSteps` is given.
+  runId: string;
+  onSelectNode?: (nodeId: string) => void;
+  fetchSteps?: StepsFetcher;
+  // "split" lists the steps on the left and shows the chosen one's input and output beside them.
+  layout?: "stacked" | "split";
+}) {
+  const { state, reload } = useRunSteps(runId, fetchSteps);
   const [mode, setMode] = useState<ViewMode>("list");
   const [format, setFormat] = useState<Format>("pretty");
   const [open, setOpen] = useState<string | null>(null);
@@ -72,21 +84,24 @@ export function TraceView({ runId, onSelectNode }: { runId: string; onSelectNode
     return <Notice>No step history is available for this run.</Notice>;
   }
 
+  const split = layout === "split";
+  const selected = split ? (steps.find((s) => s.id === open) ?? steps[0]) : undefined;
   const ctx: TraceContext = {
     total: totalMs(steps),
     mode,
     format,
-    open,
+    open: split ? (selected?.id ?? null) : open,
     folded,
     full,
-    toggleOpen: (id) => setOpen((cur) => (cur === id ? null : id)),
+    toggleOpen: (id) => setOpen((cur) => (split ? id : cur === id ? null : id)),
     toggleFold: (id) => setFolded((cur) => toggled(cur, id)),
     toggleFull: (id) => setFull((cur) => toggled(cur, id)),
     onSelectNode,
+    split,
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className={split ? "flex min-h-0 min-w-0 flex-1 flex-col gap-3" : "flex min-w-0 flex-col gap-2"}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           {steps.length} {steps.length === 1 ? "step" : "steps"} · {formatStepDuration(ctx.total)} total
@@ -112,9 +127,18 @@ export function TraceView({ runId, onSelectNode }: { runId: string; onSelectNode
           />
         </div>
       </div>
-      <div>
-        <StepRows nodes={tree} ctx={ctx} />
-      </div>
+      {split ? (
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(20rem,2fr)_3fr]">
+          <div className="min-h-0 overflow-y-auto lg:border-r lg:pr-3">
+            <StepRows nodes={tree} ctx={ctx} />
+          </div>
+          <div className="min-h-0 overflow-y-auto">{selected && <StepDetail step={selected} ctx={ctx} />}</div>
+        </div>
+      ) : (
+        <div>
+          <StepRows nodes={tree} ctx={ctx} />
+        </div>
+      )}
     </div>
   );
 }

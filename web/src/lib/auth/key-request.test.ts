@@ -10,12 +10,12 @@ import {
   NAME_MAX,
 } from "./key-request";
 
-const valid = { name: "ci", actions: ["run"], expiresInDays: 30 };
+const valid = { name: "ci", actions: ["flows:run"], expiresInDays: 30 };
 
 describe("createKeyBody", () => {
   it("accepts a valid body and trims the name", () => {
     const parsed = createKeyBody.parse({ ...valid, name: "  ci  " });
-    expect(parsed).toEqual({ name: "ci", actions: ["run"], expiresInDays: 30 });
+    expect(parsed).toEqual({ name: "ci", actions: ["flows:run"], expiresInDays: 30 });
   });
 
   it("accepts no expiry", () => {
@@ -28,7 +28,7 @@ describe("createKeyBody", () => {
     ["no actions", { ...valid, actions: [] }],
     ["unknown action", { ...valid, actions: ["admin"] }],
     ["expiry outside the choices", { ...valid, expiresInDays: 7 }],
-    ["missing expiry", { name: "ci", actions: ["run"] }],
+    ["missing expiry", { name: "ci", actions: ["flows:run"] }],
   ])("rejects %s", (_label, body) => {
     expect(createKeyBody.safeParse(body).success).toBe(false);
   });
@@ -53,15 +53,33 @@ describe("expiry", () => {
   });
 });
 
+describe("createKeyBody scopes", () => {
+  it("accepts agent scopes and refuses the old unprefixed names", () => {
+    const body = { name: "app", expiresInDays: 30 };
+    expect(createKeyBody.safeParse({ ...body, actions: ["agents:chat", "agents:read"] }).success).toBe(true);
+    expect(createKeyBody.safeParse({ ...body, actions: ["chat"] }).success).toBe(false);
+    expect(createKeyBody.safeParse({ ...body, actions: ["run"] }).success).toBe(false);
+  });
+});
+
 describe("actionsOf", () => {
   it("lists held actions in canonical order", () => {
-    expect(actionsOf({ flows: ["run", "read"] })).toEqual(["read", "run"]);
+    expect(actionsOf({ flows: ["run", "read"] })).toEqual(["flows:read", "flows:run"]);
   });
 
   it("ignores unknown actions and missing permissions", () => {
     expect(actionsOf({ flows: ["admin"] })).toEqual([]);
     expect(actionsOf(null)).toEqual([]);
     expect(actionsOf({})).toEqual([]);
+  });
+
+  it("reads agent scopes next to flow scopes", () => {
+    expect(actionsOf({ flows: ["read"], agents: ["manage", "chat"] })).toEqual([
+      "flows:read",
+      "agents:chat",
+      "agents:manage",
+    ]);
+    expect(actionsOf({ agents: ["chat"] })).toEqual(["agents:chat"]);
   });
 });
 

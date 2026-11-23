@@ -5,6 +5,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  AgentCreate,
+  AgentList,
+  AgentSummary,
+  AgentUpdate,
   AppConfig,
   CatalogListing,
   CatalogReadme,
@@ -36,6 +40,9 @@ import type {
   ListFlowsParams,
   ListNodeTemplatesParams,
   ListRunsParams,
+  ListThreadsParams,
+  ListWorkspaceThreadsParams,
+  MessageRequest,
   NodeTemplateList,
   Principal,
   ReadyResponse,
@@ -49,6 +56,10 @@ import type {
   SecretPut,
   SecretSummary,
   TemplateList,
+  ThreadDetail,
+  ThreadList,
+  ThreadSummary,
+  TurnResponse,
   UnpublishFlowParams,
   ValidateResponse,
   VersionDetail,
@@ -56,6 +67,879 @@ import type {
 } from './models';
 
 import { apiFetch } from '../fetcher';
+export type listAgentsResponse200 = {
+  data: AgentList
+  status: 200
+}
+
+export type listAgentsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listAgentsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listAgentsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listAgentsResponseSuccess = (listAgentsResponse200) & {
+  headers: Headers;
+};
+export type listAgentsResponseError = (listAgentsResponse401 | listAgentsResponse403 | listAgentsResponse429) & {
+  headers: Headers;
+};
+
+export type listAgentsResponse = (listAgentsResponseSuccess | listAgentsResponseError)
+
+export const getListAgentsUrl = () => {
+
+
+
+
+  return `/agents`
+}
+
+/**
+ * Lists the workspace's agents by name.
+ * @summary List Agents
+ */
+export const listAgents = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listAgentsResponse> => {
+
+  return apiFetch<listAgentsResponse>(getListAgentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type createAgentResponse201 = {
+  data: AgentSummary
+  status: 201
+}
+
+export type createAgentResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createAgentResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type createAgentResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type createAgentResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type createAgentResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type createAgentResponseSuccess = (createAgentResponse201) & {
+  headers: Headers;
+};
+export type createAgentResponseError = (createAgentResponse401 | createAgentResponse403 | createAgentResponse409 | createAgentResponse422 | createAgentResponse429) & {
+  headers: Headers;
+};
+
+export type createAgentResponse = (createAgentResponseSuccess | createAgentResponseError)
+
+export const getCreateAgentUrl = () => {
+
+
+
+
+  return `/agents`
+}
+
+/**
+ * Creates an agent: a model, instructions and published flows it may run as tools.
+ * @summary Create Agent
+ */
+export const createAgent = async (agentCreate: AgentCreate, options?: Parameters<typeof apiFetch>[1]): Promise<createAgentResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<createAgentResponse>(getCreateAgentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(agentCreate)
+  }
+);}
+
+
+
+export type deleteAgentResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteAgentResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type deleteAgentResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type deleteAgentResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteAgentResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteAgentResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type deleteAgentResponseSuccess = (deleteAgentResponse204) & {
+  headers: Headers;
+};
+export type deleteAgentResponseError = (deleteAgentResponse401 | deleteAgentResponse403 | deleteAgentResponse404 | deleteAgentResponse422 | deleteAgentResponse429) & {
+  headers: Headers;
+};
+
+export type deleteAgentResponse = (deleteAgentResponseSuccess | deleteAgentResponseError)
+
+export const getDeleteAgentUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}`
+}
+
+/**
+ * Deletes the agent and all of its conversations.
+ * @summary Delete Agent
+ */
+export const deleteAgent = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteAgentResponse> => {
+
+  return apiFetch<deleteAgentResponse>(getDeleteAgentUrl(agentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type getAgentResponse200 = {
+  data: AgentSummary
+  status: 200
+}
+
+export type getAgentResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getAgentResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getAgentResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getAgentResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getAgentResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getAgentResponseSuccess = (getAgentResponse200) & {
+  headers: Headers;
+};
+export type getAgentResponseError = (getAgentResponse401 | getAgentResponse403 | getAgentResponse404 | getAgentResponse422 | getAgentResponse429) & {
+  headers: Headers;
+};
+
+export type getAgentResponse = (getAgentResponseSuccess | getAgentResponseError)
+
+export const getGetAgentUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}`
+}
+
+/**
+ * One agent with its model connection, instructions, tools and limits.
+ * @summary Get Agent
+ */
+export const getAgent = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getAgentResponse> => {
+
+  return apiFetch<getAgentResponse>(getGetAgentUrl(agentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type updateAgentResponse200 = {
+  data: AgentSummary
+  status: 200
+}
+
+export type updateAgentResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type updateAgentResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type updateAgentResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type updateAgentResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type updateAgentResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type updateAgentResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type updateAgentResponseSuccess = (updateAgentResponse200) & {
+  headers: Headers;
+};
+export type updateAgentResponseError = (updateAgentResponse401 | updateAgentResponse403 | updateAgentResponse404 | updateAgentResponse409 | updateAgentResponse422 | updateAgentResponse429) & {
+  headers: Headers;
+};
+
+export type updateAgentResponse = (updateAgentResponseSuccess | updateAgentResponseError)
+
+export const getUpdateAgentUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}`
+}
+
+/**
+ * Changes the fields you send. Null clears the optional limits and the connection.
+ * @summary Update Agent
+ */
+export const updateAgent = async (agentId: string,
+    agentUpdate: AgentUpdate, options?: Parameters<typeof apiFetch>[1]): Promise<updateAgentResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<updateAgentResponse>(getUpdateAgentUrl(agentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(agentUpdate)
+  }
+);}
+
+
+
+export type invokeAgentResponse200 = {
+  data: TurnResponse
+  status: 200
+}
+
+export type invokeAgentResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type invokeAgentResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type invokeAgentResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type invokeAgentResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type invokeAgentResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type invokeAgentResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type invokeAgentResponse502 = {
+  data: ErrorResponse
+  status: 502
+}
+
+export type invokeAgentResponseSuccess = (invokeAgentResponse200) & {
+  headers: Headers;
+};
+export type invokeAgentResponseError = (invokeAgentResponse401 | invokeAgentResponse403 | invokeAgentResponse404 | invokeAgentResponse409 | invokeAgentResponse422 | invokeAgentResponse429 | invokeAgentResponse502) & {
+  headers: Headers;
+};
+
+export type invokeAgentResponse = (invokeAgentResponseSuccess | invokeAgentResponseError)
+
+export const getInvokeAgentUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/invoke`
+}
+
+/**
+ * Sends a message to the agent and returns its answer.
+ *
+ * The body is AG-UI's `RunAgentInput`. `threadId` is the id of one of your conversations with
+ * the agent, and only the last user message in `messages` is used: the server keeps the
+ * history. Send `Accept: application/json` to wait for the stored `user_message` and `reply`
+ * (errors as in the plain messages endpoint). Otherwise the answer streams as AG-UI events, the
+ * open agent-to-UI standard: `RUN_STARTED`, then text messages and tool calls as they happen,
+ * then a `message.stored` custom event holding the stored messages, then `RUN_FINISHED`, or
+ * `RUN_ERROR` instead.
+ * @summary Invoke Agent
+ */
+export const invokeAgent = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<invokeAgentResponse> => {
+
+  return apiFetch<invokeAgentResponse>(getInvokeAgentUrl(agentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export type listThreadsResponse200 = {
+  data: ThreadList
+  status: 200
+}
+
+export type listThreadsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listThreadsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listThreadsResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type listThreadsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listThreadsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listThreadsResponseSuccess = (listThreadsResponse200) & {
+  headers: Headers;
+};
+export type listThreadsResponseError = (listThreadsResponse401 | listThreadsResponse403 | listThreadsResponse404 | listThreadsResponse422 | listThreadsResponse429) & {
+  headers: Headers;
+};
+
+export type listThreadsResponse = (listThreadsResponseSuccess | listThreadsResponseError)
+
+export const getListThreadsUrl = (agentId: string,
+    params?: ListThreadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/agents/${agentId}/threads?${stringifiedParams}` : `/agents/${agentId}/threads`
+}
+
+/**
+ * The workspace's conversations with the agent, most recently active first.
+ *
+ * An API key must send `X-External-User-Id` and gets only that person's conversations.
+ * Anyone in the workspace can read and continue a conversation by its id.
+ * @summary List Threads
+ */
+export const listThreads = async (agentId: string,
+    params?: ListThreadsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listThreadsResponse> => {
+
+  return apiFetch<listThreadsResponse>(getListThreadsUrl(agentId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type createThreadResponse201 = {
+  data: ThreadSummary
+  status: 201
+}
+
+export type createThreadResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type createThreadResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type createThreadResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type createThreadResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createThreadResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type createThreadResponseSuccess = (createThreadResponse201) & {
+  headers: Headers;
+};
+export type createThreadResponseError = (createThreadResponse401 | createThreadResponse403 | createThreadResponse404 | createThreadResponse422 | createThreadResponse429) & {
+  headers: Headers;
+};
+
+export type createThreadResponse = (createThreadResponseSuccess | createThreadResponseError)
+
+export const getCreateThreadUrl = (agentId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads`
+}
+
+/**
+ * Starts a conversation with the agent.
+ *
+ * A conversation started by an API key belongs to an external user: send your own id for the
+ * person in `X-External-User-Id`, or send none and an anonymous id (starting `anon-`) is
+ * generated and returned. Send that id back on later calls to keep the same person's
+ * conversations together. A conversation started from the web app belongs to a team member.
+ * @summary Create Thread
+ */
+export const createThread = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<createThreadResponse> => {
+
+  return apiFetch<createThreadResponse>(getCreateThreadUrl(agentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export type deleteThreadResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteThreadResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type deleteThreadResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type deleteThreadResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type deleteThreadResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteThreadResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type deleteThreadResponseSuccess = (deleteThreadResponse204) & {
+  headers: Headers;
+};
+export type deleteThreadResponseError = (deleteThreadResponse401 | deleteThreadResponse403 | deleteThreadResponse404 | deleteThreadResponse422 | deleteThreadResponse429) & {
+  headers: Headers;
+};
+
+export type deleteThreadResponse = (deleteThreadResponseSuccess | deleteThreadResponseError)
+
+export const getDeleteThreadUrl = (agentId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads/${threadId}`
+}
+
+/**
+ * Deletes a conversation and all of its messages. This cannot be undone.
+ * @summary Delete Thread
+ */
+export const deleteThread = async (agentId: string,
+    threadId: string, options?: Parameters<typeof apiFetch>[1]): Promise<deleteThreadResponse> => {
+
+  return apiFetch<deleteThreadResponse>(getDeleteThreadUrl(agentId,threadId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type getThreadResponse200 = {
+  data: ThreadDetail
+  status: 200
+}
+
+export type getThreadResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getThreadResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getThreadResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getThreadResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getThreadResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getThreadResponseSuccess = (getThreadResponse200) & {
+  headers: Headers;
+};
+export type getThreadResponseError = (getThreadResponse401 | getThreadResponse403 | getThreadResponse404 | getThreadResponse422 | getThreadResponse429) & {
+  headers: Headers;
+};
+
+export type getThreadResponse = (getThreadResponseSuccess | getThreadResponseError)
+
+export const getGetThreadUrl = (agentId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads/${threadId}`
+}
+
+/**
+ * A conversation with all of its messages, oldest first.
+ * @summary Get Thread
+ */
+export const getThread = async (agentId: string,
+    threadId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getThreadResponse> => {
+
+  return apiFetch<getThreadResponse>(getGetThreadUrl(agentId,threadId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type sendMessageResponse200 = {
+  data: TurnResponse
+  status: 200
+}
+
+export type sendMessageResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type sendMessageResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type sendMessageResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type sendMessageResponse409 = {
+  data: ErrorResponse
+  status: 409
+}
+
+export type sendMessageResponse422 = {
+  data: ErrorResponse
+  status: 422
+}
+
+export type sendMessageResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type sendMessageResponse502 = {
+  data: ErrorResponse
+  status: 502
+}
+
+export type sendMessageResponseSuccess = (sendMessageResponse200) & {
+  headers: Headers;
+};
+export type sendMessageResponseError = (sendMessageResponse401 | sendMessageResponse403 | sendMessageResponse404 | sendMessageResponse409 | sendMessageResponse422 | sendMessageResponse429 | sendMessageResponse502) & {
+  headers: Headers;
+};
+
+export type sendMessageResponse = (sendMessageResponseSuccess | sendMessageResponseError)
+
+export const getSendMessageUrl = (agentId: string,
+    threadId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads/${threadId}/messages`
+}
+
+/**
+ * Sends a message and waits for the answer.
+ *
+ * The agent may run its flows first. Nothing is stored if the turn fails: 422 `agent_not_ready`
+ * (no connection, model or usable flow), 422 `agent_stopped` (a limit was reached before an
+ * answer), 502 `model_failed` (the provider refused or could not be reached).
+ * @summary Send Message
+ */
+export const sendMessage = async (agentId: string,
+    threadId: string,
+    messageRequest: MessageRequest, options?: Parameters<typeof apiFetch>[1]): Promise<sendMessageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return apiFetch<sendMessageResponse>(getSendMessageUrl(agentId,threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(messageRequest)
+  }
+);}
+
+
+
+export type getMessageStepsResponse200 = {
+  data: RunSteps
+  status: 200
+}
+
+export type getMessageStepsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type getMessageStepsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type getMessageStepsResponse404 = {
+  data: ErrorResponse
+  status: 404
+}
+
+export type getMessageStepsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getMessageStepsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type getMessageStepsResponse503 = {
+  data: ErrorResponse
+  status: 503
+}
+
+export type getMessageStepsResponseSuccess = (getMessageStepsResponse200) & {
+  headers: Headers;
+};
+export type getMessageStepsResponseError = (getMessageStepsResponse401 | getMessageStepsResponse403 | getMessageStepsResponse404 | getMessageStepsResponse422 | getMessageStepsResponse429 | getMessageStepsResponse503) & {
+  headers: Headers;
+};
+
+export type getMessageStepsResponse = (getMessageStepsResponseSuccess | getMessageStepsResponseError)
+
+export const getGetMessageStepsUrl = (agentId: string,
+    threadId: string,
+    messageId: string,) => {
+
+
+
+
+  return `/agents/${agentId}/threads/${threadId}/messages/${messageId}/steps`
+}
+
+/**
+ * How the agent answered a message: each model call and each flow it ran, with timings.
+ *
+ * `pending` while the trace is still being written. A message without a trace has no steps.
+ * @summary Get Message Steps
+ */
+export const getMessageSteps = async (agentId: string,
+    threadId: string,
+    messageId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getMessageStepsResponse> => {
+
+  return apiFetch<getMessageStepsResponse>(getGetMessageStepsUrl(agentId,threadId,messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export type listInstalledFlowsResponse200 = {
   data: InstalledFlowList
   status: 200
@@ -2776,6 +3660,75 @@ export const getListTemplatesUrl = () => {
 export const listTemplates = async ( options?: Parameters<typeof apiFetch>[1]): Promise<listTemplatesResponse> => {
 
   return apiFetch<listTemplatesResponse>(getListTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type listWorkspaceThreadsResponse200 = {
+  data: ThreadList
+  status: 200
+}
+
+export type listWorkspaceThreadsResponse401 = {
+  data: ErrorResponse
+  status: 401
+}
+
+export type listWorkspaceThreadsResponse403 = {
+  data: ErrorResponse
+  status: 403
+}
+
+export type listWorkspaceThreadsResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type listWorkspaceThreadsResponse429 = {
+  data: ErrorResponse
+  status: 429
+}
+
+export type listWorkspaceThreadsResponseSuccess = (listWorkspaceThreadsResponse200) & {
+  headers: Headers;
+};
+export type listWorkspaceThreadsResponseError = (listWorkspaceThreadsResponse401 | listWorkspaceThreadsResponse403 | listWorkspaceThreadsResponse422 | listWorkspaceThreadsResponse429) & {
+  headers: Headers;
+};
+
+export type listWorkspaceThreadsResponse = (listWorkspaceThreadsResponseSuccess | listWorkspaceThreadsResponseError)
+
+export const getListWorkspaceThreadsUrl = (params?: ListWorkspaceThreadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/threads?${stringifiedParams}` : `/threads`
+}
+
+/**
+ * Every conversation with the workspace's agents, most recently active first.
+ *
+ * `who` keeps the team's own (`team`), an outside app's users (`external`) or generated
+ * anonymous ids (`anonymous`).
+ * @summary List Workspace Threads
+ */
+export const listWorkspaceThreads = async (params?: ListWorkspaceThreadsParams, options?: Parameters<typeof apiFetch>[1]): Promise<listWorkspaceThreadsResponse> => {
+
+  return apiFetch<listWorkspaceThreadsResponse>(getListWorkspaceThreadsUrl(params),
   {
     ...options,
     method: 'GET'

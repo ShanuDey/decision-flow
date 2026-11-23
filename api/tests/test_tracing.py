@@ -11,6 +11,7 @@ from sqlalchemy.engine import make_url
 
 from app import tracing
 from app.engine.compiler import compile_graph
+from app.engine.observer import ScopedObserver
 from app.engine.run_secrets import RunSecrets
 from app.engine.runtime import run_flow
 from app.engine.validate import parse_graph
@@ -488,3 +489,33 @@ async def test_read_spans_flags_a_trace_whose_spans_are_still_being_written(
     with pytest.raises(tracing.TraceUnavailable) as other:
         await tracing.read_spans(settings(), "tr-1")
     assert not isinstance(other.value, tracing.TraceIncomplete)
+
+
+@pytest.mark.anyio
+async def test_an_agent_turn_nests_model_calls_and_flow_nodes_under_one_root(
+    fake: FakeMlflow, raw: dict
+) -> None:
+    observer = tracing.MlflowAgentObserver(settings(), "Helper")
+    await observer.run_started({"message": "hi"})
+    await observer.span_started("model-1", "Model call 1", "llm", {"messages": []})
+    await observer.span_finished("model-1", True, None, {"text": "x"})
+    await observer.span_started("tool-1", "double", "tool", {"amount": 1})
+    await run_flow(flow(raw), {"amount": 1}, ScopedObserver(observer, "tool-1"))
+    await observer.span_finished("tool-1", False, "the flow failed", None)
+    await observer.run_finished("failed", "the flow failed")
+
+    spans = by_name(fake)
+    root, model, tool = spans["Helper"], spans["Model call 1"], spans["double"]
+    assert (model.parent, tool.parent) == (root, root)
+    assert (spans["Start"].parent, spans["End"].parent) == (tool, tool)
+    assert (model.span_type, tool.span_type) == ("LLM", "TOOL")
+    assert model.status.status_code.value == "OK" and tool.status.status_code.value == "ERROR"
+    assert all(s.ended for s in fake.spans) and observer.trace_id == "tr-fake"
+
+
+@pytest.mark.anyio
+async def test_a_span_that_is_never_started_is_ignored(fake: FakeMlflow) -> None:
+    observer = tracing.MlflowAgentObserver(settings(), "Helper")
+    await observer.span_started("model-1", "Model call 1", "llm", {})
+    await observer.span_finished("model-1", True, None, None)
+    assert fake.spans == []

@@ -16,17 +16,32 @@ from app.security.ssrf import OutboundPolicy
 from app.workspaces.schemas import Member
 
 
-def called_flows(raw: Any) -> dict[str, str]:
-    """Node id -> flow id for each subflow node in a draft that may not even be valid."""
+def called_flows(raw: Any) -> list[tuple[str, str, str]]:
+    """(node id, flow id, field) for each flow a subflow or agent node of a draft may run.
+
+    The draft may not even be valid, so it is read as plain JSON.
+    """
     nodes = raw.get("nodes") if isinstance(raw, dict) else None
-    found: dict[str, str] = {}
+    found: list[tuple[str, str, str]] = []
     for node in nodes if isinstance(nodes, list) else []:
-        if not isinstance(node, dict) or node.get("type") != "subflow":
+        if not isinstance(node, dict) or not isinstance(node.get("id"), str):
             continue
         data = node.get("data")
-        flow_id = data.get("flow_id") if isinstance(data, dict) else None
-        if isinstance(flow_id, str) and isinstance(node.get("id"), str):
-            found[node["id"]] = flow_id
+        data = data if isinstance(data, dict) else {}
+        if node.get("type") == "subflow":
+            refs = [("data.flow_id", data.get("flow_id"))]
+        elif node.get("type") == "agent":
+            tools = data.get("tools")
+            refs = [
+                (f"data.tools.{i}.flow_id", t.get("flow_id"))
+                for i, t in enumerate(tools if isinstance(tools, list) else [])
+                if isinstance(t, dict)
+            ]
+        else:
+            continue
+        found += [
+            (node["id"], flow_id, field) for field, flow_id in refs if isinstance(flow_id, str)
+        ]
     return found
 
 
@@ -90,8 +105,11 @@ class SubflowSource:
 
     async def contracts(self, raw: Any) -> dict[str, FlowContract]:
         """Every flow the draft calls, directly or through others; unavailable ones are absent."""
+        return await self.contracts_for([flow_id for _, flow_id, _ in called_flows(raw)])
+
+    async def contracts_for(self, flow_ids: list[str]) -> dict[str, FlowContract]:
         found: dict[str, FlowContract] = {}
-        pending = list(called_flows(raw).values())
+        pending = list(flow_ids)
         while pending:
             flow_id = pending.pop()
             if flow_id in found:
@@ -102,6 +120,12 @@ class SubflowSource:
             found[flow_id] = contract_of(graph)
             pending.extend(found[flow_id].calls)
         return found
+
+    async def needs(self, flow_ids: list[str]) -> tuple[set[str], set[str]]:
+        """The secret names and connection ids these flows and the ones they call use."""
+        contracts = await self.contracts_for(flow_ids)
+        names = {n for c in contracts.values() for n in c.secret_names}
+        return names, {i for c in contracts.values() for i in c.connection_ids}
 
     async def secret_names(self, graph: Graph) -> set[str]:
         """Secrets the flows it calls need, so a run can load them with its own."""
@@ -118,7 +142,7 @@ def loop_issues(flow_id: uuid.UUID, raw: Any, contracts: dict[str, FlowContract]
     """A flow that can reach itself through its calls would never stop calling."""
     own = str(flow_id)
     issues: list[Issue] = []
-    for node_id, target in called_flows(raw).items():
+    for node_id, target, field in called_flows(raw):
         seen: set[str] = set()
         pending = [target]
         while pending:
@@ -129,7 +153,7 @@ def loop_issues(flow_id: uuid.UUID, raw: Any, contracts: dict[str, FlowContract]
                         code="subflow_loop",
                         message="this flow calls itself, directly or through other flows",
                         node_id=node_id,
-                        field="data.flow_id",
+                        field=field,
                     )
                 )
                 break

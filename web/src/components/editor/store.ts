@@ -145,6 +145,9 @@ function countByType(nodes: FlowNode[]): Record<NodeType, number> {
     assign: 0,
     condition: 0,
     http_request: 0,
+    prompt: 0,
+    structured_output: 0,
+    agent: 0,
     subflow: 0,
     end: 0,
   };

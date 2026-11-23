@@ -76,6 +76,13 @@ describe("upstreamHeaders", () => {
       expect(out.has(name)).toBe(false);
     }
   });
+
+  it("never lets a client claim to be an API key or name an external user", () => {
+    const incoming = new Headers({ "x-df-source": "api", "x-external-user-id": "maria" });
+    const out = upstreamHeaders(incoming, "tok");
+    expect(out.has("x-df-source")).toBe(false);
+    expect(out.has("x-external-user-id")).toBe(false);
+  });
 });
 
 describe("visitor IP", () => {

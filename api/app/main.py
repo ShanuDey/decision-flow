@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app import tracing
+from app.agents import router as agents
 from app.auth import router as auth
 from app.auth.deps import current_principal
 from app.auth.service import build_authenticator
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(ops.router)
     app.include_router(auth.router, **protected)
     app.include_router(deployment.router, **protected)
+    app.include_router(agents.router, **protected)
     app.include_router(flows.router, **protected)
     # Evaluating text changes nothing, so typing in the editor must not use up the write quota.
     app.include_router(

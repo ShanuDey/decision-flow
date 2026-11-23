@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "id": "extract_contact_details",
+  "name": "Extract contact details",
+  "description": "Reads a message and returns the sender's name, company, topic and whether it is urgent, using a Structured output node.",
+  "icon": "braces",
+  "tags": [
+    "ai",
+    "llm",
+    "extraction"
+  ],
+  "connections": {
+    "8b2e4f60-1c7d-4a93-b5e8-0d6a3c9f7e42": {
+      "type": "openai_compatible",
+      "name": "OpenAI-compatible"
+    }
+  },
+  "draft": {
+    "schema_version": 1,
+    "variables": [],
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "name": "Start",
+        "position": { "x": 0, "y": 100 },
+        "data": {
+          "inputs": [
+            { "name": "message", "type": "string", "required": true }
+          ]
+        }
+      },
+      {
+        "id": "extract",
+        "type": "structured_output",
+        "name": "Extract",
+        "position": { "x": 300, "y": 100 },
+        "data": {
+          "connection_id": "8b2e4f60-1c7d-4a93-b5e8-0d6a3c9f7e42",
+          "model": "",
+          "system": "Use only what the message states. If a value is not stated, use an empty string.",
+          "prompt": "Extract the contact details from this message:\n\n{{ input.message }}",
+          "fields": [
+            { "name": "name", "type": "string", "description": "The sender's full name" },
+            { "name": "company", "type": "string", "description": "The sender's company" },
+            { "name": "topic", "type": "enum", "values": ["billing", "support", "sales", "other"], "description": "What the message is about" },
+            { "name": "urgent", "type": "boolean", "description": "True if the sender asks for a fast answer" }
+          ],
+          "mode": "schema",
+          "temperature": null,
+          "max_tokens": null,
+          "timeout_seconds": 60
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "name": "End",
+        "position": { "x": 600, "y": 100 },
+        "data": {
+          "outputs": [
+            { "name": "name", "type": "string", "value": "{{ nodes.extract.output.name }}" },
+            { "name": "company", "type": "string", "value": "{{ nodes.extract.output.company }}" },
+            { "name": "topic", "type": "string", "value": "{{ nodes.extract.output.topic }}" },
+            { "name": "urgent", "type": "boolean", "value": "{{ nodes.extract.output.urgent }}" }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "start", "target": "extract", "sourceHandle": null },
+      { "id": "e2", "source": "extract", "target": "end", "sourceHandle": null }
+    ]
+  }
+}

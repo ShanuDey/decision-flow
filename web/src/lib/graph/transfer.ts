@@ -40,10 +40,17 @@ export type ImportResult =
     }
   | { ok: false; message: string };
 
+// Any node that calls out with a connection keeps its id in `data.connection_id`.
+function connectionIdOf(node: Graph["nodes"][number]): string {
+  const id = (node.data as { connection_id?: unknown }).connection_id;
+  return typeof id === "string" ? id : "";
+}
+
 export function usedConnectionIds(graph: Graph): string[] {
   const ids = new Set<string>();
   for (const node of graph.nodes) {
-    if (node.type === "http_request" && node.data.connection_id) ids.add(node.data.connection_id);
+    const id = connectionIdOf(node);
+    if (id) ids.add(id);
   }
   return [...ids];
 }
@@ -100,8 +107,8 @@ export function planConnections(
   const have = new Set(here.map((c) => c.id));
   const counts = new Map<string, number>();
   for (const node of graph.nodes) {
-    if (node.type !== "http_request" || !node.data.connection_id) continue;
-    counts.set(node.data.connection_id, (counts.get(node.data.connection_id) ?? 0) + 1);
+    const id = connectionIdOf(node);
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return [...counts]
     .filter(([id]) => !have.has(id))
@@ -118,10 +125,10 @@ export function planConnections(
 export function applyConnections(graph: Graph, choices: Record<string, string>, here: ConnectionRef[]): Graph {
   const have = new Set(here.map((c) => c.id));
   const nodes = graph.nodes.map((node) => {
-    if (node.type !== "http_request" || !node.data.connection_id) return node;
-    const id = node.data.connection_id;
+    const id = connectionIdOf(node);
+    if (!id) return node;
     const next = id in choices ? choices[id] : have.has(id) ? id : "";
-    return next === id ? node : { ...node, data: { ...node.data, connection_id: next } };
+    return next === id ? node : ({ ...node, data: { ...node.data, connection_id: next } } as typeof node);
   });
   return { ...graph, nodes };
 }
@@ -135,10 +142,16 @@ export function flowFileName(name: string): string {
   return `${slug || "flow"}.flow.json`;
 }
 
-// Subflow ids belong to the exporting workspace, so an import must not keep them.
+// Subflow and agent tool ids belong to the exporting workspace, so an import must not keep them.
 function clearSubflows(graph: Graph): { graph: Graph; cleared: number } {
   let cleared = 0;
   const nodes = graph.nodes.map((node) => {
+    if (node.type === "agent") {
+      const used = node.data.tools.filter((t) => t.flow_id).length;
+      if (used === 0) return node;
+      cleared += used;
+      return { ...node, data: { ...node.data, tools: node.data.tools.map((t) => ({ ...t, flow_id: "" })) } };
+    }
     if (node.type !== "subflow" || !node.data.flow_id) return node;
     cleared += 1;
     return { ...node, data: { ...node.data, flow_id: "" } };

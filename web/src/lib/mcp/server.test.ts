@@ -8,7 +8,7 @@ import type { KeyIdentity } from "../auth/api-key";
 import { createMcpServer, type Gateway, TOOLS } from "./server";
 import { MCP_OPERATIONS } from "./tools";
 
-const identity: KeyIdentity = { user: { id: "user-1" }, actions: ["read", "write", "run"] };
+const identity: KeyIdentity = { user: { id: "user-1" }, actions: ["flows:read", "flows:write", "flows:run"] };
 const gateway = vi.fn<Gateway>();
 
 const handler = createMcpHandler(() => createMcpServer(identity, gateway));

@@ -18,6 +18,11 @@ const SUMMARIES: Record<string, (step: RunStep) => Chip | null> = {
     if (typeof status !== "number") return null;
     return { text: String(status), tone: status >= 200 && status < 300 ? "good" : "bad" };
   },
+  prompt: (step) => {
+    const usage = isRecord(step.output) && isRecord(step.output.usage) ? step.output.usage : undefined;
+    const total = usage?.total_tokens;
+    return typeof total === "number" ? { text: `${total} tokens`, tone: "good" } : null;
+  },
   assign: (step) => {
     if (!isRecord(step.output)) return null;
     const entries = Object.entries(step.output);

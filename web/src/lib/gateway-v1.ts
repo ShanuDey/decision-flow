@@ -33,9 +33,15 @@ export async function callGateway(call: GatewayCall, auth: KeyIdentity): Promise
     headers.set("content-type", "application/json");
   }
 
+  // Marks API-key callers; a client cannot send it.
+  const extra: Record<string, string> = { "x-df-source": "api" };
+  const external = call.headers.get("x-external-user-id");
+  if (external) extra["x-external-user-id"] = external;
+
   const response = await forwardToApi(
     { method: call.method, path: target, search: call.search, headers, body, signal: call.signal },
     auth.user,
+    extra,
   );
   response.headers.set("cache-control", "no-store");
   return response;

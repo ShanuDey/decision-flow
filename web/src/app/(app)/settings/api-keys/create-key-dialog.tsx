@@ -25,13 +25,60 @@ import {
   MAX_KEYS,
   NAME_MAX,
 } from "@/lib/auth/key-request";
-import { ACTIONS, type Action } from "@/lib/auth/scopes";
+import type { Action } from "@/lib/auth/scopes";
 
-export const SCOPES: Record<Action, { title: string; hint: string }> = {
-  read: { title: "Read", hint: "List and view flows and runs" },
-  write: { title: "Write", hint: "Create, edit, publish and delete flows" },
-  run: { title: "Run", hint: "Run flows" },
-};
+const SCOPE_GROUPS: { title: string; scopes: { action: Action; title: string; hint: string }[] }[] = [
+  {
+    title: "Flows",
+    scopes: [
+      { action: "flows:read", title: "Read", hint: "List and view flows and runs" },
+      { action: "flows:write", title: "Write", hint: "Create, edit, publish and delete flows" },
+      { action: "flows:run", title: "Run", hint: "Run flows" },
+    ],
+  },
+  {
+    title: "Agents",
+    scopes: [
+      { action: "agents:read", title: "Read", hint: "List agents and read their conversations" },
+      { action: "agents:chat", title: "Chat", hint: "Start conversations and send messages" },
+      { action: "agents:manage", title: "Manage", hint: "Create, change and delete agents" },
+    ],
+  },
+];
+
+export function ScopePicker({
+  idPrefix,
+  actions,
+  onToggle,
+}: {
+  idPrefix: string;
+  actions: readonly Action[];
+  onToggle: (action: Action, on: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {SCOPE_GROUPS.map((group) => (
+        <fieldset key={group.title} className="flex flex-col gap-3">
+          <legend className="mb-1 text-sm font-medium">{group.title}</legend>
+          {group.scopes.map(({ action, title, hint }) => (
+            <div key={action} className="flex items-start gap-3">
+              <Checkbox
+                id={`${idPrefix}-${action}`}
+                checked={actions.includes(action)}
+                onCheckedChange={(on) => onToggle(action, on)}
+                className="mt-0.5"
+              />
+              <div className="flex flex-col">
+                <Label htmlFor={`${idPrefix}-${action}`}>{title}</Label>
+                <span className="text-xs text-muted-foreground">{hint}</span>
+              </div>
+            </div>
+          ))}
+        </fieldset>
+      ))}
+    </div>
+  );
+}
 
 export const EXPIRY_CHOICES =EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }));
 
@@ -39,7 +86,7 @@ export function CreateKeyDialog({ atLimit }: { atLimit: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [actions, setActions] = useState<Action[]>(["read"]);
+  const [actions, setActions] = useState<Action[]>(["flows:read"]);
   const [expiry, setExpiry] = useState(DEFAULT_EXPIRY);
   const [busy, setBusy] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
@@ -50,7 +97,7 @@ export function CreateKeyDialog({ atLimit }: { atLimit: boolean }) {
     setOpen(next);
     if (!next) {
       setName("");
-      setActions(["read"]);
+      setActions(["flows:read"]);
       setExpiry(DEFAULT_EXPIRY);
       setSecret(null);
       setCopied(false);
@@ -152,23 +199,7 @@ export function CreateKeyDialog({ atLimit }: { atLimit: boolean }) {
                 className="h-10"
               />
             </div>
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-1 text-sm font-medium">Scopes</legend>
-              {ACTIONS.map((action) => (
-                <div key={action} className="flex items-start gap-3">
-                  <Checkbox
-                    id={`scope-${action}`}
-                    checked={actions.includes(action)}
-                    onCheckedChange={(on) => toggle(action, on)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex flex-col">
-                    <Label htmlFor={`scope-${action}`}>{SCOPES[action].title}</Label>
-                    <span className="text-xs text-muted-foreground">{SCOPES[action].hint}</span>
-                  </div>
-                </div>
-              ))}
-            </fieldset>
+            <ScopePicker idPrefix="scope" actions={actions} onToggle={toggle} />
             <div className="flex flex-col gap-2">
               <Label htmlFor="key-expiry">Expires</Label>
               <SelectField

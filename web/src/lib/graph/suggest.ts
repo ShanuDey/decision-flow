@@ -66,6 +66,23 @@ export function outputKeys(
         { name: "body", type: "unknown" },
         { name: "duration_ms", type: "number" },
       ];
+    case "prompt":
+      return [
+        { name: "text", type: "string" },
+        { name: "model", type: "string" },
+        { name: "finish_reason", type: "string" },
+        { name: "usage", type: "object" },
+      ];
+    case "agent":
+      return [
+        { name: "text", type: "string" },
+        { name: "steps", type: "array" },
+        { name: "iterations", type: "number" },
+        { name: "usage", type: "object" },
+        { name: "model", type: "string" },
+      ];
+    case "structured_output":
+      return node.data.fields.filter((f) => f.name).map((f) => ({ name: f.name, type: f.type }));
     case "subflow":
       return contracts[node.data.flow_id]?.outputs ?? [];
     case "end":
