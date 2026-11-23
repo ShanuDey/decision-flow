@@ -1,6 +1,8 @@
 export const PROXY_PREFIX = "/backend";
 // Below the 60 s `maxDuration`: pages also spend time on the session lookup.
 export const API_TIMEOUT_MS = 45_000;
+// A relayed call may be a run or an agent answer, which the API bounds itself (300 s by default).
+export const RELAY_TIMEOUT_MS = 6 * 60_000;
 
 const REQUEST_HEADERS = ["accept", "accept-language", "content-type", "if-match", "if-none-match"];
 const RESPONSE_HEADER_BLOCKLIST = [

@@ -318,5 +318,7 @@ async def invoke_agent(
             yield encoder.encode(event)
 
     return StreamingResponse(
-        events(), media_type=encoder.get_content_type(), headers={"Cache-Control": "no-cache"}
+        ag_ui.with_keep_alive(events(), ag_ui.KEEP_ALIVE_SECONDS),
+        media_type=encoder.get_content_type(),
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

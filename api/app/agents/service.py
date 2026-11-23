@@ -193,6 +193,20 @@ async def require_thread(
     return thread
 
 
+def turn_limits(settings: dict[str, Any], cap_seconds: int) -> AgentLimits:
+    """The agent's own limits, with the time one answer may take held under the run timeout."""
+    chosen = {
+        k: settings[k]
+        for k in ("max_iterations", "max_total_tokens", "max_seconds")
+        if settings.get(k)
+    }
+    if cap_seconds:
+        chosen["max_seconds"] = min(
+            chosen.get("max_seconds", AgentLimits().max_seconds), cap_seconds
+        )
+    return AgentLimits(**chosen)
+
+
 def new_thread_owner(caller: Caller) -> str | None:
     """The external user id a new conversation gets: none for a team member."""
     if caller.source == "web":
@@ -353,7 +367,6 @@ async def run_turn(
         policy = policy.model_copy(
             update={"timeout_seconds": min(settings["timeout_seconds"], policy.timeout_seconds)}
         )
-    limit_keys = ("max_iterations", "max_total_tokens", "max_seconds")
     try:
         result = await run_agent(
             policy,
@@ -363,7 +376,7 @@ async def run_turn(
             messages=[*history, {"role": "user", "content": content}],
             tools=flow_tools.specs,
             run_tool=run_tool,
-            limits=AgentLimits(**{k: settings[k] for k in limit_keys if settings.get(k)}),
+            limits=turn_limits(settings, ctx.limits.run_timeout_seconds),
             temperature=settings.get("temperature"),
             max_tokens=settings.get("max_tokens"),
             on_step=on_step,

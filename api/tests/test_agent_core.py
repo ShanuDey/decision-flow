@@ -406,3 +406,14 @@ async def test_a_failure_while_streaming_is_still_our_wording() -> None:
     async with chat_server(status=401, raw=b'{"error": {"message": "bad key"}}') as (port, _):
         with pytest.raises(ValueError, match="rejected the key"):
             await agent(port, Tools(), tools=[], on_token=Tokens())
+
+
+def test_the_server_cap_holds_an_agents_own_time_limit_down() -> None:
+    from app.agents.service import turn_limits
+
+    assert turn_limits({"max_seconds": 600}, 300).max_seconds == 300
+    assert turn_limits({"max_seconds": 60}, 300).max_seconds == 60
+    assert turn_limits({}, 90).max_seconds == 90
+    assert turn_limits({}, 300).max_seconds == 120
+    assert turn_limits({"max_seconds": 600}, 0).max_seconds == 600
+    assert turn_limits({"max_iterations": 3}, 0).max_iterations == 3

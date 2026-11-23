@@ -2,7 +2,7 @@ import { type TokenUser } from "./auth/api-token";
 import { getConfig } from "./auth/server";
 import { apiToken } from "./auth/session";
 import {
-  API_TIMEOUT_MS,
+  RELAY_TIMEOUT_MS,
   hasBody,
   responseHeaders,
   upstreamHeaders,
@@ -26,7 +26,7 @@ export async function forwardToApi(
   extra: Record<string, string> = {},
 ): Promise<Response> {
   const { apiUrl, ipHeader } = getConfig();
-  const timeout = AbortSignal.timeout(API_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(RELAY_TIMEOUT_MS);
   const headers = upstreamHeaders(call.headers, await apiToken(user), ipHeader);
   for (const [name, value] of Object.entries(extra)) headers.set(name, value);
   const init: RequestInit & { duplex?: "half" } = {

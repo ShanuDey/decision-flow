@@ -81,6 +81,31 @@ def tool_events(run_id: str, number: int, step: ToolStep) -> list[BaseEvent]:
     ]
 
 
+KEEP_ALIVE = ": keep-alive\n\n"
+# A quiet answer stream sends a comment line this often so a proxy does not close it.
+KEEP_ALIVE_SECONDS = 15
+
+
+async def with_keep_alive(chunks: AsyncIterator[str], every: float) -> AsyncIterator[str]:
+    """The chunks, with a comment line whenever none arrives for `every` seconds."""
+    chunk_iter = chunks.__aiter__()
+    pending = asyncio.ensure_future(chunk_iter.__anext__())
+    try:
+        while True:
+            done, _ = await asyncio.wait({pending}, timeout=every)
+            if not done:
+                yield KEEP_ALIVE
+                continue
+            try:
+                chunk = pending.result()
+            except StopAsyncIteration:
+                return
+            yield chunk
+            pending = asyncio.ensure_future(chunk_iter.__anext__())
+    finally:
+        pending.cancel()
+
+
 async def run_events(
     ctx: service.TurnContext,
     agent: Agent,

@@ -1,6 +1,8 @@
 # ruff: noqa: F811
+import asyncio
 import json
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -8,6 +10,8 @@ import pytest
 from ag_ui.core import Event
 from pydantic import TypeAdapter
 
+from app.agents import ag_ui
+from app.agents.ag_ui import KEEP_ALIVE, with_keep_alive
 from tests.agent_fakes import FakeAgentStore
 from tests.chat_server import chat_server
 from tests.test_agent_core import asks, says
@@ -261,3 +265,38 @@ async def test_asking_for_json_gets_the_error_a_plain_message_would(
     )
 
     assert (response.status_code, response.json()["code"]) == (422, "agent_not_ready")
+
+
+async def test_an_idle_stream_gets_a_comment_line_and_the_events_still_parse(
+    client: httpx.AsyncClient, agents: FakeAgentStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(ag_ui, "KEEP_ALIVE_SECONDS", 0.05)
+    async with chat_server("one two three", pace=0.2) as (port, _):
+        agent, thread = await ready(client, port)
+        response = await post(client, agent, run_input(thread, ("user", "Go")))
+
+    assert ": keep-alive" in response.text
+    assert response.headers["x-accel-buffering"] == "no"
+    blocks = response.text.strip().split("\n\n")
+    events = [b for b in blocks if not b.startswith(":")]
+    assert types(parse("\n\n".join(events)))[-1] == "RUN_FINISHED"
+
+
+async def test_a_stream_without_idle_time_has_no_comment_lines() -> None:
+    async def chunks() -> AsyncIterator[str]:
+        for piece in ("a", "b"):
+            yield piece
+
+    assert [c async for c in with_keep_alive(chunks(), 5)] == ["a", "b"]
+
+
+async def test_a_quiet_stretch_between_chunks_is_filled_with_comment_lines() -> None:
+    async def chunks() -> AsyncIterator[str]:
+        yield "a"
+        await asyncio.sleep(0.2)
+        yield "b"
+
+    got = [c async for c in with_keep_alive(chunks(), 0.05)]
+
+    assert got[0] == "a" and got[-1] == "b"
+    assert KEEP_ALIVE in got[1:-1]
