@@ -346,7 +346,6 @@ export const InvokeAgentParams = zod.object({
 })
 
 export const InvokeAgentHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -407,7 +406,6 @@ export const ListThreadsQueryParams = zod.object({
 })
 
 export const ListThreadsHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -439,7 +437,6 @@ export const CreateThreadParams = zod.object({
 })
 
 export const CreateThreadHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -465,7 +462,6 @@ export const DeleteThreadParams = zod.object({
 })
 
 export const DeleteThreadHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -482,7 +478,6 @@ export const GetThreadParams = zod.object({
 })
 
 export const GetThreadHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -530,7 +525,6 @@ export const SendMessageParams = zod.object({
 })
 
 export const SendMessageHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
@@ -591,7 +585,6 @@ export const GetMessageStepsParams = zod.object({
 })
 
 export const GetMessageStepsHeader = zod.object({
-  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
   "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 

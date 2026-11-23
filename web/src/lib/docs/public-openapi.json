@@ -3,7 +3,7 @@
   "info": {
     "title": "Decision Flow API",
     "version": "0.1.0",
-    "description": "Run and manage decision flows over HTTP. Create an API key in Settings, then send it as `Authorization: Bearer <key>`. Each key holds some of the `read`, `write` and `run` scopes; an operation your key lacks returns 403."
+    "description": "Run and manage decision flows, and talk to agents, over HTTP. Create an API key in Settings, then send it as `Authorization: Bearer <key>`. Each key holds some scopes, such as `flows:read`, `flows:run` or `agents:chat`; an operation your key lacks returns 403."
   },
   "servers": [
     {
@@ -2114,22 +2114,6 @@
           },
           {
             "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
-            }
-          },
-          {
-            "in": "header",
             "name": "x-external-user-id",
             "required": false,
             "schema": {
@@ -2229,22 +2213,6 @@
               "format": "uuid",
               "title": "Agent Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
             }
           },
           {
@@ -2364,22 +2332,6 @@
           },
           {
             "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
-            }
-          },
-          {
-            "in": "header",
             "name": "x-external-user-id",
             "required": false,
             "schema": {
@@ -2489,22 +2441,6 @@
               "format": "uuid",
               "title": "Thread Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
             }
           },
           {
@@ -2623,22 +2559,6 @@
               "format": "uuid",
               "title": "Message Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
             }
           },
           {
@@ -2764,22 +2684,6 @@
               "format": "uuid",
               "title": "Thread Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
             }
           },
           {
@@ -2915,22 +2819,6 @@
               "format": "uuid",
               "title": "Agent Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-df-source",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Df-Source"
             }
           },
           {

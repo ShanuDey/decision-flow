@@ -89,6 +89,7 @@ export default defineConfig({
           items: [
             "auth",
             "mcp",
+            "agents-api",
             "secrets",
             "connections",
             "marketplace",

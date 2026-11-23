@@ -18,9 +18,9 @@ const RUNS = "/flows/{flow_id}/runs";
 const SCHEMA_REF = /^#\/components\/schemas\/(.+)$/;
 
 const INTRO = [
-  "Run and manage decision flows over HTTP.",
+  "Run and manage decision flows, and talk to agents, over HTTP.",
   "Create an API key in Settings, then send it as `Authorization: Bearer <key>`.",
-  "Each key holds some of the `read`, `write` and `run` scopes; an operation your key lacks returns 403.",
+  "Each key holds some scopes, such as `flows:read`, `flows:run` or `agents:chat`; an operation your key lacks returns 403.",
 ].join(" ");
 
 function collectRefs(node: unknown, into: Set<string>): void {

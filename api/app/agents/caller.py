@@ -33,7 +33,7 @@ def clean_external_id(value: str | None) -> str | None:
 
 
 def get_caller(
-    x_df_source: Annotated[str | None, Header()] = None,
+    x_df_source: Annotated[str | None, Header(include_in_schema=False)] = None,
     x_external_user_id: Annotated[str | None, Header()] = None,
 ) -> Caller:
     # Only the gateway sets the source header: the web proxy forwards an allowlist of headers.
