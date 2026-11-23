@@ -94,25 +94,18 @@ class FakeAgentStore:
     async def list_threads(
         self, member: Member, agent_id: uuid.UUID, limit: int
     ) -> list[AgentThread]:
-        mine = [
+        found = [
             t
             for t in self.threads.values()
-            if t.agent_id == agent_id
-            and t.workspace_id == member.workspace_id
-            and t.created_by == member.user_id
+            if t.agent_id == agent_id and t.workspace_id == member.workspace_id
         ]
-        return sorted(mine, key=lambda t: t.updated_at, reverse=True)[:limit]
+        return sorted(found, key=lambda t: t.updated_at, reverse=True)[:limit]
 
     async def get_thread(
         self, member: Member, agent_id: uuid.UUID, thread_id: uuid.UUID
     ) -> AgentThread | None:
         thread = self.threads.get(thread_id)
-        if (
-            thread
-            and thread.agent_id == agent_id
-            and thread.workspace_id == member.workspace_id
-            and thread.created_by == member.user_id
-        ):
+        if thread and thread.agent_id == agent_id and thread.workspace_id == member.workspace_id:
             return thread
         return None
 

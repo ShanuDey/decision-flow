@@ -68,6 +68,7 @@ async def create_agent(
 
 @router.get("/agents/{agent_id}", responses=NOT_FOUND)
 async def get_agent(agent_id: uuid.UUID, store: Store, member: CurrentMember) -> AgentSummary:
+    """One agent with its model connection, instructions, tools and limits."""
     return service.summarize(await service.require_agent(store, member, agent_id))
 
 
@@ -105,7 +106,10 @@ async def list_threads(
     member: CurrentMember,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> ThreadList:
-    """Your conversations with the agent, most recently active first."""
+    """The workspace's conversations with the agent, most recently active first.
+
+    Anyone in the workspace can read and continue a conversation by its id.
+    """
     await service.require_agent(store, member, agent_id)
     threads = await store.list_threads(member, agent_id, limit)
     return ThreadList(items=[service.summarize_thread(t) for t in threads])
@@ -131,6 +135,7 @@ async def get_thread(
 async def delete_thread(
     agent_id: uuid.UUID, thread_id: uuid.UUID, store: Store, member: CurrentMember
 ) -> None:
+    """Deletes a conversation and all of its messages. This cannot be undone."""
     if not await store.delete_thread(member, agent_id, thread_id):
         raise service.not_found("Thread")
 

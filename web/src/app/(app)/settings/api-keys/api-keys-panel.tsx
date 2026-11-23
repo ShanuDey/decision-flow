@@ -76,7 +76,7 @@ export function ApiKeysPanel({ rows }: { rows: KeyRow[] }) {
                     <div className="flex flex-wrap gap-1">
                       {row.actions.map((action) => (
                         <Badge key={action} variant="secondary" className="capitalize">
-                          {action}
+                          {action.replace(":", " ")}
                         </Badge>
                       ))}
                     </div>

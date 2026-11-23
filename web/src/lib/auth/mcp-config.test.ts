@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createKeyBody } from "./key-request";
 import { agentKey, agentPrompt, claudeCodeCommand, DEFAULT_AGENT_NAME, jsonConfig, mcpUrl } from "./mcp-config";
-import { ACTIONS } from "./scopes";
+import { FLOW_ACTIONS } from "./scopes";
 
 const KEY = `df_live_${"c".repeat(64)}`;
 
@@ -16,15 +16,15 @@ describe("agentKey", () => {
   });
 
   it("takes custom scopes and expiry", () => {
-    const key = agentKey("Reader", ["read"], null);
-    expect(key.actions).toEqual(["read"]);
+    const key = agentKey("Reader", ["flows:read"], null);
+    expect(key.actions).toEqual(["flows:read"]);
     expect(key.expiresInDays).toBeNull();
     expect(createKeyBody.safeParse(key).success).toBe(true);
   });
 
-  it("holds every scope and expires by default", () => {
+  it("holds the flow scopes and expires by default", () => {
     const key = agentKey(DEFAULT_AGENT_NAME);
-    expect([...key.actions]).toEqual([...ACTIONS]);
+    expect([...key.actions]).toEqual([...FLOW_ACTIONS]);
     expect(key.expiresInDays).toBe(30);
   });
 });

@@ -310,6 +310,7 @@ export const getGetAgentUrl = (agentId: string,) => {
 }
 
 /**
+ * One agent with its model connection, instructions, tools and limits.
  * @summary Get Agent
  */
 export const getAgent = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<getAgentResponse> => {
@@ -547,7 +548,9 @@ export const getListThreadsUrl = (agentId: string,
 }
 
 /**
- * Your conversations with the agent, most recently active first.
+ * The workspace's conversations with the agent, most recently active first.
+ *
+ * Anyone in the workspace can read and continue a conversation by its id.
  * @summary List Threads
  */
 export const listThreads = async (agentId: string,
@@ -677,6 +680,7 @@ export const getDeleteThreadUrl = (agentId: string,
 }
 
 /**
+ * Deletes a conversation and all of its messages. This cannot be undone.
  * @summary Delete Thread
  */
 export const deleteThread = async (agentId: string,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ACTIONS, type Action, type Permissions, RESOURCE } from "./scopes";
+import { ACTIONS, type Action, hasAction, type Permissions } from "./scopes";
 
 export const MAX_KEYS = 20;
 export const NAME_MAX = 32;
@@ -29,7 +29,7 @@ export function expiresInSeconds(days: CreateKeyBody["expiresInDays"]): number |
 }
 
 export function actionsOf(permissions: Permissions | null | undefined): Action[] {
-  return ACTIONS.filter((action) => permissions?.[RESOURCE]?.includes(action));
+  return ACTIONS.filter((action) => hasAction(permissions, action));
 }
 
 export function keyStatus(expiresAt: string | null, now: Date = new Date()): "active" | "expired" {

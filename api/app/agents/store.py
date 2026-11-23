@@ -132,15 +132,11 @@ class AgentStore:
     async def list_threads(
         self, member: Member, agent_id: uuid.UUID, limit: int
     ) -> list[AgentThread]:
+        query = select(AgentThread).where(
+            AgentThread.agent_id == agent_id, AgentThread.workspace_id == member.workspace_id
+        )
         rows = await self.session.scalars(
-            select(AgentThread)
-            .where(
-                AgentThread.agent_id == agent_id,
-                AgentThread.workspace_id == member.workspace_id,
-                AgentThread.created_by == member.user_id,
-            )
-            .order_by(AgentThread.updated_at.desc(), AgentThread.id)
-            .limit(limit)
+            query.order_by(AgentThread.updated_at.desc(), AgentThread.id).limit(limit)
         )
         return list(rows)
 
@@ -152,7 +148,6 @@ class AgentStore:
                 AgentThread.id == thread_id,
                 AgentThread.agent_id == agent_id,
                 AgentThread.workspace_id == member.workspace_id,
-                AgentThread.created_by == member.user_id,
             )
         )
 
@@ -165,7 +160,6 @@ class AgentStore:
                 AgentThread.id == thread_id,
                 AgentThread.agent_id == agent_id,
                 AgentThread.workspace_id == member.workspace_id,
-                AgentThread.created_by == member.user_id,
             )
             .returning(AgentThread.id)
         )

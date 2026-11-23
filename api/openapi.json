@@ -3112,6 +3112,7 @@
         ]
       },
       "get": {
+        "description": "One agent with its model connection, instructions, tools and limits.",
         "operationId": "get_agent",
         "parameters": [
           {
@@ -3417,7 +3418,7 @@
     },
     "/agents/{agent_id}/threads": {
       "get": {
-        "description": "Your conversations with the agent, most recently active first.",
+        "description": "The workspace's conversations with the agent, most recently active first.\n\nAnyone in the workspace can read and continue a conversation by its id.",
         "operationId": "list_threads",
         "parameters": [
           {
@@ -3605,6 +3606,7 @@
     },
     "/agents/{agent_id}/threads/{thread_id}": {
       "delete": {
+        "description": "Deletes a conversation and all of its messages. This cannot be undone.",
         "operationId": "delete_thread",
         "parameters": [
           {

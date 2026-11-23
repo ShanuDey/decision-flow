@@ -173,6 +173,7 @@ export const DeleteAgentResponse = zod.void()
 
 
 /**
+ * One agent with its model connection, instructions, tools and limits.
  * @summary Get Agent
  */
 export const GetAgentParams = zod.object({
@@ -381,7 +382,9 @@ export const InvokeAgentResponse = zod.object({
 
 
 /**
- * Your conversations with the agent, most recently active first.
+ * The workspace's conversations with the agent, most recently active first.
+ *
+ * Anyone in the workspace can read and continue a conversation by its id.
  * @summary List Threads
  */
 export const ListThreadsParams = zod.object({
@@ -426,6 +429,7 @@ export const CreateThreadResponse = zod.object({
 
 
 /**
+ * Deletes a conversation and all of its messages. This cannot be undone.
  * @summary Delete Thread
  */
 export const DeleteThreadParams = zod.object({

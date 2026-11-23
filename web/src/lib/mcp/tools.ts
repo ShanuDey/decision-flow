@@ -100,7 +100,7 @@ function isKind(value: unknown, kind: string): boolean {
 const isScalar = (value: unknown): boolean => ["string", "number", "boolean"].includes(typeof value);
 
 function annotationsFor(method: string, action: Action): ToolAnnotations {
-  if (action === "read") return { readOnlyHint: true, openWorldHint: false };
+  if (action.endsWith(":read")) return { readOnlyHint: true, openWorldHint: false };
   const overwrites = method === "DELETE" || method === "PUT" || method === "PATCH";
   return { destructiveHint: overwrites, idempotentHint: overwrites, openWorldHint: false };
 }

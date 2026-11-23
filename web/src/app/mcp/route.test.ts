@@ -108,12 +108,12 @@ describe("POST /mcp", () => {
     expect(JSON.parse(body.result.content[0].text)).toEqual({ items: [] });
     const [call, identity] = callGateway.mock.calls[0];
     expect(call).toMatchObject({ method: "GET", path: "/flows", search: "?q=loan" });
-    expect(identity).toEqual({ user: owner, actions: ["read", "run"] });
+    expect(identity).toEqual({ user: owner, actions: ["flows:read", "flows:run"] });
   });
 
   it("shows a scope refusal from the gateway as a tool error", async () => {
     callGateway.mockResolvedValue(
-      Response.json({ code: "insufficient_scope", message: 'This key does not have the "write" scope', details: {} }, { status: 403 }),
+      Response.json({ code: "insufficient_scope", message: 'This key does not have the "flows:write" scope', details: {} }, { status: 403 }),
     );
 
     const response = await route.POST(
