@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.agents import ag_ui, service
+from app.agents.caller import CurrentCaller
 from app.agents.schemas import (
     AgentCreate,
     AgentList,
@@ -93,10 +94,22 @@ async def delete_agent(agent_id: uuid.UUID, store: Store, member: CurrentMember)
 
 
 @router.post("/agents/{agent_id}/threads", status_code=status.HTTP_201_CREATED, responses=NOT_FOUND)
-async def create_thread(agent_id: uuid.UUID, store: Store, member: CurrentMember) -> ThreadSummary:
-    """Starts a conversation with the agent."""
+async def create_thread(
+    agent_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    caller: CurrentCaller,
+) -> ThreadSummary:
+    """Starts a conversation with the agent.
+
+    A conversation started by an API key belongs to an external user: send your own id for the
+    person in `X-External-User-Id`, or send none and an anonymous id (starting `anon-`) is
+    generated and returned. Send that id back on later calls to keep the same person's
+    conversations together. A conversation started from the web app belongs to a team member.
+    """
     await service.require_agent(store, member, agent_id)
-    return service.summarize_thread(await store.create_thread(member, agent_id))
+    owner = service.new_thread_owner(caller)
+    return service.summarize_thread(await store.create_thread(member, agent_id, owner))
 
 
 @router.get("/agents/{agent_id}/threads", responses=NOT_FOUND)
@@ -104,23 +117,29 @@ async def list_threads(
     agent_id: uuid.UUID,
     store: Store,
     member: CurrentMember,
+    caller: CurrentCaller,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> ThreadList:
     """The workspace's conversations with the agent, most recently active first.
 
+    An API key must send `X-External-User-Id` and gets only that person's conversations.
     Anyone in the workspace can read and continue a conversation by its id.
     """
     await service.require_agent(store, member, agent_id)
-    threads = await store.list_threads(member, agent_id, limit)
+    threads = await store.list_threads(member, agent_id, limit, service.listing_filter(caller))
     return ThreadList(items=[service.summarize_thread(t) for t in threads])
 
 
 @router.get("/agents/{agent_id}/threads/{thread_id}", responses=NOT_FOUND)
 async def get_thread(
-    agent_id: uuid.UUID, thread_id: uuid.UUID, store: Store, member: CurrentMember
+    agent_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    caller: CurrentCaller,
 ) -> ThreadDetail:
     """A conversation with all of its messages, oldest first."""
-    thread = await service.require_thread(store, member, agent_id, thread_id)
+    thread = await service.require_thread(store, member, caller, agent_id, thread_id)
     messages = await store.list_messages(thread.id)
     return ThreadDetail(
         thread=service.summarize_thread(thread), messages=[service.info(m) for m in messages]
@@ -133,9 +152,14 @@ async def get_thread(
     responses=NOT_FOUND,
 )
 async def delete_thread(
-    agent_id: uuid.UUID, thread_id: uuid.UUID, store: Store, member: CurrentMember
+    agent_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    store: Store,
+    member: CurrentMember,
+    caller: CurrentCaller,
 ) -> None:
     """Deletes a conversation and all of its messages. This cannot be undone."""
+    await service.require_thread(store, member, caller, agent_id, thread_id)
     if not await store.delete_thread(member, agent_id, thread_id):
         raise service.not_found("Thread")
 
@@ -168,6 +192,7 @@ async def send_message(
     store: Store,
     flows: Flows,
     member: CurrentMember,
+    caller: CurrentCaller,
     load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
     new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
@@ -180,7 +205,7 @@ async def send_message(
     answer), 502 `model_failed` (the provider refused or could not be reached).
     """
     agent = await service.require_agent(store, member, agent_id)
-    thread = await service.require_thread(store, member, agent_id, thread_id)
+    thread = await service.require_thread(store, member, caller, agent_id, thread_id)
     ctx = turn_context(store, flows, member, limits, load_secrets, new_tracer)
     async with slots.hold(member.workspace_id):
         user, reply = await service.run_turn(ctx, agent, thread, body.content)
@@ -197,13 +222,14 @@ async def get_message_steps(
     message_id: uuid.UUID,
     store: Store,
     member: CurrentMember,
+    caller: CurrentCaller,
     read: Annotated[TraceReader, Depends(get_trace_reader)],
 ) -> RunSteps:
     """How the agent answered a message: each model call and each flow it ran, with timings.
 
     `pending` while the trace is still being written. A message without a trace has no steps.
     """
-    return await service.message_steps(store, member, agent_id, thread_id, message_id, read)
+    return await service.message_steps(store, member, caller, agent_id, thread_id, message_id, read)
 
 
 @router.post(
@@ -230,6 +256,7 @@ async def invoke_agent(
     store: Store,
     flows: Flows,
     member: CurrentMember,
+    caller: CurrentCaller,
     load_secrets: Annotated[SecretLoader, Depends(get_secret_loader)],
     new_tracer: Annotated[service.TracerFactory, Depends(get_tracer_factory)],
     slots: Annotated[RunSlots, Depends(get_run_slots)],
@@ -253,7 +280,7 @@ async def invoke_agent(
             422, "invalid_run", "Send an AG-UI run input with the id of a conversation"
         ) from None
     agent = await service.require_agent(store, member, agent_id)
-    thread = await service.require_thread(store, member, agent_id, thread_id)
+    thread = await service.require_thread(store, member, caller, agent_id, thread_id)
     content = ag_ui.new_user_text(run)
     if content is None:
         raise ApiError(422, "no_message", "The run input has no user message")

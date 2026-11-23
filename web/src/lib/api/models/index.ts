@@ -117,6 +117,7 @@ export * from './templateList';
 export * from './threadDetail';
 export * from './threadList';
 export * from './threadSummary';
+export * from './threadSummarySource';
 export * from './toolCallInfo';
 export * from './toolCallInfoArguments';
 export * from './turnResponse';

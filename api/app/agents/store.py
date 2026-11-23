@@ -120,9 +120,17 @@ class AgentStore:
         )
         return list(rows)
 
-    async def create_thread(self, member: Member, agent_id: uuid.UUID) -> AgentThread:
+    async def create_thread(
+        self,
+        member: Member,
+        agent_id: uuid.UUID,
+        external_user_id: str | None = None,
+    ) -> AgentThread:
         thread = AgentThread(
-            agent_id=agent_id, workspace_id=member.workspace_id, created_by=member.user_id
+            agent_id=agent_id,
+            workspace_id=member.workspace_id,
+            created_by=member.user_id,
+            external_user_id=external_user_id,
         )
         self.session.add(thread)
         await self.session.commit()
@@ -130,11 +138,13 @@ class AgentStore:
         return thread
 
     async def list_threads(
-        self, member: Member, agent_id: uuid.UUID, limit: int
+        self, member: Member, agent_id: uuid.UUID, limit: int, external_user_id: str | None = None
     ) -> list[AgentThread]:
         query = select(AgentThread).where(
             AgentThread.agent_id == agent_id, AgentThread.workspace_id == member.workspace_id
         )
+        if external_user_id is not None:
+            query = query.where(AgentThread.external_user_id == external_user_id)
         rows = await self.session.scalars(
             query.order_by(AgentThread.updated_at.desc(), AgentThread.id).limit(limit)
         )

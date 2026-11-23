@@ -77,12 +77,18 @@ class FakeAgentStore:
     async def agents_using(self, member: Member, connection_id: uuid.UUID) -> list[Agent]:
         return [a for a in await self.list_agents(member) if a.connection_id == connection_id]
 
-    async def create_thread(self, member: Member, agent_id: uuid.UUID) -> AgentThread:
+    async def create_thread(
+        self,
+        member: Member,
+        agent_id: uuid.UUID,
+        external_user_id: str | None = None,
+    ) -> AgentThread:
         thread = AgentThread(
             id=uuid.uuid4(),
             agent_id=agent_id,
             workspace_id=member.workspace_id,
             created_by=member.user_id,
+            external_user_id=external_user_id,
             title="",
             created_at=now(),
             updated_at=now(),
@@ -92,12 +98,14 @@ class FakeAgentStore:
         return thread
 
     async def list_threads(
-        self, member: Member, agent_id: uuid.UUID, limit: int
+        self, member: Member, agent_id: uuid.UUID, limit: int, external_user_id: str | None = None
     ) -> list[AgentThread]:
         found = [
             t
             for t in self.threads.values()
-            if t.agent_id == agent_id and t.workspace_id == member.workspace_id
+            if t.agent_id == agent_id
+            and t.workspace_id == member.workspace_id
+            and (external_user_id is None or t.external_user_id == external_user_id)
         ]
         return sorted(found, key=lambda t: t.updated_at, reverse=True)[:limit]
 

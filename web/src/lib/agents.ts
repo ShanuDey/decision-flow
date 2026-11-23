@@ -74,6 +74,12 @@ export function argsSummary(args: Record<string, unknown> | undefined): string {
     .join(" · ");
 }
 
+export function whoLabel(thread: Pick<ThreadSummary, "source" | "external_user_id" | "anonymous">): string | null {
+  if (thread.source !== "api") return null;
+  const id = thread.external_user_id ?? "";
+  return thread.anonymous ? `Anonymous · ${id.replace(/^anon-/, "").slice(0, 6)}` : `External · ${id}`;
+}
+
 export interface ThreadGroup {
   label: "Today" | "Yesterday" | "Earlier";
   items: ThreadSummary[];

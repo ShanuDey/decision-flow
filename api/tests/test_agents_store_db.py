@@ -147,6 +147,22 @@ async def test_threads_belong_to_the_workspace(
         assert await store.list_threads(member, made.id, 10) == []
 
 
+async def test_a_conversation_can_belong_to_an_external_user_and_listing_narrows_to_one(
+    sessions: SessionFactory,
+) -> None:
+    member = await make_member(sessions)
+    stranger = await make_member(sessions, "user-2")
+    made = await make_agent(sessions, member)
+    async with sessions() as session:
+        store = AgentStore(session)
+        web = await store.create_thread(member, made.id)
+        maria = await store.create_thread(member, made.id, "maria")
+        assert web.external_user_id is None and maria.external_user_id == "maria"
+        assert [t.id for t in await store.list_threads(member, made.id, 10, "maria")] == [maria.id]
+        assert len(await store.list_threads(member, made.id, 10)) == 2
+        assert await store.list_threads(stranger, made.id, 10, "maria") == []
+
+
 async def test_a_thread_outlives_the_person_who_started_it(sessions: SessionFactory) -> None:
     member = await make_member(sessions)
     starter = await make_member(sessions, "user-2")

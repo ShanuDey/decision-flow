@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ThreadSummary } from "@/lib/api/models";
-import { groupByDay } from "@/lib/agents";
+import { groupByDay, whoLabel } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 
 // Searchable conversations grouped by day; pass `onDelete` to offer a two-click delete.
@@ -69,6 +69,11 @@ export function ThreadList({
                     )}
                   >
                     <span className="block truncate">{thread.title || "New chat"}</span>
+                    {whoLabel(thread) && (
+                      <span className="block truncate text-xs font-normal text-muted-foreground">
+                        {whoLabel(thread)}
+                      </span>
+                    )}
                   </button>
                   {onDelete && (
                     <Button

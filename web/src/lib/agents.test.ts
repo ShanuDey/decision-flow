@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ThreadSummary } from "@/lib/api/models";
 
-import { type AgentForm, argsSummary, formProblem, groupByDay, sameForm, uniqueName, updateBody } from "./agents";
+import { type AgentForm, argsSummary, formProblem, groupByDay, sameForm, uniqueName, updateBody, whoLabel } from "./agents";
 
 const FLOW = "0a6c2f7e-4b1d-4e0a-8c55-3d1e9f2a7b64";
 
@@ -87,5 +87,16 @@ describe("groupByDay", () => {
       ["Earlier", ["t3"]],
     ]);
     expect(groupByDay([], now)).toEqual([]);
+  });
+});
+
+describe("whoLabel", () => {
+  it("says nothing for a team member and names an outside app's user", () => {
+    expect(whoLabel({ source: "web", external_user_id: null, anonymous: false })).toBeNull();
+    expect(whoLabel({ source: "api", external_user_id: "maria@acme.com", anonymous: false })).toBe("External · maria@acme.com");
+  });
+
+  it("shortens a generated anonymous id", () => {
+    expect(whoLabel({ source: "api", external_user_id: "anon-a1b2c3d4e5f6", anonymous: true })).toBe("Anonymous · a1b2c3");
   });
 });

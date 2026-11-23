@@ -550,6 +550,7 @@ export const getListThreadsUrl = (agentId: string,
 /**
  * The workspace's conversations with the agent, most recently active first.
  *
+ * An API key must send `X-External-User-Id` and gets only that person's conversations.
  * Anyone in the workspace can read and continue a conversation by its id.
  * @summary List Threads
  */
@@ -616,6 +617,11 @@ export const getCreateThreadUrl = (agentId: string,) => {
 
 /**
  * Starts a conversation with the agent.
+ *
+ * A conversation started by an API key belongs to an external user: send your own id for the
+ * person in `X-External-User-Id`, or send none and an anonymous id (starting `anon-`) is
+ * generated and returned. Send that id back on later calls to keep the same person's
+ * conversations together. A conversation started from the web app belongs to a team member.
  * @summary Create Thread
  */
 export const createThread = async (agentId: string, options?: Parameters<typeof apiFetch>[1]): Promise<createThreadResponse> => {

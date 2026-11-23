@@ -33,6 +33,20 @@ describe("forwardToApi", () => {
     expect(wakeApi).not.toHaveBeenCalled();
   });
 
+  it("adds the headers we set and keeps them over anything the client sent", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
+
+    await forwardToApi(
+      { ...call, headers: new Headers({ "x-df-source": "web" }) },
+      user,
+      { "x-df-source": "api", "x-external-user-id": "maria" },
+    );
+
+    const sent = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(sent.get("x-df-source")).toBe("api");
+    expect(sent.get("x-external-user-id")).toBe("maria");
+  });
+
   it("answers an empty 204 without a body", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     const response = await forwardToApi({ ...call, method: "DELETE" }, user);

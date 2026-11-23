@@ -87,6 +87,23 @@ describe("callGateway", () => {
       expect((await callGateway(call("GET", "/flows"), auth("agents:read", "agents:chat"))).status).toBe(403);
     });
 
+    it("marks every key request as an API call and passes the external user along", async () => {
+      await callGateway(call("GET", "/flows"), auth("flows:read"));
+      expect(forwardToApi.mock.calls[0][2]).toEqual({ "x-df-source": "api" });
+
+      forwardToApi.mockClear();
+      await callGateway(
+        call("POST", "/agents/a1/threads", {
+          headers: new Headers({ "x-external-user-id": "maria", "x-df-source": "web" }),
+        }),
+        auth("agents:chat"),
+      );
+      expect(forwardToApi.mock.calls[0][2]).toEqual({
+        "x-df-source": "api",
+        "x-external-user-id": "maria",
+      });
+    });
+
     it("forwards an agent call as the key's owner with its body untouched", async () => {
       await callGateway(call("POST", "/agents/a1/invoke", { body: '{"threadId":"t"}' }), auth("agents:chat"));
       const [forwarded, who] = forwardToApi.mock.calls[0];

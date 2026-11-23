@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, computed_field
 
+from app.agents.caller import ANON_PREFIX
 from app.engine.agent_tools import AgentTool
 from app.engine.base import FrozenBaseModel
 from app.engine.llm import MAX_TOOLS
@@ -65,8 +66,24 @@ class ThreadSummary(FrozenBaseModel):
     id: uuid.UUID
     agent_id: uuid.UUID
     title: str
+    external_user_id: str | None = Field(
+        default=None,
+        description="The outside app's user in this conversation. Empty for a team member.",
+    )
     created_at: datetime
     updated_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def source(self) -> Literal["web", "api"]:
+        """`api` when an API key started it, `web` for a team member."""
+        return "web" if self.external_user_id is None else "api"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def anonymous(self) -> bool:
+        """True when the id was generated because the caller named nobody."""
+        return (self.external_user_id or "").startswith(ANON_PREFIX)
 
 
 class ThreadList(FrozenBaseModel):

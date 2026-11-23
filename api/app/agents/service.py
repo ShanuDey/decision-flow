@@ -4,6 +4,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+from app.agents.caller import ANON_PREFIX, Caller
 from app.agents.models import Agent, AgentMessage, AgentThread
 from app.agents.schemas import (
     AgentCreate,
@@ -178,12 +179,36 @@ def info(message: AgentMessage) -> MessageInfo:
 
 
 async def require_thread(
-    store: AgentStore, member: Member, agent_id: uuid.UUID, thread_id: uuid.UUID
+    store: AgentStore,
+    member: Member,
+    caller: Caller,
+    agent_id: uuid.UUID,
+    thread_id: uuid.UUID,
 ) -> AgentThread:
     thread = await store.get_thread(member, agent_id, thread_id)
     if thread is None:
         raise not_found("Thread")
+    if caller.external_user_id is not None and thread.external_user_id != caller.external_user_id:
+        raise not_found("Thread")
     return thread
+
+
+def new_thread_owner(caller: Caller) -> str | None:
+    """The external user id a new conversation gets: none for a team member."""
+    if caller.source == "web":
+        return None
+    return caller.external_user_id or f"{ANON_PREFIX}{uuid.uuid4().hex}"
+
+
+def listing_filter(caller: Caller) -> str | None:
+    """The person a listing is narrowed to. An API key must always name one."""
+    if caller.source == "api" and caller.external_user_id is None:
+        raise ApiError(
+            422,
+            "external_user_id_required",
+            "Name the person whose conversations to list with X-External-User-Id",
+        )
+    return caller.external_user_id
 
 
 def _history(messages: list[AgentMessage]) -> list[dict[str, str]]:
@@ -375,12 +400,13 @@ async def run_turn(
 async def message_steps(
     store: AgentStore,
     member: Member,
+    caller: Caller,
     agent_id: uuid.UUID,
     thread_id: uuid.UUID,
     message_id: uuid.UUID,
     read: TraceReader,
 ) -> RunSteps:
-    thread = await require_thread(store, member, agent_id, thread_id)
+    thread = await require_thread(store, member, caller, agent_id, thread_id)
     message = await store.get_message(thread.id, message_id)
     if message is None:
         raise not_found("Message")

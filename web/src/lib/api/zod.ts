@@ -345,6 +345,11 @@ export const InvokeAgentParams = zod.object({
   "agent_id": zod.uuid()
 })
 
+export const InvokeAgentHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
+})
+
 export const InvokeAgentResponse = zod.object({
   "reply": zod.object({
   "content": zod.string(),
@@ -384,6 +389,7 @@ export const InvokeAgentResponse = zod.object({
 /**
  * The workspace's conversations with the agent, most recently active first.
  *
+ * An API key must send `X-External-User-Id` and gets only that person's conversations.
  * Anyone in the workspace can read and continue a conversation by its id.
  * @summary List Threads
  */
@@ -400,11 +406,19 @@ export const ListThreadsQueryParams = zod.object({
   "limit": zod.int().min(1).max(listThreadsQueryLimitMax).default(listThreadsQueryLimitDefault)
 })
 
+export const ListThreadsHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
+})
+
 export const ListThreadsResponse = zod.object({
   "items": zod.array(zod.object({
   "agent_id": zod.uuid(),
+  "anonymous": zod.boolean().describe('True when the id was generated because the caller named nobody.'),
   "created_at": zod.iso.datetime({"offset":true}),
+  "external_user_id": zod.union([zod.string(),zod.null()]).optional().describe('The outside app\'s user in this conversation. Empty for a team member.'),
   "id": zod.uuid(),
+  "source": zod.enum(['web', 'api']).describe('`api` when an API key started it, `web` for a team member.'),
   "title": zod.string(),
   "updated_at": zod.iso.datetime({"offset":true})
 }))
@@ -413,16 +427,29 @@ export const ListThreadsResponse = zod.object({
 
 /**
  * Starts a conversation with the agent.
+ *
+ * A conversation started by an API key belongs to an external user: send your own id for the
+ * person in `X-External-User-Id`, or send none and an anonymous id (starting `anon-`) is
+ * generated and returned. Send that id back on later calls to keep the same person's
+ * conversations together. A conversation started from the web app belongs to a team member.
  * @summary Create Thread
  */
 export const CreateThreadParams = zod.object({
   "agent_id": zod.uuid()
 })
 
+export const CreateThreadHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
+})
+
 export const CreateThreadResponse = zod.object({
   "agent_id": zod.uuid(),
+  "anonymous": zod.boolean().describe('True when the id was generated because the caller named nobody.'),
   "created_at": zod.iso.datetime({"offset":true}),
+  "external_user_id": zod.union([zod.string(),zod.null()]).optional().describe('The outside app\'s user in this conversation. Empty for a team member.'),
   "id": zod.uuid(),
+  "source": zod.enum(['web', 'api']).describe('`api` when an API key started it, `web` for a team member.'),
   "title": zod.string(),
   "updated_at": zod.iso.datetime({"offset":true})
 })
@@ -437,6 +464,11 @@ export const DeleteThreadParams = zod.object({
   "thread_id": zod.uuid()
 })
 
+export const DeleteThreadHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
+})
+
 export const DeleteThreadResponse = zod.void()
 
 
@@ -447,6 +479,11 @@ export const DeleteThreadResponse = zod.void()
 export const GetThreadParams = zod.object({
   "agent_id": zod.uuid(),
   "thread_id": zod.uuid()
+})
+
+export const GetThreadHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
 export const GetThreadResponse = zod.object({
@@ -468,8 +505,11 @@ export const GetThreadResponse = zod.object({
 })),
   "thread": zod.object({
   "agent_id": zod.uuid(),
+  "anonymous": zod.boolean().describe('True when the id was generated because the caller named nobody.'),
   "created_at": zod.iso.datetime({"offset":true}),
+  "external_user_id": zod.union([zod.string(),zod.null()]).optional().describe('The outside app\'s user in this conversation. Empty for a team member.'),
   "id": zod.uuid(),
+  "source": zod.enum(['web', 'api']).describe('`api` when an API key started it, `web` for a team member.'),
   "title": zod.string(),
   "updated_at": zod.iso.datetime({"offset":true})
 })
@@ -487,6 +527,11 @@ export const GetThreadResponse = zod.object({
 export const SendMessageParams = zod.object({
   "agent_id": zod.uuid(),
   "thread_id": zod.uuid()
+})
+
+export const SendMessageHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
 export const sendMessageBodyContentMax = 20000;
@@ -543,6 +588,11 @@ export const GetMessageStepsParams = zod.object({
   "agent_id": zod.uuid(),
   "thread_id": zod.uuid(),
   "message_id": zod.uuid()
+})
+
+export const GetMessageStepsHeader = zod.object({
+  "x-df-source": zod.union([zod.string(),zod.null()]).optional(),
+  "x-external-user-id": zod.union([zod.string(),zod.null()]).optional()
 })
 
 export const GetMessageStepsResponse = zod.object({

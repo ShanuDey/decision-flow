@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,6 +36,7 @@ class Agent(Base):
 
 class AgentThread(Base):
     __tablename__ = "agent_threads"
+    __table_args__ = (Index("agent_threads_external_user_idx", "workspace_id", "external_user_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     agent_id: Mapped[uuid.UUID] = mapped_column(
@@ -48,6 +49,7 @@ class AgentThread(Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     title: Mapped[str] = mapped_column(String(120), default="")
+    external_user_id: Mapped[str | None] = mapped_column(String(256))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

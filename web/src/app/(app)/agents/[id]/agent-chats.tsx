@@ -11,6 +11,7 @@ import { createThread, deleteThread, getMessageSteps } from "@/lib/api/client";
 import type { ThreadSummary } from "@/lib/api/models";
 import { errorToast } from "@/lib/api-error";
 import { call } from "@/lib/call";
+import { whoLabel } from "@/lib/agents";
 import { parseApiDate } from "@/lib/format";
 
 import { AgentRuntime, type StoredTurn } from "./agent-runtime";
@@ -131,7 +132,9 @@ export function AgentChats({
           <div className="hidden min-w-0 lg:block">
             <h2 className="truncate font-semibold">{active ? active.title || "New chat" : agentName}</h2>
             {active && (
-              <p className="text-xs text-muted-foreground">Started {parseApiDate(active.created_at).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">
+                {[whoLabel(active), `Started ${parseApiDate(active.created_at).toLocaleString()}`].filter(Boolean).join(" · ")}
+              </p>
             )}
           </div>
           <Button variant="ghost" className="ml-auto h-9 gap-1.5 lg:hidden" onClick={() => void newConversation()}>
@@ -151,7 +154,12 @@ export function AgentChats({
             onStored={(turn) => stored(activeId, turn)}
             onError={setError}
           >
-            <AgentThread agentName={agentName} problem={problem} onTrace={setTraceId} />
+            <AgentThread
+              agentName={agentName}
+              problem={problem}
+              onTrace={setTraceId}
+              readOnly={active?.source === "api"}
+            />
           </AgentRuntime>
         ) : (
           <div className="m-auto flex max-w-sm flex-col items-center gap-3 p-6 text-center">

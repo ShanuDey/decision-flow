@@ -2664,14 +2664,42 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "anonymous": {
+            "description": "True when the id was generated because the caller named nobody.",
+            "readOnly": true,
+            "title": "Anonymous",
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
+          "external_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The outside app's user in this conversation. Empty for a team member.",
+            "title": "External User Id"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "source": {
+            "description": "`api` when an API key started it, `web` for a team member.",
+            "enum": [
+              "web",
+              "api"
+            ],
+            "readOnly": true,
+            "title": "Source",
             "type": "string"
           },
           "title": {
@@ -2689,7 +2717,9 @@
           "agent_id",
           "title",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "source",
+          "anonymous"
         ],
         "title": "ThreadSummary",
         "type": "object"
@@ -3320,6 +3350,38 @@
               "title": "Agent Id",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
+            }
           }
         ],
         "responses": {
@@ -3418,7 +3480,7 @@
     },
     "/agents/{agent_id}/threads": {
       "get": {
-        "description": "The workspace's conversations with the agent, most recently active first.\n\nAnyone in the workspace can read and continue a conversation by its id.",
+        "description": "The workspace's conversations with the agent, most recently active first.\n\nAn API key must send `X-External-User-Id` and gets only that person's conversations.\nAnyone in the workspace can read and continue a conversation by its id.",
         "operationId": "list_threads",
         "parameters": [
           {
@@ -3441,6 +3503,38 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
             }
           }
         ],
@@ -3517,7 +3611,7 @@
         ]
       },
       "post": {
-        "description": "Starts a conversation with the agent.",
+        "description": "Starts a conversation with the agent.\n\nA conversation started by an API key belongs to an external user: send your own id for the\nperson in `X-External-User-Id`, or send none and an anonymous id (starting `anon-`) is\ngenerated and returned. Send that id back on later calls to keep the same person's\nconversations together. A conversation started from the web app belongs to a team member.",
         "operationId": "create_thread",
         "parameters": [
           {
@@ -3528,6 +3622,38 @@
               "format": "uuid",
               "title": "Agent Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
             }
           }
         ],
@@ -3628,6 +3754,38 @@
               "title": "Thread Id",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
+            }
           }
         ],
         "responses": {
@@ -3717,6 +3875,38 @@
               "format": "uuid",
               "title": "Thread Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
             }
           }
         ],
@@ -3816,6 +4006,38 @@
               "format": "uuid",
               "title": "Thread Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
             }
           }
         ],
@@ -3955,6 +4177,38 @@
               "format": "uuid",
               "title": "Message Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-df-source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Df-Source"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-external-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-External-User-Id"
             }
           }
         ],

@@ -19,13 +19,19 @@ export interface ApiCall {
   signal?: AbortSignal;
 }
 
-// The caller must already have authenticated `user`.
-export async function forwardToApi(call: ApiCall, user: TokenUser): Promise<Response> {
+// The caller must already have authenticated `user`. `extra` headers are set by us, never by the client.
+export async function forwardToApi(
+  call: ApiCall,
+  user: TokenUser,
+  extra: Record<string, string> = {},
+): Promise<Response> {
   const { apiUrl, ipHeader } = getConfig();
   const timeout = AbortSignal.timeout(API_TIMEOUT_MS);
+  const headers = upstreamHeaders(call.headers, await apiToken(user), ipHeader);
+  for (const [name, value] of Object.entries(extra)) headers.set(name, value);
   const init: RequestInit & { duplex?: "half" } = {
     method: call.method,
-    headers: upstreamHeaders(call.headers, await apiToken(user), ipHeader),
+    headers,
     redirect: "manual",
     signal: call.signal ? AbortSignal.any([call.signal, timeout]) : timeout,
   };
